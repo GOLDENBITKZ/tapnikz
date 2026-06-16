@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <rect width="24" height="24" rx="5" fill="#FF6600"/>
+  <!-- Wheel ring -->
+  <path fill="white" fill-rule="evenodd" d="M12 3a9 9 0 100 18A9 9 0 0012 3zm0 2a7 7 0 010 14A7 7 0 0112 5zm0 4.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/>
+  <!-- Spokes -->
+  <rect fill="white" x="11.25" y="3" width="1.5" height="6.5"/>
+  <rect fill="white" x="11.25" y="14.5" width="1.5" height="6.5"/>
+  <rect fill="white" x="3" y="11.25" width="6.5" height="1.5"/>
+  <rect fill="white" x="14.5" y="11.25" width="6.5" height="1.5"/>
+</svg>

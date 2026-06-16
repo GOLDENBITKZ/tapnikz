@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <rect width="24" height="24" rx="5" fill="#FF6D00"/>
+  <!-- QR corners -->
+  <path fill="white" fill-rule="evenodd" d="M2.5 2.5h7v7h-7v-7zm1.5 1.5v4h4v-4h-4zm.5.5h3v3h-3v-3z"/>
+  <path fill="white" fill-rule="evenodd" d="M14.5 2.5h7v7h-7v-7zm1.5 1.5v4h4v-4h-4zm.5.5h3v3h-3v-3z"/>
+  <path fill="white" fill-rule="evenodd" d="M2.5 14.5h7v7h-7v-7zm1.5 1.5v4h4v-4h-4zm.5.5h3v3h-3v-3z"/>
+  <!-- QR data dots -->
+  <rect fill="white" x="14.5" y="14.5" width="2" height="2"/>
+  <rect fill="white" x="17" y="14.5" width="2" height="2"/>
+  <rect fill="white" x="19.5" y="14.5" width="2" height="2"/>
+  <rect fill="white" x="14.5" y="17" width="2" height="2"/>
+  <rect fill="white" x="19.5" y="17" width="2" height="2"/>
+  <rect fill="white" x="14.5" y="19.5" width="2" height="2"/>
+  <rect fill="white" x="17" y="19.5" width="4.5" height="2"/>
+</svg>

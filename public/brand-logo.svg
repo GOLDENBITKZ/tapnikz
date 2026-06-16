@@ -1,0 +1,47 @@
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="200" cy="200" r="196" fill="#0C2340"/>
+  <!-- White border ring -->
+  <circle cx="200" cy="200" r="190" fill="none" stroke="white" stroke-width="8"/>
+
+  <!-- City skyline (dark blue, behind mountains) -->
+  <rect x="70" y="265" width="18" height="75" fill="#153354" rx="2"/>
+  <rect x="92" y="248" width="22" height="92" fill="#153354" rx="2"/>
+  <rect x="118" y="260" width="16" height="80" fill="#153354" rx="2"/>
+  <rect x="280" y="255" width="18" height="85" fill="#153354" rx="2"/>
+  <rect x="302" y="242" width="20" height="98" fill="#153354" rx="2"/>
+  <rect x="325" y="260" width="15" height="80" fill="#153354" rx="2"/>
+
+  <!-- Baiterek tower (simplified, center background) -->
+  <rect x="188" y="258" width="24" height="82" fill="#153354" rx="3"/>
+  <circle cx="200" cy="252" r="16" fill="#153354"/>
+  <rect x="192" y="218" width="16" height="40" fill="#153354" rx="2"/>
+  <polygon points="192,218 200,202 208,218" fill="#153354"/>
+
+  <!-- Mountains (back center, darkest) -->
+  <polygon points="100,340 200,170 300,340" fill="#8A2B14" opacity="0.6"/>
+
+  <!-- Mountains (left) -->
+  <polygon points="40,340 145,215 235,340" fill="#C94522"/>
+
+  <!-- Mountains (right) -->
+  <polygon points="165,340 280,200 380,340" fill="#B03A1A"/>
+
+  <!-- Snow cap on center-left mountain -->
+  <polygon points="127,238 145,215 163,238 154,244 145,228 136,244" fill="white" opacity="0.75"/>
+
+  <!-- Snow cap on right mountain -->
+  <polygon points="261,226 280,200 299,226 290,231 280,212 270,231" fill="white" opacity="0.65"/>
+
+  <!-- WiFi dot -->
+  <circle cx="200" cy="95" r="8" fill="white"/>
+
+  <!-- WiFi arc 1 (small) -->
+  <path d="M166,84 Q200,62 234,84" fill="none" stroke="white" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- WiFi arc 2 (medium) -->
+  <path d="M138,64 Q200,32 262,64" fill="none" stroke="white" stroke-width="9" stroke-linecap="round" opacity="0.82"/>
+
+  <!-- WiFi arc 3 (large) -->
+  <path d="M110,44 Q200,4 290,44" fill="none" stroke="white" stroke-width="9" stroke-linecap="round" opacity="0.55"/>
+</svg>
