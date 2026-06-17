@@ -16,8 +16,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
 
-  // Require a valid link ID — prevents open redirect abuse
-  if (!id) return Response.redirect(HOME)
+  // Require a valid UUID — prevents unnecessary DB errors and open redirect abuse
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return Response.redirect(HOME)
 
   const db = adminClient()
   const { data } = await db
@@ -39,10 +39,13 @@ export async function GET(request: Request) {
     }
   }
 
-  // Validate URL scheme
+  // Validate URL scheme and tel: format
   try {
     const parsed = new URL(targetUrl)
     if (!['http:', 'https:', 'tel:', 'mailto:'].includes(parsed.protocol)) {
+      return Response.redirect(HOME)
+    }
+    if (parsed.protocol === 'tel:' && !/^\+?[\d\s\-()]+$/.test(parsed.pathname)) {
       return Response.redirect(HOME)
     }
   } catch {

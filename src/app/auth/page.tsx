@@ -46,8 +46,12 @@ export default function AuthPage() {
   useEffect(() => {
     const ref = searchParams.get('ref')
     if (ref) {
-      setReferredBy(ref.toLowerCase().trim())
-      setTab('register')
+      // Sanitize: only allow valid username characters, matching DB CHECK constraint
+      const clean = ref.toLowerCase().trim().replace(/[^a-z0-9-]/g, '')
+      if (clean.length >= 2) {
+        setReferredBy(clean)
+        setTab('register')
+      }
     }
   }, [searchParams])
 
@@ -210,9 +214,13 @@ export default function AuthPage() {
       if (profileError) throw profileError
 
       // Notify admin about new registration (non-blocking)
+      const token = authData.session?.access_token
       fetch('/api/notify-admin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           type: 'new_user',
           username: regForm.username,

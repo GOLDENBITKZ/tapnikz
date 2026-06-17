@@ -86,6 +86,10 @@ export async function POST(request: Request) {
   }
 
   const actionLink = linkData.properties.action_link
+  if (!actionLink.startsWith('https://')) {
+    console.error('[send-reset] unexpected action_link scheme', actionLink.slice(0, 20))
+    return Response.json({ ok: true })
+  }
   const msg =
     `🔐 <b>Сброс пароля tapni.kz</b>\n\n` +
     `Запрошена смена пароля для аккаунта <b>${profile.business_name}</b> (tapni.kz/${profile.username}).\n\n` +

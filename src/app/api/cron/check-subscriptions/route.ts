@@ -134,18 +134,26 @@ export async function GET(request: Request) {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
   const { data: pendingReferrals } = await db
     .from('profiles')
-    .select('id, username, referred_by, telegram_chat_id')
+    .select('id, username, referred_by, telegram_chat_id, subscription_expires_at')
     .not('referred_by', 'is', null)
     .eq('referral_bonus_given', false)
     .lte('created_at', sevenDaysAgo)
 
+  const addDays = (base: string | null, days: number) => {
+    const d = base ? new Date(base) : new Date()
+    if (d < now) d.setTime(now.getTime())
+    d.setDate(d.getDate() + days)
+    return d.toISOString()
+  }
+
   let bonusCount = 0
   for (const referee of (pendingReferrals ?? []) as {
-    id: string; username: string; referred_by: string; telegram_chat_id: string | null
+    id: string; username: string; referred_by: string; telegram_chat_id: string | null;
+    subscription_expires_at: string | null;
   }[]) {
     const { data: referrer } = await db
       .from('profiles')
-      .select('id, username, is_premium, subscription_expires_at, telegram_chat_id')
+      .select('id, username, is_premium, subscription_expires_at, subscription_plan, telegram_chat_id')
       .eq('username', referee.referred_by)
       .maybeSingle()
 
@@ -155,25 +163,18 @@ export async function GET(request: Request) {
       continue
     }
 
-    const addDays = (base: string | null, days: number) => {
-      const d = base ? new Date(base) : new Date()
-      if (d < now) d.setTime(now.getTime())
-      d.setDate(d.getDate() + days)
-      return d.toISOString()
-    }
-
-    // Award referrer +7 days
+    // Award referrer +7 days (extend existing subscription if active)
     await db.from('profiles').update({
       is_premium: true,
       subscription_expires_at: addDays(referrer.subscription_expires_at, 7),
-      subscription_plan: referrer.subscription_plan ?? 'referral',
+      subscription_plan: referrer.subscription_plan ?? 'monthly',
     }).eq('id', referrer.id)
 
-    // Award referee +7 days
+    // Award referee +7 days (extend their existing subscription too)
     await db.from('profiles').update({
       is_premium: true,
-      subscription_expires_at: addDays(null, 7),
-      subscription_plan: 'referral',
+      subscription_expires_at: addDays(referee.subscription_expires_at, 7),
+      subscription_plan: 'monthly',
       referral_bonus_given: true,
     }).eq('id', referee.id)
 

@@ -67,9 +67,12 @@ export async function POST(request: Request) {
   let text: string
 
   if ('type' in body && body.type === 'new_user') {
-    // Verify caller is the newly registered user (or allow without token for legacy compat)
+    // Require valid JWT — prevents anonymous gift-code activation
     const callerUsername = await verifyAuthUsername(request)
-    if (callerUsername && callerUsername !== username) {
+    if (!callerUsername) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (callerUsername !== username) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -127,11 +130,24 @@ export async function POST(request: Request) {
     const planLabel = plan === 'annual' ? '⭐ Годовая (10 000 ₸)' : '📅 Месячная (1 000 ₸)'
 
     // Auto-provision 3 days immediately so user gets instant access
+    // Guard: don't provision if already has active premium (prevents cycling abuse)
     let provisioned = false
     let userTgId: string | null = null
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const adminDb = getSupabaseAdmin() as any
+      const { data: existing } = await adminDb
+        .from('profiles')
+        .select('is_premium, subscription_expires_at, telegram_chat_id')
+        .eq('username', username)
+        .maybeSingle()
+      const alreadyActive = existing?.is_premium &&
+        existing?.subscription_expires_at &&
+        new Date(existing.subscription_expires_at) > new Date()
+      userTgId = existing?.telegram_chat_id ?? null
+      if (alreadyActive) {
+        provisioned = false
+      } else {
       const provExpires = new Date(Date.now() + 3 * 86400000).toISOString()
       const { data: provData } = await adminDb
         .from('profiles')
@@ -141,8 +157,9 @@ export async function POST(request: Request) {
         .maybeSingle()
       if (provData) {
         provisioned = true
-        userTgId = provData.telegram_chat_id ?? null
+        userTgId = provData.telegram_chat_id ?? userTgId
       }
+      } // end if !alreadyActive
     } catch {
       // DB error — admin activates manually
     }

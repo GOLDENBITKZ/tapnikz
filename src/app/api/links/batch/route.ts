@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import type { IconType } from '@/lib/supabase'
+import { PLACEHOLDER_PREFIX } from '@/lib/templates'
 
 export async function POST(request: Request) {
   const header = request.headers.get('authorization')
@@ -27,13 +28,14 @@ export async function POST(request: Request) {
   const rows = links.slice(0, limit).map((l, i) => ({
     profile_id: prof.id,
     title: l.title,
-    url: l.url ?? '',
+    // Strip placeholder marker — URL stored as-is (stub), user must edit before clicking
+    url: (l.url ?? '').replace(PLACEHOLDER_PREFIX, ''),
     icon_type: l.icon_type,
     sort_order: i,
   }))
 
   const { error } = await adminDb.from('links').insert(rows)
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  if (error) return Response.json({ error: 'Internal error' }, { status: 500 })
 
   return Response.json({ ok: true, count: rows.length })
 }

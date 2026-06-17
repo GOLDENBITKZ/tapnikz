@@ -56,20 +56,12 @@ async function sendMenu(chatId: string, text: string) {
   })
 }
 
-// Send message with BOTH: inline button strip + restores persistent keyboard in next message
+// Send message with inline buttons (keyboard already persists from prior messages)
 async function sendInlineWithMenu(
   chatId: string,
   text: string,
   buttons: { text: string; url?: string; callback_data?: string }[][]
 ) {
-  // First restore persistent keyboard (invisible but sets it)
-  await tgPost('sendMessage', {
-    chat_id: chatId,
-    text: '👇',
-    parse_mode: 'HTML',
-    reply_markup: USER_KEYBOARD,
-  })
-  // Then send the rich inline message
   await sendInline(chatId, text, buttons)
 }
 
@@ -77,6 +69,7 @@ const USER_KEYBOARD = {
   keyboard: [
     [{ text: '🏠 Главная' }, { text: '⚡ Premium' }],
     [{ text: '👤 Профиль' }, { text: '📊 Статистика' }],
+    [{ text: '📋 Заявки' }, { text: '👥 Реферал' }],
     [{ text: '❓ Помощь' }, { text: '🆘 Поддержка' }],
     [{ text: '🔗 Моя страница' }],
   ],
@@ -146,6 +139,9 @@ async function setupBotCommands() {
   await tgPost('setMyCommands', {
     commands: [
       { command: 'start', description: '🏠 Главное меню' },
+      { command: 'mystats', description: '📊 Статистика переходов' },
+      { command: 'leads', description: '📋 Заявки от клиентов' },
+      { command: 'refer', description: '👥 Реферальная программа' },
       { command: 'pay', description: '⚡ Подключить Premium' },
       { command: 'help', description: '❓ Частые вопросы' },
       { command: 'support', description: '🆘 Техподдержка' },
@@ -559,6 +555,8 @@ export async function POST(request: Request) {
       text === '⚡ Premium'       ? '/pay'      :
       text === '👤 Профиль'      ? '/profile'  :
       text === '📊 Статистика'   ? '/mystats'  :
+      text === '📋 Заявки'       ? '/leads'    :
+      text === '👥 Реферал'      ? '/refer'    :
       text === '❓ Помощь'        ? '/help'     :
       text === '🆘 Поддержка'    ? '/support'  :
       text === '🔗 Моя страница'  ? '/mypage'   :
@@ -835,7 +833,7 @@ async function helpHandler(chatId: string) {
     `<b>Как добавить кнопку Kaspi Pay?</b>\n` +
     `Kaspi.kz → Платежи → Мой QR-код → Поделиться → скопируйте ссылку. Вставьте в кабинете.\n\n` +
     `<b>Как добавить логотип?</b>\n` +
-    `Кабинет → вкладка «Профиль» → «Загрузить логотип» (JPG/PNG, до 2 МБ).\n\n` +
+    `Кабинет → вкладка «Профиль» → «Загрузить логотип» (JPG/PNG/WebP, до 10 МБ).\n\n` +
     `<b>Сколько стоит?</b>\n` +
     `🆓 Бесплатно — 3 кнопки\n` +
     `📅 Premium — 1 000 ₸/мес\n` +
@@ -1022,17 +1020,11 @@ async function myStatsHandler(chatId: string) {
     return
   }
 
-  const [{ data: links }, { data: recentClicks }] = await Promise.all([
-    getSupabase()
-      .from('links')
-      .select('id, title, url, icon_type, click_count')
-      .eq('profile_id', linked.id)
-      .order('click_count', { ascending: false }),
-    getSupabase()
-      .from('click_events')
-      .select('link_id')
-      .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString()),
-  ])
+  const { data: links } = await getSupabase()
+    .from('links')
+    .select('id, title, url, icon_type, click_count')
+    .eq('profile_id', linked.id)
+    .order('click_count', { ascending: false })
 
   if (!links?.length) {
     await sendInline(chatId,
@@ -1045,10 +1037,16 @@ async function myStatsHandler(chatId: string) {
   const totalClicks = links.reduce((s, l) => s + (l.click_count ?? 0), 0)
   const viewCount = (linked as { view_count?: number }).view_count ?? 0
 
-  // Compute top link by 7-day clicks
-  const recent7 = recentClicks ?? []
+  // Compute top link by 7-day clicks — filter to own link IDs to avoid full-table scan
+  const linkIds = links.map((l) => l.id)
+  const { data: recentClicks } = await getSupabase()
+    .from('click_events')
+    .select('link_id')
+    .in('link_id', linkIds)
+    .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
+
   const clicksByLink: Record<string, number> = {}
-  for (const row of recent7) {
+  for (const row of recentClicks ?? []) {
     clicksByLink[row.link_id] = (clicksByLink[row.link_id] ?? 0) + 1
   }
   const topLink7 = links

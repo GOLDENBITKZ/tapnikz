@@ -11,7 +11,13 @@ CREATE TABLE IF NOT EXISTS click_events (
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE click_events ENABLE ROW LEVEL SECURITY;
--- Только service role (запись через /api/click); анонимному доступа нет
+-- Service role пишет (через /api/click); владелец читает свои события
+DROP POLICY IF EXISTS "Owner can read own click events" ON click_events;
+CREATE POLICY "Owner can read own click events"
+  ON click_events FOR SELECT
+  USING (link_id IN (
+    SELECT id FROM links WHERE profile_id = auth.uid()
+  ));
 CREATE INDEX IF NOT EXISTS click_events_link_id_idx ON click_events (link_id);
 CREATE INDEX IF NOT EXISTS click_events_created_at_idx ON click_events (created_at DESC);
 
@@ -37,13 +43,14 @@ CREATE TABLE IF NOT EXISTS lead_submissions (
 ALTER TABLE lead_submissions ENABLE ROW LEVEL SECURITY;
 
 -- Владелец профиля может читать свои заявки
-CREATE POLICY IF NOT EXISTS "Owner can read own leads"
+DROP POLICY IF EXISTS "Owner can read own leads" ON lead_submissions;
+CREATE POLICY "Owner can read own leads"
   ON lead_submissions FOR SELECT
-  USING (profile_id = (
-    SELECT id FROM profiles WHERE id = auth.uid()
-  ));
+  USING (profile_id = auth.uid());
+
 -- Анонимные пользователи могут вставлять (оставить заявку без регистрации)
-CREATE POLICY IF NOT EXISTS "Anyone can submit lead"
+DROP POLICY IF EXISTS "Anyone can submit lead" ON lead_submissions;
+CREATE POLICY "Anyone can submit lead"
   ON lead_submissions FOR INSERT
   WITH CHECK (true);
 
@@ -56,8 +63,16 @@ CREATE INDEX IF NOT EXISTS lead_submissions_created_at_idx ON lead_submissions (
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS working_hours JSONB;
 
 -- ── F. Реферальная программа ────────────────────────────────
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS referred_by TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS referred_by TEXT
+  CHECK (referred_by ~ '^[a-z0-9-]{2,40}$');
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS referral_bonus_given BOOLEAN DEFAULT false;
+
+-- ── links: UPDATE policy (отсутствовала — сервис-роль использует /api/links)
+DROP POLICY IF EXISTS "links_update_owner" ON links;
+CREATE POLICY "links_update_owner"
+  ON links FOR UPDATE
+  USING (auth.uid() = profile_id)
+  WITH CHECK (auth.uid() = profile_id);
 
 CREATE INDEX IF NOT EXISTS profiles_referred_by_idx ON profiles (referred_by) WHERE referred_by IS NOT NULL;
 

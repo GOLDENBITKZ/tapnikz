@@ -9,10 +9,10 @@ import {
   QrCode, Download, HelpCircle, X, ImagePlus, Zap, FileText, AtSign, BarChart2,
   ClipboardList, Clock, GripVertical, Eye, Share2, Users,
 } from 'lucide-react'
-import { TEMPLATES } from '@/lib/templates'
+import { TEMPLATES, PLACEHOLDER_PREFIX } from '@/lib/templates'
 import type { LeadSubmission } from '@/lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
-import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, FREE_LINK_LIMIT } from '@/lib/supabase'
+import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, FREE_LINK_LIMIT, FREE_LEADS_VISIBLE } from '@/lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 type DashTab = 'profile' | 'links' | 'leads' | 'payment'
@@ -70,6 +70,8 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
     case 'facebook':   return { dot: 'bg-[#1877F2]', ring: 'border-l-[#1877F2]' }
     case 'text_block': return { dot: 'bg-gray-500', ring: 'border-l-gray-500' }
     case 'product':    return { dot: 'bg-violet-400', ring: 'border-l-violet-400' }
+    case 'lead_form':  return { dot: 'bg-violet-400', ring: 'border-l-violet-400' }
+    case 'link':       return { dot: 'bg-blue-400', ring: 'border-l-blue-400' }
     default:           return { dot: 'bg-violet-500', ring: 'border-l-violet-500' }
   }
 }
@@ -145,6 +147,7 @@ export default function DashboardPage() {
   // Drag-and-drop reorder
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [templateApplied, setTemplateApplied] = useState(false)
 
   // Working hours
   const WH_DAYS = [
@@ -244,6 +247,13 @@ export default function DashboardPage() {
     setSavingProfile(true)
     setProfileMsg(null)
     try {
+      // Build working_hours from current whForm state
+      const wh: Record<string, string | null> = {}
+      for (const { key } of WH_DAYS) {
+        const val = whForm[key].trim()
+        wh[key] = val && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(val) ? val : null
+      }
+
       const { error } = await getSupabase()
         .from('profiles')
         .update({
@@ -251,6 +261,7 @@ export default function DashboardPage() {
           bio: profileForm.bio || null,
           address: profileForm.address || null,
           theme: profileForm.theme,
+          working_hours: wh,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id)
@@ -438,8 +449,12 @@ export default function DashboardPage() {
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
-        if (body.error === 'limit_reached') throw new Error('Лимит 3 кнопки на бесплатном плане. Перейдите на Premium.')
-        throw new Error('Не удалось добавить')
+        if (body.error === 'limit_reached') {
+          setLinkError(`Лимит ${FREE_LINK_LIMIT} кнопки на бесплатном плане.`)
+          return
+        }
+        setLinkError('Не удалось добавить')
+        return
       }
       setLinkForm({ title: '', url: '', icon_type: linkForm.icon_type })
       await loadData(user.id)
@@ -501,7 +516,10 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify(tpl.links),
       })
-      if (res.ok) await loadData(user!.id)
+      if (res.ok) {
+        await loadData(user!.id)
+        setTemplateApplied(true)
+      }
     } catch { /* ignore */ } finally {
       setAddingLink(false)
     }
@@ -688,7 +706,7 @@ export default function DashboardPage() {
         {profile?.is_premium && profile.subscription_expires_at && (() => {
           const msLeft = new Date(profile.subscription_expires_at).getTime() - Date.now()
           const daysLeft = Math.ceil(msLeft / 86400000)
-          if (daysLeft > 7) return null
+          if (daysLeft > 7 || daysLeft <= 0) return null
           const urgent = daysLeft <= 3
           const label = daysLeft <= 1 ? 'Premium истекает завтра!' : `Premium истекает через ${daysLeft} дн.`
           return (
@@ -1303,6 +1321,18 @@ export default function DashboardPage() {
               </div>
             ) : (
               <>
+                {templateApplied && (
+                  <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+                    <span className="flex-shrink-0 text-xl">✏️</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-amber-300">Шаблон применён — замените ссылки</p>
+                      <p className="mt-0.5 text-xs text-amber-400/70">Удалите кнопки с неверными ссылками и добавьте свои. Пока ссылки не заменены — кнопки ведут в никуда.</p>
+                    </div>
+                    <button onClick={() => setTemplateApplied(false)} className="flex-shrink-0 text-amber-400/60 hover:text-amber-300">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
                 <div className="space-y-2">
                   {links.map((link) => {
                     const { dot, ring } = getLinkCardColor(link.icon_type)
@@ -1331,7 +1361,7 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-2">
-                          {link.icon_type !== 'text_block' && (
+                          {link.icon_type !== 'text_block' && link.icon_type !== 'lead_form' && (
                             <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-500" title="Кликов">
                               <BarChart2 className="h-3 w-3" />
                               {link.click_count ?? 0}
@@ -1355,7 +1385,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Analytics summary */}
-                {links.some((l) => l.icon_type !== 'text_block') && (
+                {links.some((l) => l.icon_type !== 'text_block' && l.icon_type !== 'lead_form') && (
                   <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
                     <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       <BarChart2 className="h-3.5 w-3.5 text-violet-400" />
@@ -1370,7 +1400,7 @@ export default function DashboardPage() {
                     )}
                     <div className="space-y-2">
                       {links
-                        .filter((l) => l.icon_type !== 'text_block')
+                        .filter((l) => l.icon_type !== 'text_block' && l.icon_type !== 'lead_form')
                         .sort((a, b) => (b.click_count ?? 0) - (a.click_count ?? 0))
                         .map((link) => {
                           const maxClicks = Math.max(...links.map((l) => l.click_count ?? 0), 1)
@@ -1437,7 +1467,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <>
-                {(!profile?.is_premium ? leads.slice(0, 3) : leads).map((lead) => (
+                {(!profile?.is_premium ? leads.slice(0, FREE_LEADS_VISIBLE) : leads).map((lead) => (
                   <div
                     key={lead.id}
                     className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4"
@@ -1476,7 +1506,7 @@ export default function DashboardPage() {
                 {!profile?.is_premium && leads.length > 3 && (
                   <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.05] p-4 text-center">
                     <p className="mb-1 text-sm font-semibold text-yellow-400">
-                      +{leads.length - 3} скрытых заявок
+                      +{leads.length - FREE_LEADS_VISIBLE} скрытых заявок
                     </p>
                     <p className="mb-3 text-xs text-gray-500">
                       В Premium — полная история без ограничений
@@ -1521,6 +1551,11 @@ export default function DashboardPage() {
             </div>
             {!profile?.is_premium && (
               <PlanPicker username={profile?.username ?? ''} phone={profile?.phone} />
+            )}
+
+            {/* Referral section — visible to all users */}
+            {profile && (
+              <ReferralCard username={profile.username} />
             )}
           </div>
         )}
@@ -1898,6 +1933,42 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function ReferralCard({ username }: { username: string }) {
+  const [copied, setCopied] = useState(false)
+  const referralUrl = `https://tapni.kz/auth?ref=${username}`
+
+  function copy() {
+    navigator.clipboard.writeText(referralUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.05] p-4">
+      <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-violet-300">
+        <Users className="h-4 w-4" />
+        Реферальная программа
+      </p>
+      <p className="mb-3 text-xs text-gray-400">
+        Пригласите друга — оба получите <b className="text-white">+7 дней Premium</b> бесплатно!
+      </p>
+      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5">
+        <span className="flex-1 truncate text-xs font-mono text-gray-300">{referralUrl}</span>
+        <button
+          onClick={copy}
+          className="flex-shrink-0 rounded-lg bg-violet-600/30 px-2.5 py-1 text-[11px] font-semibold text-violet-300 transition-colors hover:bg-violet-600/50"
+        >
+          {copied ? '✓ Скопировано' : 'Копировать'}
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] text-gray-600">
+        Бонус начисляется через 7 дней после регистрации друга
+      </p>
     </div>
   )
 }

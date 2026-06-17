@@ -199,12 +199,26 @@ function getOpenStatus(workingHours: WorkingHours | null): { isOpen: boolean; la
   const dayKey = dayKeys[kzNow.getUTCDay()]
   const todayStr = workingHours[dayKey]
   if (!todayStr) return { isOpen: false, label: 'Сегодня выходной' }
-  const [openStr, closeStr] = todayStr.split('-')
+
+  // Expect exactly "HH:MM-HH:MM"
+  const parts = todayStr.split('-')
+  if (parts.length !== 2) return null
+  const [openStr, closeStr] = parts
+  if (!/^\d{2}:\d{2}$/.test(openStr) || !/^\d{2}:\d{2}$/.test(closeStr)) return null
+
   const [oh, om] = openStr.split(':').map(Number)
   const [ch, cm] = closeStr.split(':').map(Number)
   const cur = kzNow.getUTCHours() * 60 + kzNow.getUTCMinutes()
-  if (cur >= oh * 60 + om && cur < ch * 60 + cm) return { isOpen: true, label: `Открыто · до ${closeStr}` }
-  if (cur < oh * 60 + om) return { isOpen: false, label: `Откроется в ${openStr}` }
+  const open = oh * 60 + om
+  const close = ch * 60 + cm
+
+  // Handle overnight spans (e.g. 22:00-02:00)
+  const isOpen = close < open
+    ? cur >= open || cur < close   // overnight: open after openTime OR before closeTime (next day)
+    : cur >= open && cur < close   // normal: between open and close
+
+  if (isOpen) return { isOpen: true, label: `Открыто · до ${closeStr}` }
+  if (cur < open) return { isOpen: false, label: `Откроется в ${openStr}` }
   return { isOpen: false, label: 'Закрыто' }
 }
 
