@@ -7,12 +7,15 @@ import {
   User, Link2, CreditCard, Loader2, Trash2, Plus, LogOut, ExternalLink,
   CheckCircle2, AlertCircle, MessageCircle, Palette, Building2,
   QrCode, Download, HelpCircle, X, ImagePlus, Zap, FileText, AtSign, BarChart2,
+  ClipboardList, Clock, GripVertical, Eye, Share2, Users,
 } from 'lucide-react'
+import { TEMPLATES } from '@/lib/templates'
+import type { LeadSubmission } from '@/lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
 import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, FREE_LINK_LIMIT } from '@/lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
-type DashTab = 'profile' | 'links' | 'payment'
+type DashTab = 'profile' | 'links' | 'leads' | 'payment'
 
 const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = [
   { value: 'whatsapp',   label: '💬 WhatsApp',        placeholder: 'https://wa.me/77001234567' },
@@ -33,6 +36,7 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'facebook',   label: '📘 Facebook',          placeholder: 'https://facebook.com/username' },
   { value: 'text_block', label: '📝 Текст / Описание',  placeholder: 'Ваш текст, часы работы, акции...' },
   { value: 'product',    label: '🛍 Карточка товара',   placeholder: 'https://kaspi.kz/shop/p/...' },
+  { value: 'lead_form',  label: '📋 Запись / Заявка',   placeholder: 'Записаться на услугу' },
   { value: 'link',       label: '🔗 Другая ссылка',     placeholder: 'https://example.com' },
 ]
 
@@ -135,6 +139,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [accessToken, setAccessToken] = useState<string>('')
 
+  // Leads
+  const [leads, setLeads] = useState<LeadSubmission[]>([])
+
+  // Drag-and-drop reorder
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  // Working hours
+  const WH_DAYS = [
+    { key: 'mon', label: 'Пн' },
+    { key: 'tue', label: 'Вт' },
+    { key: 'wed', label: 'Ср' },
+    { key: 'thu', label: 'Чт' },
+    { key: 'fri', label: 'Пт' },
+    { key: 'sat', label: 'Сб' },
+    { key: 'sun', label: 'Вс' },
+  ] as const
+  type WhKey = typeof WH_DAYS[number]['key']
+  const [whForm, setWhForm] = useState<Record<WhKey, string>>({
+    mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '',
+  })
+  const [savingWh, setSavingWh] = useState(false)
+
   const [profileForm, setProfileForm] = useState({
     business_name: '',
     bio: '',
@@ -166,9 +193,10 @@ export default function DashboardPage() {
   const [savingUsername, setSavingUsername] = useState(false)
 
   const loadData = useCallback(async (userId: string) => {
-    const [{ data: prof }, { data: lnks }] = await Promise.all([
+    const [{ data: prof }, { data: lnks }, { data: lds }] = await Promise.all([
       getSupabase().from('profiles').select('*').eq('id', userId).single(),
       getSupabase().from('links').select('*').eq('profile_id', userId).order('sort_order'),
+      getSupabase().from('lead_submissions').select('*').eq('profile_id', userId).order('created_at', { ascending: false }).limit(50),
     ])
     if (prof) {
       setProfile(prof as Profile)
@@ -178,8 +206,22 @@ export default function DashboardPage() {
         address: (prof as Profile).address ?? '',
         theme: prof.theme,
       })
+      // Initialize working hours form from profile
+      const wh = (prof as Profile).working_hours
+      if (wh) {
+        setWhForm({
+          mon: wh.mon ?? '',
+          tue: wh.tue ?? '',
+          wed: wh.wed ?? '',
+          thu: wh.thu ?? '',
+          fri: wh.fri ?? '',
+          sat: wh.sat ?? '',
+          sun: wh.sun ?? '',
+        })
+      }
     }
     if (lnks) setLinks(lnks as LinkRow[])
+    if (lds) setLeads(lds as LeadSubmission[])
   }, [])
 
   useEffect(() => {
@@ -305,6 +347,28 @@ export default function DashboardPage() {
     if (!user || !profile) return
     const isText = linkForm.icon_type === 'text_block'
     const isProduct = linkForm.icon_type === 'product'
+    const isLeadForm = linkForm.icon_type === 'lead_form'
+
+    if (isLeadForm) {
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Записаться', url: '', icon_type: 'lead_form', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'lead_form' })
+        await loadData(user.id)
+      } catch {
+        setLinkError('Не удалось добавить форму заявки')
+      } finally {
+        setAddingLink(false)
+      }
+      return
+    }
 
     if (isProduct) {
       if (!profile.is_premium) { setLinkError('Карточка товара доступна только в Premium'); return }
@@ -401,6 +465,61 @@ export default function DashboardPage() {
       }
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleDrop(targetId: string) {
+    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return }
+    const oldLinks = [...links]
+    const fromIdx = links.findIndex((l) => l.id === dragId)
+    const toIdx = links.findIndex((l) => l.id === targetId)
+    if (fromIdx === -1 || toIdx === -1) { setDragId(null); setDragOverId(null); return }
+    const reordered = [...links]
+    const [moved] = reordered.splice(fromIdx, 1)
+    reordered.splice(toIdx, 0, moved)
+    const withOrder = reordered.map((l, i) => ({ ...l, sort_order: i }))
+    setLinks(withOrder) // optimistic update
+    setDragId(null); setDragOverId(null)
+    try {
+      await fetch('/api/links', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        body: JSON.stringify(withOrder.map((l) => ({ id: l.id, sort_order: l.sort_order }))),
+      })
+    } catch {
+      setLinks(oldLinks) // revert on error
+    }
+  }
+
+  async function applyTemplate(templateId: string) {
+    const tpl = TEMPLATES.find((t) => t.id === templateId)
+    if (!tpl) return
+    setAddingLink(true)
+    try {
+      const res = await fetch('/api/links/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        body: JSON.stringify(tpl.links),
+      })
+      if (res.ok) await loadData(user!.id)
+    } catch { /* ignore */ } finally {
+      setAddingLink(false)
+    }
+  }
+
+  async function saveWorkingHours() {
+    if (!user) return
+    setSavingWh(true)
+    try {
+      const wh: Record<string, string | null> = {}
+      for (const { key } of WH_DAYS) {
+        const val = whForm[key].trim()
+        wh[key] = val && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(val) ? val : null
+      }
+      await getSupabase().from('profiles').update({ working_hours: wh }).eq('id', user.id)
+      setProfile((p) => p ? { ...p, working_hours: wh } : p)
+    } catch { /* ignore */ } finally {
+      setSavingWh(false)
     }
   }
 
@@ -594,11 +713,12 @@ export default function DashboardPage() {
         })()}
 
         {/* ─── Tabs ─── */}
-        <div className="mb-6 grid grid-cols-3 gap-1 rounded-xl bg-white/[0.05] p-1">
+        <div className="mb-6 grid grid-cols-4 gap-1 rounded-xl bg-white/[0.05] p-1">
           {(
             [
               ['profile', User, 'Профиль'],
               ['links', Link2, 'Ссылки'],
+              ['leads', ClipboardList, 'Лиды'],
               ['payment', CreditCard, 'Оплата'],
             ] as [DashTab, React.ElementType, string][]
           ).map(([id, Icon, label]) => (
@@ -748,6 +868,40 @@ export default function DashboardPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Working hours */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                <Clock className="h-4 w-4 text-violet-400" />
+                Режим работы
+              </p>
+              <div className="space-y-2">
+                {WH_DAYS.map(({ key, label }) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="w-6 flex-shrink-0 text-xs font-semibold text-gray-400">{label}</span>
+                    <input
+                      type="text"
+                      value={whForm[key]}
+                      onChange={(e) => setWhForm((f) => ({ ...f, [key]: e.target.value }))}
+                      placeholder="09:00-20:00"
+                      className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-gray-700 outline-none transition-colors focus:border-violet-500/60"
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-gray-600">
+                Формат: 09:00-20:00. Оставьте пустым — день выходной. Показывается бейдж «Открыто сейчас» на вашей странице.
+              </p>
+              <button
+                type="button"
+                onClick={saveWorkingHours}
+                disabled={savingWh}
+                className="mt-3 flex items-center gap-2 rounded-xl bg-violet-600/20 px-4 py-2 text-xs font-semibold text-violet-300 transition-colors hover:bg-violet-600/30 disabled:opacity-40"
+              >
+                {savingWh ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Сохранить расписание
+              </button>
             </div>
 
             {profileMsg && (
@@ -1122,26 +1276,30 @@ export default function DashboardPage() {
 
             {/* Links list — colored cards */}
             {links.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-violet-500/20 bg-violet-500/[0.03] p-5">
-                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                  <Zap className="h-4 w-4 text-violet-400" />
-                  Добавьте первую кнопку — это займёт 30 секунд
-                </p>
-                <ol className="mb-4 space-y-2">
-                  {[
-                    { n: '1', text: 'Выберите тип кнопки в списке выше (WhatsApp, Kaspi Pay, 2ГИС…)' },
-                    { n: '2', text: 'Введите название и номер/ссылку — умный ввод подскажет формат' },
-                    { n: '3', text: 'Нажмите «Добавить» — кнопка появится на вашей странице сразу' },
-                  ].map(({ n, text }) => (
-                    <li key={n} className="flex items-start gap-3 text-xs text-gray-400">
-                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-violet-600/30 text-[10px] font-bold text-violet-300">{n}</span>
-                      {text}
-                    </li>
-                  ))}
-                </ol>
-                <p className="text-[11px] text-gray-600">
-                  Нажмите <span className="text-gray-400">?</span> рядом с Kaspi/2ГИС — там пошаговая инструкция как найти ссылку
-                </p>
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-dashed border-violet-500/20 bg-violet-500/[0.03] p-5">
+                  <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                    <Zap className="h-4 w-4 text-violet-400" />
+                    Добавьте первую кнопку — или выберите шаблон:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        onClick={() => applyTemplate(tpl.id)}
+                        disabled={addingLink}
+                        className="flex flex-col items-start gap-1 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-3 text-left transition-colors hover:bg-violet-500/20 disabled:opacity-50"
+                      >
+                        <span className="text-lg">{tpl.emoji}</span>
+                        <p className="text-xs font-bold text-white">{tpl.name}</p>
+                        <p className="text-[10px] text-gray-500 leading-tight">{tpl.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[11px] text-gray-600">
+                    Или добавьте кнопки вручную через форму выше
+                  </p>
+                </div>
               </div>
             ) : (
               <>
@@ -1151,8 +1309,14 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={link.id}
-                        className={`flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] border-l-4 ${ring} px-4 py-3`}
+                        draggable
+                        onDragStart={() => setDragId(link.id)}
+                        onDragEnd={() => { setDragId(null); setDragOverId(null) }}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverId(link.id) }}
+                        onDrop={() => handleDrop(link.id)}
+                        className={`flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] border-l-4 ${ring} px-3 py-3 transition-opacity ${dragId === link.id ? 'opacity-40' : dragOverId === link.id && dragId !== link.id ? 'ring-2 ring-violet-500/50' : ''}`}
                       >
+                        <GripVertical className="h-4 w-4 flex-shrink-0 cursor-grab text-gray-600 active:cursor-grabbing" />
                         <div className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dot}`} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-white">
@@ -1195,8 +1359,15 @@ export default function DashboardPage() {
                   <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
                     <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       <BarChart2 className="h-3.5 w-3.5 text-violet-400" />
-                      Статистика переходов
+                      Статистика
                     </p>
+                    {(profile?.view_count ?? 0) > 0 && (
+                      <div className="mb-3 flex items-center gap-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2.5">
+                        <Eye className="h-4 w-4 flex-shrink-0 text-violet-400" />
+                        <span className="text-sm text-gray-300">Просмотров страницы</span>
+                        <span className="ml-auto text-sm font-bold text-white">{profile?.view_count ?? 0}</span>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       {links
                         .filter((l) => l.icon_type !== 'text_block')
@@ -1231,6 +1402,91 @@ export default function DashboardPage() {
                     <p className="mt-3 text-[11px] text-gray-600">
                       Переходы считаются с момента создания кнопки
                     </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ─── Leads Tab ─── */}
+        {tab === 'leads' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-white">Заявки от клиентов</p>
+                <p className="text-xs text-gray-500">Через кнопку «Записаться» на вашей странице</p>
+              </div>
+              {!profile?.is_premium && leads.length > 0 && (
+                <button
+                  onClick={() => setTab('payment')}
+                  className="rounded-lg bg-yellow-500/20 px-2.5 py-1.5 text-[10px] font-semibold text-yellow-400 transition-colors hover:bg-yellow-500/30"
+                >
+                  ⚡ Premium
+                </button>
+              )}
+            </div>
+
+            {leads.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
+                <ClipboardList className="mx-auto mb-3 h-10 w-10 text-gray-600" />
+                <p className="mb-1 text-sm font-semibold text-gray-400">Заявок пока нет</p>
+                <p className="text-xs text-gray-600">
+                  Добавьте кнопку «Записаться» в раздел Ссылки — клиенты смогут оставлять заявки прямо с вашей страницы.
+                </p>
+              </div>
+            ) : (
+              <>
+                {(!profile?.is_premium ? leads.slice(0, 3) : leads).map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-white">{lead.name}</p>
+                        <a
+                          href={`tel:${lead.phone}`}
+                          className="text-xs text-violet-400 hover:text-violet-300"
+                        >
+                          {lead.phone}
+                        </a>
+                        {lead.message && (
+                          <p className="mt-1.5 text-xs leading-relaxed text-gray-400">{lead.message}</p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-[11px] text-gray-600">
+                          {new Date(lead.created_at).toLocaleDateString('ru-KZ', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </p>
+                        <p className="text-[11px] text-gray-600">
+                          {new Date(lead.created_at).toLocaleTimeString('ru-KZ', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {!profile?.is_premium && leads.length > 3 && (
+                  <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.05] p-4 text-center">
+                    <p className="mb-1 text-sm font-semibold text-yellow-400">
+                      +{leads.length - 3} скрытых заявок
+                    </p>
+                    <p className="mb-3 text-xs text-gray-500">
+                      В Premium — полная история без ограничений
+                    </p>
+                    <button
+                      onClick={() => setTab('payment')}
+                      className="rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 px-5 py-2.5 text-sm font-bold text-white"
+                    >
+                      ⚡ Открыть Premium
+                    </button>
                   </div>
                 )}
               </>

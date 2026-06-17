@@ -1,5 +1,59 @@
 # Changelog — tapni.kz
 
+## [2.0.0] — 2026-06-17
+
+### Добавлено (6 новых функций — "следующий уровень")
+
+**A. Аналитика**
+- `view_count` — счётчик просмотров профиля (серверный инкремент через RPC при каждом открытии страницы)
+- `click_events` таблица — time-series события кликов для будущих дневных графиков
+- Dashboard «Статистика»: строка «Просмотров страницы: N» над таблицей переходов
+
+**B. Захват лидов**
+- Тип ссылки `lead_form` — кнопка «Записаться / Оставить заявку»
+- `lead_submissions` таблица (name, phone, message, created_at) с RLS
+- Компонент `LeadFormButton` — bottom sheet модал с rate-limit (1 заявка/час с одного IP)
+- API `/api/leads` — сохраняет заявку + Telegram-уведомление владельцу
+- Dashboard вкладка «Лиды» — список заявок, Premium-блокировка после 3 шт.
+- Telegram-бот команда `/leads` — 5 последних заявок
+
+**C. Drag-and-drop сортировка**
+- Карточки ссылок в dashboard: `draggable`, drag-хендлеры, GripVertical-иконка
+- Оптимистичный UI + PATCH `/api/links` для batch-обновления `sort_order`
+
+**D. Шаблоны быстрого старта**
+- 4 шаблона: 🛒 Kaspi-продавец, 💄 Блогер, 🍕 Кафе/Ресторан, 💼 Мастер/Услуги
+- Пустое состояние (0 ссылок) заменено на сетку шаблонов
+- API `/api/links/batch` — bulk-insert шаблонных ссылок (только для пустых профилей)
+
+**E. «Открыто сейчас» бейдж**
+- Поле `working_hours JSONB` на `profiles` (формат `{"mon": "09:00-20:00", ...}`)
+- Секция «Режим работы» в Dashboard → вкладка Профиль (7 строк ввода)
+- Публичная страница: зелёный бейдж «Открыто до HH:MM» / серый «Закрыто» (UTC+5, без DST)
+
+**F. Реферальная программа**
+- Поля `referred_by` и `referral_bonus_given` на `profiles`
+- Регистрация через `tapni.kz/auth?ref=username` — автоматически заполняет referred_by
+- Баннер «Приглашён пользователем X — оба получат +7 дней Premium» в форме регистрации
+- Ежедневный cron: через 7 дней после регистрации рефери — +7 дней Premium обоим
+- Telegram-уведомления обеим сторонам при начислении бонуса
+- Команда `/refer` в боте — персональная реферальная ссылка + счётчик приглашённых
+
+### Обновлено
+- Telegram-бот `/mystats`: добавлены просмотры страницы и топ ссылка за 7 дней
+- `/api/links`: PATCH-метод для batch reorder; POST проверяет лимиты через сервер
+- Типы `supabase.ts`: IconType добавлен `lead_form`, Profile добавлены `view_count`, `working_hours`, `referred_by`, `referral_bonus_given`
+
+### Миграция базы данных
+Выполнить `SUPABASE_MIGRATION_V8.sql` в SQL Editor Supabase:
+- `CREATE TABLE click_events`
+- `ALTER TABLE profiles ADD COLUMN view_count, working_hours, referred_by, referred_by, referral_bonus_given`
+- `CREATE TABLE lead_submissions` (с RLS)
+- `CREATE FUNCTION increment_profile_view`
+
+---
+
+
 Все изменения сервиса документируются здесь.  
 Формат: [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/)  
 Версии: MAJOR.MINOR.PATCH  

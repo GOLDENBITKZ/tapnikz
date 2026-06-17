@@ -579,6 +579,10 @@ export async function POST(request: Request) {
       await supportHandler(chatId, message)
     } else if (normalized === '/mypage') {
       await mypageHandler(chatId)
+    } else if (normalized === '/leads') {
+      await leadsHandler(chatId)
+    } else if (normalized === '/refer') {
+      await referHandler(chatId)
     } else {
       // Unknown input — restore keyboard and show help
       await tgPost('sendMessage', {
@@ -1004,7 +1008,7 @@ async function profileHandler(chatId: string) {
 async function myStatsHandler(chatId: string) {
   const { data: linked } = await getSupabase()
     .from('profiles')
-    .select('username, business_name, id')
+    .select('username, business_name, id, view_count')
     .eq('telegram_chat_id', chatId)
     .maybeSingle()
 
@@ -1018,11 +1022,17 @@ async function myStatsHandler(chatId: string) {
     return
   }
 
-  const { data: links } = await getSupabase()
-    .from('links')
-    .select('title, url, icon_type, click_count')
-    .eq('profile_id', linked.id)
-    .order('click_count', { ascending: false })
+  const [{ data: links }, { data: recentClicks }] = await Promise.all([
+    getSupabase()
+      .from('links')
+      .select('id, title, url, icon_type, click_count')
+      .eq('profile_id', linked.id)
+      .order('click_count', { ascending: false }),
+    getSupabase()
+      .from('click_events')
+      .select('link_id')
+      .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString()),
+  ])
 
   if (!links?.length) {
     await sendInline(chatId,
@@ -1033,19 +1043,104 @@ async function myStatsHandler(chatId: string) {
   }
 
   const totalClicks = links.reduce((s, l) => s + (l.click_count ?? 0), 0)
-  const lines = links.map((l) => {
+  const viewCount = (linked as { view_count?: number }).view_count ?? 0
+
+  // Compute top link by 7-day clicks
+  const recent7 = recentClicks ?? []
+  const clicksByLink: Record<string, number> = {}
+  for (const row of recent7) {
+    clicksByLink[row.link_id] = (clicksByLink[row.link_id] ?? 0) + 1
+  }
+  const topLink7 = links
+    .map((l) => ({ ...l, recent: clicksByLink[l.id] ?? 0 }))
+    .sort((a, b) => b.recent - a.recent)[0]
+
+  const lines = links.slice(0, 8).map((l) => {
     const clicks = l.click_count ?? 0
     const bar = '█'.repeat(Math.min(Math.round(clicks / Math.max(totalClicks, 1) * 10), 10))
-    return `${bar || '░'} <b>${l.title || l.icon_type}</b> — ${clicks} кл.`
+    return `${bar || '░'} <b>${esc(l.title || l.icon_type)}</b> — ${clicks} кл.`
   })
+
+  const topLine = topLink7?.recent > 0
+    ? `\n🔥 Топ за 7 дней: <b>${esc(topLink7.title || topLink7.icon_type)}</b> (${topLink7.recent} кл.)`
+    : ''
 
   await sendInline(chatId,
     `📊 <b>Статистика</b> · tapni.kz/${linked.username}\n\n` +
-    `👆 Всего кликов: <b>${totalClicks}</b>\n\n` +
+    `👁 Просмотров страницы: <b>${viewCount}</b>\n` +
+    `👆 Всего кликов: <b>${totalClicks}</b>${topLine}\n\n` +
     lines.join('\n'),
     [
       [{ text: `🌐 Открыть мою страницу`, url: `${SITE_URL}/${linked.username}` }],
       [{ text: '✏️ Управлять ссылками', url: `${SITE_URL}/dashboard` }],
+    ]
+  )
+}
+
+async function leadsHandler(chatId: string) {
+  const { data: linked } = await getSupabase()
+    .from('profiles')
+    .select('username, id, is_premium')
+    .eq('telegram_chat_id', chatId)
+    .maybeSingle()
+
+  if (!linked) {
+    await sendMenu(chatId, `📋 <b>Заявки</b>\n\nПривяжите аккаунт чтобы видеть заявки.`)
+    return
+  }
+
+  const { data: leds } = await getSupabase()
+    .from('lead_submissions')
+    .select('name, phone, message, created_at')
+    .eq('profile_id', linked.id)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  if (!leds?.length) {
+    await sendInline(chatId,
+      `📋 <b>Заявки</b> · tapni.kz/${linked.username}\n\nЗаявок пока нет. Добавьте кнопку «Записаться» на свою страницу:`,
+      [[{ text: '✏️ Перейти в кабинет', url: `${SITE_URL}/dashboard` }]]
+    )
+    return
+  }
+
+  const lines = leds.map((l) => {
+    const dt = new Date(l.created_at).toLocaleDateString('ru-KZ', { day: 'numeric', month: 'short' })
+    const msg = l.message ? `\n   💬 ${esc(l.message.slice(0, 60))}` : ''
+    return `👤 <b>${esc(l.name)}</b> · <code>${esc(l.phone)}</code> · ${dt}${msg}`
+  })
+
+  await sendInline(chatId,
+    `📋 <b>Последние заявки</b> · tapni.kz/${linked.username}\n\n${lines.join('\n\n')}`,
+    [[{ text: '📋 Все заявки', url: `${SITE_URL}/dashboard` }]]
+  )
+}
+
+async function referHandler(chatId: string) {
+  const { data: linked } = await getSupabase()
+    .from('profiles')
+    .select('username, id')
+    .eq('telegram_chat_id', chatId)
+    .maybeSingle()
+
+  if (!linked) {
+    await sendMenu(chatId, `👥 <b>Реферальная программа</b>\n\nПривяжите аккаунт чтобы получить вашу реферальную ссылку.`)
+    return
+  }
+
+  const { count } = await getSupabase()
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .eq('referred_by', linked.username)
+
+  const referUrl = `${SITE_URL}/auth?ref=${linked.username}`
+  await sendInline(chatId,
+    `👥 <b>Реферальная программа</b>\n\n` +
+    `Пригласите друга — оба получите <b>+7 дней Premium</b> бесплатно!\n\n` +
+    `🔗 Ваша ссылка:\n<code>${referUrl}</code>\n\n` +
+    `👤 Приглашено: <b>${count ?? 0}</b> чел.`,
+    [
+      [{ text: '📎 Поделиться ссылкой', url: `https://t.me/share/url?url=${encodeURIComponent(referUrl)}&text=${encodeURIComponent('Создай свою мини-страницу на tapni.kz бесплатно!')}` }],
     ]
   )
 }

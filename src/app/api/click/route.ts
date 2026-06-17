@@ -50,7 +50,11 @@ export async function GET(request: Request) {
   }
 
   // FIX #3: await before redirect — edge runtime would drop fire-and-forget
-  await db.rpc('increment_link_click', { p_link_id: id }).then(() => {}, () => {})
+  // Also insert into click_events for time-series analytics (V8)
+  await Promise.all([
+    db.rpc('increment_link_click', { p_link_id: id }).then(() => {}, () => {}),
+    db.from('click_events').insert([{ link_id: id }]).then(() => {}, () => {}),
+  ])
 
   return Response.redirect(targetUrl)
 }

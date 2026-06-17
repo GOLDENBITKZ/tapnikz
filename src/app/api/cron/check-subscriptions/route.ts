@@ -129,10 +129,87 @@ export async function GET(request: Request) {
     }
   }
 
+  // ── 4. Referral bonus — award +7 days to both parties ───────────────
+  // Find users referred >= 7 days ago where bonus hasn't been given yet
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
+  const { data: pendingReferrals } = await db
+    .from('profiles')
+    .select('id, username, referred_by, telegram_chat_id')
+    .not('referred_by', 'is', null)
+    .eq('referral_bonus_given', false)
+    .lte('created_at', sevenDaysAgo)
+
+  let bonusCount = 0
+  for (const referee of (pendingReferrals ?? []) as {
+    id: string; username: string; referred_by: string; telegram_chat_id: string | null
+  }[]) {
+    const { data: referrer } = await db
+      .from('profiles')
+      .select('id, username, is_premium, subscription_expires_at, telegram_chat_id')
+      .eq('username', referee.referred_by)
+      .maybeSingle()
+
+    if (!referrer) {
+      // Referrer doesn't exist — mark as given to avoid repeated checks
+      await db.from('profiles').update({ referral_bonus_given: true }).eq('id', referee.id)
+      continue
+    }
+
+    const addDays = (base: string | null, days: number) => {
+      const d = base ? new Date(base) : new Date()
+      if (d < now) d.setTime(now.getTime())
+      d.setDate(d.getDate() + days)
+      return d.toISOString()
+    }
+
+    // Award referrer +7 days
+    await db.from('profiles').update({
+      is_premium: true,
+      subscription_expires_at: addDays(referrer.subscription_expires_at, 7),
+      subscription_plan: referrer.subscription_plan ?? 'referral',
+    }).eq('id', referrer.id)
+
+    // Award referee +7 days
+    await db.from('profiles').update({
+      is_premium: true,
+      subscription_expires_at: addDays(null, 7),
+      subscription_plan: 'referral',
+      referral_bonus_given: true,
+    }).eq('id', referee.id)
+
+    bonusCount++
+
+    // Notify referrer
+    if (referrer.telegram_chat_id) {
+      await notifyUser(
+        referrer.telegram_chat_id,
+        `🎁 <b>Реферальный бонус!</b>\n\n` +
+        `Ваш друг <b>${referee.username}</b> зарегистрировался по вашей ссылке.\n` +
+        `Вам начислено <b>+7 дней Premium</b>! 🎉`,
+        [[{ text: '📊 Моя статистика', url: `${SITE_URL}/dashboard` }]]
+      )
+    }
+
+    // Notify referee
+    if (referee.telegram_chat_id) {
+      await notifyUser(
+        referee.telegram_chat_id,
+        `🎁 <b>Реферальный бонус активирован!</b>\n\n` +
+        `Вам начислено <b>+7 дней Premium</b> за регистрацию по реферальной ссылке! 🎉`,
+        [[{ text: '🚀 Открыть кабинет', url: `${SITE_URL}/dashboard` }]]
+      )
+    }
+  }
+
+  if (bonusCount > 0) {
+    await sendTelegram(chatId, `🎁 Реферальных бонусов выдано: <b>${bonusCount}</b>`)
+  }
+
   return Response.json({
     ok: true,
     expired: expired?.length ?? 0,
     expiring7: expiring7?.length ?? 0,
     expiring3: expiring3?.length ?? 0,
+    referralBonuses: bonusCount,
   })
 }

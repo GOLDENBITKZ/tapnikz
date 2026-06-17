@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
-import { getSupabase, type Profile, type Link as LinkRow, type Theme, type IconType } from '@/lib/supabase'
+import { getSupabase, type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   WhatsAppIcon, TelegramIcon, InstagramIcon, TikTokIcon, YouTubeIcon,
   FacebookIcon, VKIcon, KaspiIcon, KaspiPayIcon, KaspiShopIcon,
@@ -9,8 +10,9 @@ import {
 } from '@/lib/brand-icons'
 import { ProfileAvatar } from '@/components/profile-avatar'
 import { ShareButton } from '@/components/share-button'
+import { LeadFormButton } from '@/components/lead-form-button'
 import Link from 'next/link'
-import { MapPin, Zap, ArrowLeft, MessageCircle, CreditCard, Navigation, CheckCircle2, ShoppingCart } from 'lucide-react'
+import { MapPin, Zap, ArrowLeft, MessageCircle, CreditCard, Navigation, CheckCircle2, ShoppingCart, ClipboardList, Clock } from 'lucide-react'
 
 type Props = { params: Promise<{ username: string }> }
 
@@ -182,8 +184,28 @@ function BrandIcon({ type, className }: { type: IconType; className?: string }) 
     case 'facebook':   return <FacebookIcon className={className} />
     case 'text_block': return <TextBlockIcon className={className} />
     case 'product':    return <ShoppingCart className={className} />
+    case 'lead_form':  return <ClipboardList className={className} />
     default:           return <LinkIcon className={className} />
   }
+}
+
+// ─── Working hours helpers ───────────────────────────────────
+
+function getOpenStatus(workingHours: WorkingHours | null): { isOpen: boolean; label: string } | null {
+  if (!workingHours) return null
+  // Kazakhstan is UTC+5 year-round (no DST)
+  const kzNow = new Date(Date.now() + 5 * 3600_000)
+  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
+  const dayKey = dayKeys[kzNow.getUTCDay()]
+  const todayStr = workingHours[dayKey]
+  if (!todayStr) return { isOpen: false, label: 'Сегодня выходной' }
+  const [openStr, closeStr] = todayStr.split('-')
+  const [oh, om] = openStr.split(':').map(Number)
+  const [ch, cm] = closeStr.split(':').map(Number)
+  const cur = kzNow.getUTCHours() * 60 + kzNow.getUTCMinutes()
+  if (cur >= oh * 60 + om && cur < ch * 60 + cm) return { isOpen: true, label: `Открыто · до ${closeStr}` }
+  if (cur < oh * 60 + om) return { isOpen: false, label: `Откроется в ${openStr}` }
+  return { isOpen: false, label: 'Закрыто' }
 }
 
 function ChevronRight() {
@@ -196,7 +218,14 @@ function ChevronRight() {
 
 export default async function ProfilePage({ params }: Props) {
   const { username } = await params
-  const { profile, links } = await getData(username)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminDb = getSupabaseAdmin() as any
+  // Run data fetch and view count increment in parallel
+  const [{ profile, links }] = await Promise.all([
+    getData(username),
+    adminDb.rpc('increment_profile_view', { p_username: username }).catch(() => {}),
+  ])
 
   if (!profile) return <NotFoundPage username={username} />
 
@@ -240,6 +269,22 @@ export default async function ProfilePage({ params }: Props) {
             </p>
           )}
           <p className={`mt-1.5 text-xs ${t.subtext} opacity-50`}>tapni.kz/{profile.username}</p>
+
+          {/* Open Now badge */}
+          {(() => {
+            const status = getOpenStatus(profile.working_hours)
+            if (!status) return null
+            return (
+              <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                status.isOpen
+                  ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
+                  : 'bg-white/[0.06] text-gray-400 ring-1 ring-white/10'
+              }`}>
+                <Clock className="h-3 w-3" />
+                {status.label}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Share button */}
@@ -309,6 +354,21 @@ export default async function ProfilePage({ params }: Props) {
                       ) : null}
                     </div>
                   </div>
+                )
+              }
+
+              if (link.icon_type === 'lead_form') {
+                return (
+                  <LeadFormButton
+                    key={link.id}
+                    linkId={link.id}
+                    title={link.title}
+                    username={profile.username}
+                    themeCard={t.card}
+                    themeText={t.text}
+                    themeSubtext={t.subtext}
+                    themeBg={t.bg}
+                  />
                 )
               }
 

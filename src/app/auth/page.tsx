@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, AlertCircle, Eye, EyeOff, Phone } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
@@ -33,13 +33,23 @@ function phoneToEmail(phone: string) {
 
 export default function AuthPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [tab, setTab] = useState<Tab>('login')
+  const [referredBy, setReferredBy] = useState<string | null>(null)
   const [loginForm, setLoginForm] = useState<LoginForm>(EMPTY_LOGIN)
   const [regForm, setRegForm] = useState<RegisterForm>(EMPTY_REGISTER)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref) {
+      setReferredBy(ref.toLowerCase().trim())
+      setTab('register')
+    }
+  }, [searchParams])
 
   function clearErrors() {
     setError('')
@@ -193,6 +203,7 @@ export default function AuthPage() {
             bio: null,
             theme: 'dark',
             is_premium: false,
+            ...(referredBy ? { referred_by: referredBy } : {}),
           },
         ])
 
@@ -298,6 +309,12 @@ export default function AuthPage() {
           {/* ─── Register ─── */}
           {tab === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4" noValidate>
+              {referredBy && (
+                <div className="flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2.5 text-xs text-violet-300">
+                  <span className="text-base">🎁</span>
+                  <span>Вы приглашены пользователем <b>{referredBy}</b> — оба получите +7 дней Premium после регистрации!</span>
+                </div>
+              )}
               <PhoneField
                 value={regForm.phone}
                 name="phone"

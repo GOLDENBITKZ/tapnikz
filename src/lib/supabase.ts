@@ -34,6 +34,17 @@ export type IconType =
   | 'link'
   | 'text_block'
   | 'product'
+  | 'lead_form'
+
+export type WorkingHours = {
+  mon?: string | null
+  tue?: string | null
+  wed?: string | null
+  thu?: string | null
+  fri?: string | null
+  sat?: string | null
+  sun?: string | null
+}
 
 export type Profile = {
   id: string
@@ -48,6 +59,10 @@ export type Profile = {
   subscription_expires_at: string | null
   subscription_plan: 'monthly' | 'annual' | null
   telegram_chat_id: string | null
+  view_count: number
+  working_hours: WorkingHours | null
+  referred_by: string | null
+  referral_bonus_given: boolean
   created_at: string
   updated_at: string
 }
@@ -63,4 +78,15 @@ export type Link = {
   created_at: string
 }
 
+export type LeadSubmission = {
+  id: string
+  profile_id: string
+  link_id: string | null
+  name: string
+  phone: string
+  message: string | null
+  created_at: string
+}
+
 export const FREE_LINK_LIMIT = 3
+export const FREE_LEADS_VISIBLE = 3
