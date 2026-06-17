@@ -238,7 +238,7 @@ export default async function ProfilePage({ params }: Props) {
   // Run data fetch and view count increment in parallel
   const [{ profile, links }] = await Promise.all([
     getData(username),
-    adminDb.rpc('increment_profile_view', { p_username: username }).catch(() => {}),
+    adminDb.rpc('increment_profile_view', { p_username: username }).then(() => {}, () => {}),
   ])
 
   if (!profile) return <NotFoundPage username={username} />
