@@ -34,6 +34,9 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'krisha',     label: '🏠 Krisha.kz',        placeholder: 'https://krisha.kz/a/show/...' },
   { value: 'vk',         label: '💙 ВКонтакте',         placeholder: 'https://vk.com/username' },
   { value: 'facebook',   label: '📘 Facebook',          placeholder: 'https://facebook.com/username' },
+  { value: 'android',    label: '🤖 Google Play',       placeholder: 'https://play.google.com/store/apps/details?id=...' },
+  { value: 'ios',        label: '🍎 App Store',         placeholder: 'https://apps.apple.com/app/...' },
+  { value: 'menu',       label: '🍽 Меню',              placeholder: 'https://example.com/menu' },
   { value: 'text_block', label: '📝 Текст / Описание',  placeholder: 'Ваш текст, часы работы, акции...' },
   { value: 'product',    label: '🛍 Карточка товара',   placeholder: 'https://kaspi.kz/shop/p/...' },
   { value: 'lead_form',  label: '📋 Запись / Заявка',   placeholder: 'Записаться на услугу' },
@@ -68,6 +71,9 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
     case 'email':      return { dot: 'bg-violet-500', ring: 'border-l-violet-500' }
     case 'vk':         return { dot: 'bg-blue-600', ring: 'border-l-blue-600' }
     case 'facebook':   return { dot: 'bg-[#1877F2]', ring: 'border-l-[#1877F2]' }
+    case 'android':    return { dot: 'bg-[#3DDC84]', ring: 'border-l-[#3DDC84]' }
+    case 'ios':        return { dot: 'bg-[#007AFF]', ring: 'border-l-[#007AFF]' }
+    case 'menu':       return { dot: 'bg-[#FF8C00]', ring: 'border-l-[#FF8C00]' }
     case 'text_block': return { dot: 'bg-gray-500', ring: 'border-l-gray-500' }
     case 'product':    return { dot: 'bg-violet-400', ring: 'border-l-violet-400' }
     case 'lead_form':  return { dot: 'bg-violet-400', ring: 'border-l-violet-400' }

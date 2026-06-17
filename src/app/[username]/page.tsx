@@ -7,6 +7,7 @@ import {
   FacebookIcon, VKIcon, KaspiIcon, KaspiPayIcon, KaspiShopIcon,
   TwoGisIcon, KolesaIcon, KrishaIcon,
   GlobeIcon, PhoneIcon, MailIcon, LinkIcon, TextBlockIcon,
+  AndroidIcon, AppleIcon, MenuIcon,
 } from '@/lib/brand-icons'
 import { ProfileAvatar } from '@/components/profile-avatar'
 import { ShareButton } from '@/components/share-button'
@@ -160,6 +161,9 @@ function getButtonStyle(type: IconType): BtnStyle | null {
     case 'website':    return { cls: 'bg-[#7C3AED] hover:bg-[#6d28d9]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(124,58,237,0.45)' }
     case 'phone':      return { cls: 'bg-[#059669] hover:bg-[#047857]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(5,150,105,0.45)' }
     case 'email':      return { cls: 'bg-[#DB2777] hover:bg-[#be185d]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(219,39,119,0.45)' }
+    case 'android':  return { cls: 'bg-gradient-to-br from-[#3DDC84] to-[#009b55] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(61,220,132,0.45)' }
+    case 'ios':      return { cls: 'bg-gradient-to-br from-[#1C7CF9] to-[#0A5DC7] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(28,124,249,0.45)' }
+    case 'menu':     return { cls: 'bg-gradient-to-br from-[#FF8C00] to-[#FF5200] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,140,0,0.45)' }
     default: return null
   }
 }
@@ -185,6 +189,9 @@ function BrandIcon({ type, className }: { type: IconType; className?: string }) 
     case 'text_block': return <TextBlockIcon className={className} />
     case 'product':    return <ShoppingCart className={className} />
     case 'lead_form':  return <ClipboardList className={className} />
+    case 'android':    return <AndroidIcon className={className} />
+    case 'ios':        return <AppleIcon className={className} />
+    case 'menu':       return <MenuIcon className={className} />
     default:           return <LinkIcon className={className} />
   }
 }

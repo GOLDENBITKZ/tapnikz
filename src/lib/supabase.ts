@@ -35,6 +35,9 @@ export type IconType =
   | 'text_block'
   | 'product'
   | 'lead_form'
+  | 'android'
+  | 'ios'
+  | 'menu'
 
 export type WorkingHours = {
   mon?: string | null
