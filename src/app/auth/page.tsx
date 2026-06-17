@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, AlertCircle, Eye, EyeOff, Phone } from 'lucide-react'
@@ -31,7 +31,7 @@ function phoneToEmail(phone: string) {
   return `${phone}@users.tapni.kz`
 }
 
-export default function AuthPage() {
+function AuthPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<Tab>('login')
@@ -421,6 +421,14 @@ export default function AuthPage() {
         </p>
       </div>
     </main>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthPageInner />
+    </Suspense>
   )
 }
 
