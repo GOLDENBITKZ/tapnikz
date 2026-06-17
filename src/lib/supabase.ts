@@ -39,14 +39,17 @@ export type IconType =
   | 'ios'
   | 'menu'
 
+export type TimeSlot = { name: string; time: string }
+
 export type WorkingHours = {
-  mon?: string | null
-  tue?: string | null
-  wed?: string | null
-  thu?: string | null
-  fri?: string | null
-  sat?: string | null
-  sun?: string | null
+  mode?: 'simple' | 'schedule'
+  mon?: string | TimeSlot[] | null
+  tue?: string | TimeSlot[] | null
+  wed?: string | TimeSlot[] | null
+  thu?: string | TimeSlot[] | null
+  fri?: string | TimeSlot[] | null
+  sat?: string | TimeSlot[] | null
+  sun?: string | TimeSlot[] | null
 }
 
 export type Profile = {

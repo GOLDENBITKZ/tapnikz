@@ -204,28 +204,53 @@ function getOpenStatus(workingHours: WorkingHours | null): { isOpen: boolean; la
   const kzNow = new Date(Date.now() + 5 * 3600_000)
   const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
   const dayKey = dayKeys[kzNow.getUTCDay()]
-  const todayStr = workingHours[dayKey]
-  if (!todayStr) return { isOpen: false, label: 'Сегодня выходной' }
+  const dayData = workingHours[dayKey]
+  if (!dayData) return { isOpen: false, label: 'Сегодня выходной' }
 
-  // Expect exactly "HH:MM-HH:MM"
-  const parts = todayStr.split('-')
-  if (parts.length !== 2) return null
-  const [openStr, closeStr] = parts
-  if (!/^\d{2}:\d{2}$/.test(openStr) || !/^\d{2}:\d{2}$/.test(closeStr)) return null
+  // Normalise to array of {name, time}
+  type Slot = { name?: string; time: string }
+  const slots: Slot[] = typeof dayData === 'string'
+    ? [{ time: dayData }]
+    : (dayData as Slot[])
 
-  const [oh, om] = openStr.split(':').map(Number)
-  const [ch, cm] = closeStr.split(':').map(Number)
+  if (!slots.length) return { isOpen: false, label: 'Сегодня выходной' }
+
   const cur = kzNow.getUTCHours() * 60 + kzNow.getUTCMinutes()
-  const open = oh * 60 + om
-  const close = ch * 60 + cm
 
-  // Handle overnight spans (e.g. 22:00-02:00)
-  const isOpen = close < open
-    ? cur >= open || cur < close   // overnight: open after openTime OR before closeTime (next day)
-    : cur >= open && cur < close   // normal: between open and close
+  const parseSlot = (slot: Slot) => {
+    const parts = slot.time.split('-')
+    if (parts.length !== 2) return null
+    const [openStr, closeStr] = parts
+    if (!/^\d{2}:\d{2}$/.test(openStr) || !/^\d{2}:\d{2}$/.test(closeStr)) return null
+    const [oh, om] = openStr.split(':').map(Number)
+    const [ch, cm] = closeStr.split(':').map(Number)
+    return { openStr, closeStr, open: oh * 60 + om, close: ch * 60 + cm }
+  }
 
-  if (isOpen) return { isOpen: true, label: `Открыто · до ${closeStr}` }
-  if (cur < open) return { isOpen: false, label: `Откроется в ${openStr}` }
+  // Check if currently open in any slot
+  for (const slot of slots) {
+    const p = parseSlot(slot)
+    if (!p) continue
+    const isOpen = p.close < p.open
+      ? cur >= p.open || cur < p.close
+      : cur >= p.open && cur < p.close
+    if (isOpen) {
+      const nameLabel = slot.name ? ` · ${slot.name}` : ''
+      return { isOpen: true, label: `Открыто${nameLabel} · до ${p.closeStr}` }
+    }
+  }
+
+  // Not open — find next slot opening today
+  const upcoming = slots
+    .map((slot) => ({ slot, p: parseSlot(slot) }))
+    .filter(({ p }) => p && p.open > cur)
+    .sort((a, b) => a.p!.open - b.p!.open)
+  if (upcoming.length > 0) {
+    const { slot, p } = upcoming[0]
+    const nameLabel = slot.name ? ` · ${slot.name}` : ''
+    return { isOpen: false, label: `Откроется в ${p!.openStr}${nameLabel}` }
+  }
+
   return { isOpen: false, label: 'Закрыто' }
 }
 

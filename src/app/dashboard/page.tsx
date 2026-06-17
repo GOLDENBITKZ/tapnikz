@@ -12,7 +12,7 @@ import {
 import { TEMPLATES, PLACEHOLDER_PREFIX } from '@/lib/templates'
 import type { LeadSubmission } from '@/lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
-import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, FREE_LINK_LIMIT, FREE_LEADS_VISIBLE } from '@/lib/supabase'
+import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, type WorkingHours, FREE_LINK_LIMIT, FREE_LEADS_VISIBLE } from '@/lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 type DashTab = 'profile' | 'links' | 'leads' | 'payment'
@@ -171,6 +171,101 @@ export default function DashboardPage() {
   })
   const [savingWh, setSavingWh] = useState(false)
 
+  type SlotDraft = { name: string; start: string; end: string }
+  type DayDraft = { enabled: boolean; slots: SlotDraft[] }
+  type ExtScheduleForm = Record<WhKey, DayDraft>
+
+  function makeDefaultExt(): ExtScheduleForm {
+    const allKeys: WhKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    const obj = {} as ExtScheduleForm
+    for (const k of allKeys) {
+      obj[k] = {
+        enabled: !['sat', 'sun'].includes(k),
+        slots: [{ name: '', start: '09:00', end: '18:00' }],
+      }
+    }
+    return obj
+  }
+
+  const [whMode, setWhMode] = useState<'simple' | 'schedule'>('simple')
+  const [extSchedule, setExtSchedule] = useState<ExtScheduleForm>(makeDefaultExt())
+
+  function updateSlot(dayKey: WhKey, idx: number, field: keyof SlotDraft, value: string) {
+    setExtSchedule((prev) => {
+      const slots = prev[dayKey].slots.map((s, i) => i === idx ? { ...s, [field]: value } : s)
+      return { ...prev, [dayKey]: { ...prev[dayKey], slots } }
+    })
+  }
+  function addSlot(dayKey: WhKey) {
+    setExtSchedule((prev) => ({
+      ...prev,
+      [dayKey]: { ...prev[dayKey], slots: [...prev[dayKey].slots, { name: '', start: '09:00', end: '18:00' }] },
+    }))
+  }
+  function removeSlot(dayKey: WhKey, idx: number) {
+    setExtSchedule((prev) => ({
+      ...prev,
+      [dayKey]: { ...prev[dayKey], slots: prev[dayKey].slots.filter((_, i) => i !== idx) },
+    }))
+  }
+  function toggleDay(dayKey: WhKey) {
+    setExtSchedule((prev) => ({
+      ...prev,
+      [dayKey]: { ...prev[dayKey], enabled: !prev[dayKey].enabled },
+    }))
+  }
+
+  function switchToSchedule() {
+    const newExt = makeDefaultExt()
+    for (const { key } of WH_DAYS) {
+      const val = whForm[key].trim()
+      if (val && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(val)) {
+        const [start, end] = val.split('-')
+        newExt[key] = { enabled: true, slots: [{ name: '', start, end }] }
+      } else {
+        newExt[key] = { enabled: false, slots: [{ name: '', start: '09:00', end: '18:00' }] }
+      }
+    }
+    setExtSchedule(newExt)
+    setWhMode('schedule')
+  }
+
+  function switchToSimple() {
+    const newForm: Record<WhKey, string> = { mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' }
+    for (const { key } of WH_DAYS) {
+      const day = extSchedule[key]
+      if (day.enabled && day.slots.length > 0) {
+        const s = day.slots[0]
+        if (/^\d{2}:\d{2}$/.test(s.start) && /^\d{2}:\d{2}$/.test(s.end)) {
+          newForm[key] = `${s.start}-${s.end}`
+        }
+      }
+    }
+    setWhForm(newForm)
+    setWhMode('simple')
+  }
+
+  function buildWorkingHours(): Record<string, unknown> {
+    if (whMode === 'simple') {
+      const wh: Record<string, string | null> = {}
+      for (const { key } of WH_DAYS) {
+        const val = whForm[key].trim()
+        wh[key] = val && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(val) ? val : null
+      }
+      return wh
+    }
+    const wh: Record<string, unknown> = { mode: 'schedule' }
+    for (const { key } of WH_DAYS) {
+      const day = extSchedule[key]
+      if (!day.enabled) { wh[key] = null; continue }
+      const validSlots = day.slots
+        .filter((s) => /^\d{2}:\d{2}$/.test(s.start) && /^\d{2}:\d{2}$/.test(s.end))
+        .map((s) => ({ name: s.name.trim(), time: `${s.start}-${s.end}` }))
+      wh[key] = validSlots.length > 0 ? validSlots : null
+    }
+    return wh
+  }
+
   const [profileForm, setProfileForm] = useState({
     business_name: '',
     bio: '',
@@ -218,15 +313,39 @@ export default function DashboardPage() {
       // Initialize working hours form from profile
       const wh = (prof as Profile).working_hours
       if (wh) {
-        setWhForm({
-          mon: wh.mon ?? '',
-          tue: wh.tue ?? '',
-          wed: wh.wed ?? '',
-          thu: wh.thu ?? '',
-          fri: wh.fri ?? '',
-          sat: wh.sat ?? '',
-          sun: wh.sun ?? '',
-        })
+        const isSchedule = wh.mode === 'schedule' || WH_DAYS.some(({ key }) => Array.isArray(wh[key]))
+        if (isSchedule) {
+          setWhMode('schedule')
+          const ext = makeDefaultExt()
+          for (const { key } of WH_DAYS) {
+            const dayData = wh[key]
+            if (!dayData) {
+              ext[key] = { enabled: false, slots: [{ name: '', start: '09:00', end: '18:00' }] }
+            } else if (typeof dayData === 'string') {
+              const [start = '09:00', end = '18:00'] = dayData.split('-')
+              ext[key] = { enabled: true, slots: [{ name: '', start, end }] }
+            } else if (Array.isArray(dayData) && dayData.length > 0) {
+              ext[key] = {
+                enabled: true,
+                slots: dayData.map((s) => {
+                  const [start = '09:00', end = '18:00'] = s.time.split('-')
+                  return { name: s.name || '', start, end }
+                }),
+              }
+            }
+          }
+          setExtSchedule(ext)
+        } else {
+          setWhForm({
+            mon: typeof wh.mon === 'string' ? wh.mon : '',
+            tue: typeof wh.tue === 'string' ? wh.tue : '',
+            wed: typeof wh.wed === 'string' ? wh.wed : '',
+            thu: typeof wh.thu === 'string' ? wh.thu : '',
+            fri: typeof wh.fri === 'string' ? wh.fri : '',
+            sat: typeof wh.sat === 'string' ? wh.sat : '',
+            sun: typeof wh.sun === 'string' ? wh.sun : '',
+          })
+        }
       }
     }
     if (lnks) setLinks(lnks as LinkRow[])
@@ -253,12 +372,7 @@ export default function DashboardPage() {
     setSavingProfile(true)
     setProfileMsg(null)
     try {
-      // Build working_hours from current whForm state
-      const wh: Record<string, string | null> = {}
-      for (const { key } of WH_DAYS) {
-        const val = whForm[key].trim()
-        wh[key] = val && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(val) ? val : null
-      }
+      const wh = buildWorkingHours()
 
       const { error } = await getSupabase()
         .from('profiles')
@@ -535,13 +649,9 @@ export default function DashboardPage() {
     if (!user) return
     setSavingWh(true)
     try {
-      const wh: Record<string, string | null> = {}
-      for (const { key } of WH_DAYS) {
-        const val = whForm[key].trim()
-        wh[key] = val && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(val) ? val : null
-      }
+      const wh = buildWorkingHours()
       await getSupabase().from('profiles').update({ working_hours: wh }).eq('id', user.id)
-      setProfile((p) => p ? { ...p, working_hours: wh } : p)
+      setProfile((p) => p ? { ...p, working_hours: wh as WorkingHours } : p)
     } catch { /* ignore */ } finally {
       setSavingWh(false)
     }
@@ -900,23 +1010,130 @@ export default function DashboardPage() {
                 <Clock className="h-4 w-4 text-violet-400" />
                 Режим работы
               </p>
-              <div className="space-y-2">
-                {WH_DAYS.map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-3">
-                    <span className="w-6 flex-shrink-0 text-xs font-semibold text-gray-400">{label}</span>
-                    <input
-                      type="text"
-                      value={whForm[key]}
-                      onChange={(e) => setWhForm((f) => ({ ...f, [key]: e.target.value }))}
-                      placeholder="09:00-20:00"
-                      className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-gray-700 outline-none transition-colors focus:border-violet-500/60"
-                    />
-                  </div>
-                ))}
+
+              {/* Mode toggle */}
+              <div className="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                <button
+                  type="button"
+                  onClick={switchToSimple}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    whMode === 'simple' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Обычный
+                </button>
+                <button
+                  type="button"
+                  onClick={switchToSchedule}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    whMode === 'schedule' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Расписание
+                </button>
               </div>
-              <p className="mt-2 text-[11px] text-gray-600">
-                Формат: 09:00-20:00. Оставьте пустым — день выходной. Показывается бейдж «Открыто сейчас» на вашей странице.
-              </p>
+
+              {/* Simple mode */}
+              {whMode === 'simple' && (
+                <>
+                  <div className="space-y-2">
+                    {WH_DAYS.map(({ key, label }) => (
+                      <div key={key} className="flex items-center gap-3">
+                        <span className="w-6 flex-shrink-0 text-xs font-semibold text-gray-400">{label}</span>
+                        <input
+                          type="text"
+                          value={whForm[key]}
+                          onChange={(e) => setWhForm((f) => ({ ...f, [key]: e.target.value }))}
+                          placeholder="09:00-20:00"
+                          className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-gray-700 outline-none transition-colors focus:border-violet-500/60"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] text-gray-600">
+                    Формат: 09:00-20:00. Оставьте пустым — выходной. Показывает бейдж «Открыто сейчас».
+                  </p>
+                </>
+              )}
+
+              {/* Schedule mode — multiple slots per day with names */}
+              {whMode === 'schedule' && (
+                <div className="space-y-2">
+                  {WH_DAYS.map(({ key, label }) => {
+                    const day = extSchedule[key]
+                    return (
+                      <div key={key} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                        {/* Day header */}
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-300">{label}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleDay(key)}
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                              day.enabled
+                                ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                                : 'bg-white/[0.06] text-gray-500 hover:bg-white/10'
+                            }`}
+                          >
+                            {day.enabled ? 'Работает' : 'Выходной'}
+                          </button>
+                        </div>
+
+                        {/* Slots */}
+                        {day.enabled && (
+                          <div className="space-y-1.5">
+                            {day.slots.map((slot, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  value={slot.name}
+                                  onChange={(e) => updateSlot(key, idx, 'name', e.target.value)}
+                                  placeholder="Название"
+                                  className="w-24 min-w-0 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-xs text-white placeholder-gray-700 outline-none focus:border-violet-500/60"
+                                />
+                                <input
+                                  type="time"
+                                  value={slot.start}
+                                  onChange={(e) => updateSlot(key, idx, 'start', e.target.value)}
+                                  className="w-24 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-xs text-white outline-none focus:border-violet-500/60"
+                                />
+                                <span className="flex-shrink-0 text-[11px] text-gray-600">—</span>
+                                <input
+                                  type="time"
+                                  value={slot.end}
+                                  onChange={(e) => updateSlot(key, idx, 'end', e.target.value)}
+                                  className="w-24 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-xs text-white outline-none focus:border-violet-500/60"
+                                />
+                                {day.slots.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSlot(key, idx)}
+                                    className="flex-shrink-0 text-gray-600 transition-colors hover:text-red-400"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => addSlot(key)}
+                              className="flex items-center gap-1 text-[11px] text-violet-400 transition-colors hover:text-violet-300"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Добавить интервал
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  <p className="text-[11px] text-gray-600">
+                    Название необязательно. Показывает бейдж «Открыто сейчас» и активный интервал.
+                  </p>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={saveWorkingHours}
