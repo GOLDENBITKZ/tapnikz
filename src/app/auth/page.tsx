@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2, AlertCircle, Eye, EyeOff, Phone } from 'lucide-react'
+import { Loader2, AlertCircle, Phone } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
 
 type Tab = 'login' | 'register'

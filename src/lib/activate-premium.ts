@@ -82,6 +82,12 @@ export async function activatePremium({
     .maybeSingle()
 
   if (profErr || !profData) {
+    // Roll back payment to pending so the cron can retry
+    await adminDb.from('payments').update({
+      status: 'pending',
+      auto_confirmed_at: null,
+      provider: null,
+    }).eq('id', pendingPaymentId).catch(() => {})
     return { success: false, error: profErr?.message ?? 'Profile not found' }
   }
 

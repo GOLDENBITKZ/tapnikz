@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   User, Link2, CreditCard, Loader2, Trash2, Plus, LogOut, ExternalLink,
-  CheckCircle2, AlertCircle, MessageCircle, Palette, Building2,
+  CheckCircle2, AlertCircle, MessageCircle, Palette,
   QrCode, Download, HelpCircle, X, ImagePlus, Zap, FileText, AtSign, BarChart2,
   ClipboardList, Clock, GripVertical, Eye, Share2, Users, Pencil, Check, Star,
 } from 'lucide-react'
@@ -185,10 +185,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [links, setLinks] = useState<LinkRow[]>([])
-  const [tab, setTab] = useState<DashTab>(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'links') return 'links'
-    return 'profile'
-  })
+  const [tab, setTab] = useState<DashTab>('profile')
   const [linkCopied, setLinkCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const [accessToken, setAccessToken] = useState<string>('')
@@ -1101,6 +1098,7 @@ export default function DashboardPage() {
   }
 
   async function saveEdit(link: LinkRow) {
+    setLinkError('')
     setSavingEdit(true)
     try {
       const t = link.icon_type
@@ -1108,7 +1106,7 @@ export default function DashboardPage() {
       let newTitle = editTitle
 
       if (t === 'follow_gate') {
-        if (!editFgHandle.trim() || !editFgContent.trim()) return
+        if (!editFgHandle.trim() || !editFgContent.trim()) { setLinkError('Введите @username и ссылку на контент'); return }
         newUrl = JSON.stringify({ ig: editFgHandle.replace(/^@/, '').trim(), content: editFgContent.trim().startsWith('http') ? editFgContent.trim() : `https://${editFgContent.trim()}`, label: newTitle })
       } else if (t === 'milestone') {
         const prevD: Record<string, unknown> = {}
@@ -1117,30 +1115,30 @@ export default function DashboardPage() {
       } else if (t === 'instagram_keyword') {
         newUrl = JSON.stringify({ ig: editKwIg.replace(/^@/, '').trim(), keyword: editKwWord.trim().toUpperCase(), reward: editKwReward.trim() })
       } else if (t === 'countdown') {
-        if (!editCdTarget) return
+        if (!editCdTarget) { setLinkError('Выберите дату события'); return }
         newUrl = JSON.stringify({ target: editCdTarget, label: editCdLabel.trim() || 'До события' })
       } else if (t === 'pricelist') {
         const validItems = editPlItems.filter((i) => i.name.trim() && i.price.trim())
-        if (validItems.length === 0) return
+        if (validItems.length === 0) { setLinkError('Добавьте хотя бы одну позицию с ценой'); return }
         newUrl = JSON.stringify({ title: editPlTitle.trim() || 'Услуги', items: validItems })
       } else if (t === 'image') {
-        if (!editImgSrc.trim()) return
+        if (!editImgSrc.trim()) { setLinkError('Введите URL или загрузите изображение'); return }
         const src = editImgSrc.trim().startsWith('http') ? editImgSrc.trim() : `https://${editImgSrc.trim()}`
         const lnk = editImgLink.trim() ? (editImgLink.trim().startsWith('http') ? editImgLink.trim() : `https://${editImgLink.trim()}`) : ''
         newUrl = JSON.stringify({ src, ...(editImgSp ? { sp: editImgSp } : {}), mode: editImgDisplayMode, ...(editImgAlt.trim() ? { alt: editImgAlt.trim() } : {}), ...(lnk ? { link: lnk } : {}) })
       } else if (t === 'video') {
-        if (!editVidUrl.trim()) return
+        if (!editVidUrl.trim()) { setLinkError('Введите ссылку на видео'); return }
         newUrl = JSON.stringify({ url: editVidUrl.trim().startsWith('http') ? editVidUrl.trim() : `https://${editVidUrl.trim()}` })
       } else if (t === 'faq') {
         const validItems = editFaqItems.filter((i) => i.q.trim() && i.a.trim())
-        if (validItems.length === 0) return
+        if (validItems.length === 0) { setLinkError('Добавьте хотя бы один вопрос с ответом'); return }
         newUrl = JSON.stringify({ title: editFaqTitle.trim() || 'Часто задаваемые вопросы', items: validItems })
       } else if (t === 'product') {
         const prevD: Record<string, unknown> = {}
         try { Object.assign(prevD, JSON.parse(link.url)) } catch {}
         newUrl = JSON.stringify({ ...prevD, l: editProdUrl.trim().startsWith('http') ? editProdUrl.trim() : `https://${editProdUrl.trim()}`, price: editProdPrice.trim() })
       } else if (t === 'smart_qr') {
-        if (!editSqIos.trim() && !editSqAndroid.trim() && !editSqWeb.trim()) return
+        if (!editSqIos.trim() && !editSqAndroid.trim() && !editSqWeb.trim()) { setLinkError('Введите хотя бы один URL'); return }
         newUrl = JSON.stringify({
           ...(editSqIos.trim() ? { ios: editSqIos.trim().startsWith('http') ? editSqIos.trim() : `https://${editSqIos.trim()}` } : {}),
           ...(editSqAndroid.trim() ? { android: editSqAndroid.trim().startsWith('http') ? editSqAndroid.trim() : `https://${editSqAndroid.trim()}` } : {}),
@@ -1165,7 +1163,8 @@ export default function DashboardPage() {
 
       const fromISO = editVisibleFrom ? new Date(editVisibleFrom).toISOString() : null
       const untilISO = editVisibleUntil ? new Date(editVisibleUntil).toISOString() : null
-      await getSupabase().from('links').update({ title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO }).eq('id', link.id).eq('profile_id', user!.id)
+      const { error: saveErr } = await getSupabase().from('links').update({ title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO }).eq('id', link.id).eq('profile_id', user!.id)
+      if (saveErr) { setLinkError('Не удалось сохранить — попробуйте ещё раз'); return }
       setLinks((prev) => prev.map((l) => l.id === link.id ? { ...l, title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO } : l))
       setEditingId(null)
     } finally {
@@ -1175,13 +1174,16 @@ export default function DashboardPage() {
 
   async function toggleFeatured(link: LinkRow) {
     const sb = getSupabase()
+    const snapshot = links
     if (link.is_featured) {
       setLinks((prev) => prev.map((l) => l.id === link.id ? { ...l, is_featured: false } : l))
-      await sb.from('links').update({ is_featured: false }).eq('id', link.id).eq('profile_id', user!.id)
+      const { error } = await sb.from('links').update({ is_featured: false }).eq('id', link.id).eq('profile_id', user!.id)
+      if (error) setLinks(snapshot)
     } else {
       setLinks((prev) => prev.map((l) => ({ ...l, is_featured: l.id === link.id })))
-      await sb.from('links').update({ is_featured: false }).eq('profile_id', user!.id)
-      await sb.from('links').update({ is_featured: true }).eq('id', link.id).eq('profile_id', user!.id)
+      const { error: e1 } = await sb.from('links').update({ is_featured: false }).eq('profile_id', user!.id)
+      const { error: e2 } = await sb.from('links').update({ is_featured: true }).eq('id', link.id).eq('profile_id', user!.id)
+      if (e1 || e2) setLinks(snapshot)
     }
   }
 
@@ -2645,11 +2647,11 @@ export default function DashboardPage() {
                   </div>
                 )}
                 <div className="space-y-2">
-                  {links.map((link) => {
+                  {links.map((link, idx) => {
                     const { dot, ring } = getLinkCardColor(link.icon_type)
                     const isEditing = editingId === link.id
                     const t = link.icon_type
-                    const JSON_TYPES = ['follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'product', 'text_block', 'lead_form']
+                    const JSON_TYPES = ['follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'product', 'text_block', 'lead_form', 'smart_qr']
                     const isJsonType = JSON_TYPES.includes(t)
                     const si = SMART_INPUTS[t]
                     return (
@@ -2667,7 +2669,7 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => moveLink(link.id, 'up')}
-                              disabled={links.indexOf(link) === 0}
+                              disabled={idx === 0}
                               className="flex h-4 w-4 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 active:scale-95 touch-manipulation"
                               title="Переместить вверх"
                             >
@@ -2677,7 +2679,7 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => moveLink(link.id, 'down')}
-                              disabled={links.indexOf(link) === links.length - 1}
+                              disabled={idx === links.length - 1}
                               className="flex h-4 w-4 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 active:scale-95 touch-manipulation"
                               title="Переместить вниз"
                             >
@@ -2692,6 +2694,7 @@ export default function DashboardPage() {
                             <p className="truncate text-xs text-gray-500">
                               {t === 'text_block' ? (link.url.length > 50 ? link.url.slice(0, 50) + '…' : link.url)
                                 : t === 'product' ? (() => { try { const d = JSON.parse(link.url) as { l?: string; price?: string }; return (d.price ? d.price + ' · ' : '') + (d.l ?? '').replace(/^https?:\/\//, '').slice(0, 40) } catch { return 'Карточка товара' } })()
+                                : t === 'smart_qr' ? (() => { try { const d = JSON.parse(link.url) as { ios?: string; android?: string; web?: string }; return [d.ios && 'iOS', d.android && 'Android', d.web && 'Web'].filter(Boolean).join(' · ') || 'Smart QR' } catch { return 'Smart QR' } })()
                                 : isJsonType ? t
                                 : link.url.replace(/^https?:\/\//, '').slice(0, 50)}
                             </p>

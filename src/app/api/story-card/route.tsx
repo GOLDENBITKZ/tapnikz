@@ -64,15 +64,17 @@ export async function GET(request: Request) {
 
   const siteUrl = 'https://tapni.kz'
 
-  // Verify avatar is reachable — only fetch known-safe https:// URLs (prevents SSRF)
+  // Verify avatar is on our Supabase storage domain only (prevents SSRF)
   let avatarSrc = `${siteUrl}/brand-logo.jpeg`
-  if (profile.avatar_url?.startsWith('https://')) {
-    try {
-      const check = await fetch(profile.avatar_url, { method: 'HEAD' })
-      if (check.ok) avatarSrc = profile.avatar_url
-    } catch {
-      // keep brand logo fallback
-    }
+  const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+    : null
+  if (
+    supabaseHost &&
+    profile.avatar_url?.startsWith('https://') &&
+    new URL(profile.avatar_url).hostname === supabaseHost
+  ) {
+    avatarSrc = profile.avatar_url
   }
 
   const imgResponse = new ImageResponse(

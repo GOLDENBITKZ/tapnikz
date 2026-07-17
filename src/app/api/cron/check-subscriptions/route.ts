@@ -360,24 +360,42 @@ export async function GET(request: Request) {
       .not('telegram_chat_id', 'is', null)
       .limit(500)
 
+    // Batch-fetch click counts and lead counts to avoid N+1 per user
+    const profileIds = (tgUsers ?? []).map((u: { id: string }) => u.id)
+    const clicksByProfile = new Map<string, number>()
+    const leadsByProfile = new Map<string, number>()
+    if (profileIds.length > 0) {
+      // Fetch all link IDs for these profiles, then count click_events in one query
+      const { data: allLinks } = await db
+        .from('links').select('id, profile_id').in('profile_id', profileIds)
+      const linkOwner = new Map<string, string>()
+      for (const l of (allLinks ?? []) as { id: string; profile_id: string }[]) {
+        linkOwner.set(l.id, l.profile_id)
+      }
+      if (linkOwner.size > 0) {
+        const { data: clickRows } = await db
+          .from('click_events').select('link_id')
+          .in('link_id', [...linkOwner.keys()])
+          .gte('created_at', weekAgo)
+        for (const row of (clickRows ?? []) as { link_id: string }[]) {
+          const pid = linkOwner.get(row.link_id)
+          if (pid) clicksByProfile.set(pid, (clicksByProfile.get(pid) ?? 0) + 1)
+        }
+      }
+      // Batch lead counts
+      const { data: leadRows } = await db
+        .from('lead_submissions').select('profile_id')
+        .in('profile_id', profileIds)
+        .gte('created_at', weekAgo)
+      for (const row of (leadRows ?? []) as { profile_id: string }[]) {
+        leadsByProfile.set(row.profile_id, (leadsByProfile.get(row.profile_id) ?? 0) + 1)
+      }
+    }
+
     for (const u of (tgUsers ?? []) as { id: string; username: string; business_name: string; telegram_chat_id: string; view_count: number }[]) {
       try {
-        // Count clicks in last 7 days via click_events
-        const { count: weekClicks } = await db
-          .from('click_events')
-          .select('*', { count: 'exact', head: true })
-          .in('link_id', db.from('links').select('id').eq('profile_id', u.id))
-          .gte('created_at', weekAgo)
-
-        // Count leads in last 7 days
-        const { count: weekLeads } = await db
-          .from('lead_submissions')
-          .select('*', { count: 'exact', head: true })
-          .eq('profile_id', u.id)
-          .gte('created_at', weekAgo)
-
-        const clicks = weekClicks ?? 0
-        const leads = weekLeads ?? 0
+        const clicks = clicksByProfile.get(u.id) ?? 0
+        const leads = leadsByProfile.get(u.id) ?? 0
 
         // Only send if there's something to report
         if (clicks === 0 && leads === 0) continue
