@@ -1,0 +1,12 @@
+-- ================================================================
+-- V28: Remove broad SELECT policy on avatars storage bucket
+-- Applied: 2026-07-17 via Supabase MCP
+--
+-- The avatars bucket is public: direct file URLs work via
+-- /storage/v1/object/public/avatars/... without any RLS policy.
+-- The broad SELECT policy (avatar_select) was only needed for bucket
+-- listing (list()), which exposes all usernames that uploaded avatars
+-- and is not used anywhere in the app (avatar URLs are stored in
+-- profiles.avatar_url directly).
+-- ================================================================
+DROP POLICY IF EXISTS "avatar_select" ON storage.objects;
