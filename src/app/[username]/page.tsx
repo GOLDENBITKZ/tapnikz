@@ -795,7 +795,7 @@ export default async function ProfilePage({ params }: Props) {
               }
 
               if (link.icon_type === 'ediny_qr') {
-                if (!link.url.startsWith('https://pay.kaspi.kz/')) return null
+                if (!link.url.startsWith('https://')) return null
                 return (
                   <div key={link.id} style={staggerStyle} className={`animate-btn-stagger${link.is_featured ? ' ring-2 ring-yellow-400/50 rounded-2xl' : ''}`}>
                     <EdinyyQrBlock

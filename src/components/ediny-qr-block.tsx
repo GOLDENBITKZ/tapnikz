@@ -13,9 +13,9 @@ type Props = {
 }
 
 export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
-  // QR encodes the raw pay.kaspi.kz URL so any bank app can scan and pay directly.
-  // The "Открыть в Kaspi" button handles OS-aware intent routing separately.
+  // QR encodes the raw payment URL so any bank app (НПК МСМП standard) can scan and pay.
   const qrValue = url
+  const isKaspiUrl = url.startsWith('https://pay.kaspi.kz/')
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const qrContainerRef = useRef<HTMLDivElement>(null)
@@ -28,7 +28,7 @@ export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
   function handleOpenKaspi(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault()
     const ua = navigator.userAgent
-    if (/Android/i.test(ua)) {
+    if (isKaspiUrl && /Android/i.test(ua)) {
       try {
         const { hostname, pathname } = new URL(url)
         const fallback = encodeURIComponent(url)
@@ -103,7 +103,7 @@ export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
             onClick={handleOpenKaspi}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#FF8C00] to-[#F14635] py-3 text-sm font-bold text-white shadow-[0_4px_16px_rgba(255,140,0,0.30)] transition-opacity active:opacity-80 hover:opacity-90"
           >
-            Открыть в Kaspi
+            {isKaspiUrl ? 'Открыть в Kaspi' : 'Перейти к оплате'}
           </a>
 
           {/* Secondary actions for other-bank mobile users */}

@@ -31,7 +31,7 @@ export async function GET(
     .limit(1)
     .maybeSingle()
 
-  if (!link?.url?.startsWith('https://pay.kaspi.kz/')) {
+  if (!link?.url?.startsWith('https://')) {
     return Response.redirect(`${HOME}/${username}`, 302)
   }
 
@@ -43,9 +43,10 @@ export async function GET(
 
   const ua = req.headers.get('user-agent') ?? ''
   const payUrl = link.url
+  const isKaspiUrl = payUrl.startsWith('https://pay.kaspi.kz/')
 
-  // Android: Intent URL opens Kaspi app directly; browser fallback = raw pay URL
-  if (/Android/i.test(ua)) {
+  // Android + Kaspi URL: Intent opens Kaspi app directly; fallback = raw URL
+  if (/Android/i.test(ua) && isKaspiUrl) {
     const { hostname, pathname } = new URL(payUrl)
     const fallback = encodeURIComponent(payUrl)
     return Response.redirect(
@@ -54,7 +55,6 @@ export async function GET(
     )
   }
 
-  // iOS: pay.kaspi.kz is a Universal Link — iOS will offer to open in Kaspi app
-  // Desktop: Kaspi web payment works in browser
+  // Other banks / НПК URLs / iOS / Desktop → direct redirect to payment URL
   return Response.redirect(payUrl, 302)
 }
