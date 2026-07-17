@@ -24,6 +24,7 @@ export type IconType =
   | 'kaspi_pay'
   | 'kaspi_shop'
   | 'kaspi_qr'
+  | 'ediny_qr'
   | 'twogis'
   | 'website'
   | 'phone'

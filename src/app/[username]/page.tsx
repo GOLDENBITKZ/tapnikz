@@ -26,6 +26,7 @@ import { FaqBlock } from '@/components/faq-block'
 import { PricelistBlock } from '@/components/pricelist-block'
 import { ImageExpandBlock } from '@/components/image-expand-block'
 import { KaspiQrBlock } from '@/components/kaspi-qr-block'
+import { EdinyyQrBlock } from '@/components/ediny-qr-block'
 import Link from 'next/link'
 import { MapPin, Zap, ArrowLeft, ShoppingCart, ClipboardList, UserPlus } from 'lucide-react'
 
@@ -792,6 +793,20 @@ export default async function ProfilePage({ params }: Props) {
                 )
               }
 
+              if (link.icon_type === 'ediny_qr') {
+                if (!link.url.startsWith('https://pay.kaspi.kz/')) return null
+                return (
+                  <div key={link.id} style={staggerStyle} className={`animate-btn-stagger${link.is_featured ? ' ring-2 ring-yellow-400/50 rounded-2xl' : ''}`}>
+                    <EdinyyQrBlock
+                      linkId={link.id}
+                      url={link.url}
+                      title={link.title || 'Оплата — любой банк'}
+                      themeText={t.text}
+                    />
+                  </div>
+                )
+              }
+
               const style = getButtonStyle(link.icon_type)
               const isKaspiPay = link.icon_type === 'kaspi_pay'
               const logoSrc = `/logos/${link.icon_type}.svg`
@@ -825,9 +840,8 @@ export default async function ProfilePage({ params }: Props) {
                       {link.title}
                     </span>
                     {isKaspiPay && (
-                      <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white/80" />
+                      <span className="flex-shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold text-white/90 leading-none whitespace-nowrap">
+                        Все банки ✓
                       </span>
                     )}
                     <ChevronRight />
