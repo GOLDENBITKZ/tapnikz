@@ -8,13 +8,14 @@ type Props = {
   linkId: string
   url: string
   title: string
-  username: string
+  username?: string
   themeText?: string
 }
 
-export function EdinyyQrBlock({ linkId, url, title, username, themeText }: Props) {
-  // Smart QR URL: tapni.kz/qr/{username} → OS-aware redirect → Kaspi app or pay page
-  const qrValue = `https://tapni.kz/qr/${username}`
+export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
+  // QR encodes the raw pay.kaspi.kz URL so any bank app can scan and pay directly.
+  // The "Открыть в Kaspi" button handles OS-aware intent routing separately.
+  const qrValue = url
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const qrContainerRef = useRef<HTMLDivElement>(null)
