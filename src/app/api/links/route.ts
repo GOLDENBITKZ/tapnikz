@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const iconType = body.icon_type ?? 'link'
 
   const VALID_ICON_TYPES = new Set([
-    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr',
+    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr','ediny_qr','smart_qr',
     'twogis','website','phone','email','kolesa','krisha','vk','facebook','link',
     'text_block','product','lead_form','android','ios','menu','paypal',
     'instagram_dm','instagram_reel','follow_gate','milestone','instagram_keyword',
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   // Types that store JSON (not a URL) in the url field — skip URL validation
-  const JSON_URL_TYPES = ['text_block', 'product', 'follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq']
+  const JSON_URL_TYPES = ['text_block', 'product', 'follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'smart_qr']
 
   // Validate URL scheme at write time (mirrors /api/click validation)
   if (url && !JSON_URL_TYPES.includes(iconType)) {
