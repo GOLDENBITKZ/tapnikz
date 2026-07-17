@@ -94,7 +94,7 @@ export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
           </div>
 
           <p className={`text-center text-xs opacity-55 ${themeText ?? 'text-white'}`}>
-            Сканируйте через приложение вашего банка
+            Откройте приложение банка → «Оплатить» → «QR-код» → наведите на экран
           </p>
 
           {/* Kaspi deep-link — fastest for Kaspi users */}
@@ -130,7 +130,7 @@ export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
 
           {/* UX hint for non-Kaspi mobile users */}
           <p className={`text-center text-[10px] leading-relaxed opacity-35 ${themeText ?? 'text-white'}`}>
-            Другой банк на телефоне? Сохраните QR → откройте приложение банка → «Сканировать» → выберите из галереи
+            Работает в приложениях всех банков РК. Камера телефона не подходит — нужен сканер внутри банк-приложения.
           </p>
         </div>
       )}
