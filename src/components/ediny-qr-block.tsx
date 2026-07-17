@@ -8,10 +8,13 @@ type Props = {
   linkId: string
   url: string
   title: string
+  username: string
   themeText?: string
 }
 
-export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
+export function EdinyyQrBlock({ linkId, url, title, username, themeText }: Props) {
+  // Smart QR URL: tapni.kz/qr/{username} → OS-aware redirect → Kaspi app or pay page
+  const qrValue = `https://tapni.kz/qr/${username}`
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const qrContainerRef = useRef<HTMLDivElement>(null)
@@ -80,7 +83,7 @@ export function EdinyyQrBlock({ linkId, url, title, themeText }: Props) {
           {/* QR code */}
           <div ref={qrContainerRef} className="rounded-2xl bg-white p-4 shadow-[0_4px_24px_rgba(26,86,219,0.18)]">
             <QRCodeCanvas
-              value={url}
+              value={qrValue}
               size={176}
               level="M"
               bgColor="#ffffff"

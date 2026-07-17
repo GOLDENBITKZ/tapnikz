@@ -801,6 +801,7 @@ export default async function ProfilePage({ params }: Props) {
                       linkId={link.id}
                       url={link.url}
                       title={link.title || 'Оплата — любой банк'}
+                      username={profile.username}
                       themeText={t.text}
                     />
                   </div>
