@@ -425,7 +425,7 @@ export default function DashboardPage() {
     // Fetch click_events scoped to this user's link IDs (avoids platform-wide query)
     const linkIds = (lnks ?? []).map((l: { id: string }) => l.id)
     const { data: clicks } = linkIds.length > 0
-      ? await getSupabase().from('click_events').select('created_at').in('link_id', linkIds).gte('created_at', sevenDaysAgo)
+      ? await getSupabase().from('click_events').select('created_at').in('link_id', linkIds).gte('created_at', sevenDaysAgo).limit(2000)
       : { data: [] }
     if (prof) {
       setProfile(prof as Profile)
@@ -492,6 +492,12 @@ export default function DashboardPage() {
         }
       })
     })
+    // Keep accessToken fresh — Supabase auto-refreshes every ~55min, we must sync React state
+    const { data: { subscription } } = getSupabase().auth.onAuthStateChange((_event, session) => {
+      if (session) setAccessToken(session.access_token)
+      else router.replace('/auth')
+    })
+    return () => subscription.unsubscribe()
   }, [router, loadData])
 
   async function handleLogout() {

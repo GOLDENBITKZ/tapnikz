@@ -199,7 +199,7 @@ export function ChatWidget() {
               ✨
             </div>
             <span className="flex-1 text-sm font-semibold text-white">Помощник tapni.kz</span>
-            <button onClick={() => setOpen(false)} className="text-white/40 hover:text-white/70">
+            <button onClick={() => setOpen(false)} aria-label="Закрыть" className="text-white/40 hover:text-white/70">
               <X className="h-4 w-4" />
             </button>
           </div>

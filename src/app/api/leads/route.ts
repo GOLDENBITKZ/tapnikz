@@ -45,12 +45,19 @@ export async function POST(request: Request) {
 
   if (!prof) return Response.json({ error: 'profile not found' }, { status: 404 })
 
+  // Validate link_id belongs to this profile and is a lead_form type
+  let validatedLinkId: string | null = null
+  if (link_id && typeof link_id === 'string' && /^[0-9a-f-]{36}$/i.test(link_id)) {
+    const { data: linkRow } = await adminDb.from('links').select('id').eq('id', link_id).eq('profile_id', prof.id).eq('icon_type', 'lead_form').maybeSingle()
+    validatedLinkId = linkRow?.id ?? null
+  }
+
   const rawEmail = email.trim().slice(0, 200)
   const cleanEmail = rawEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : null
 
   const { error: insertError } = await adminDb.from('lead_submissions').insert([{
     profile_id: prof.id,
-    link_id: link_id ?? null,
+    link_id: validatedLinkId,
     name: name.trim().slice(0, 100),
     phone: cleanPhone,
     email: cleanEmail,

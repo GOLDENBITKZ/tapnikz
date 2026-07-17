@@ -43,6 +43,14 @@ export async function GET(request: Request) {
   if (!profile || !profile.phone) return new Response('not found', { status: 404 })
 
   const esc = (s: string) => s.replace(/\r\n?|\n/g, ' ').replace(/[\\;,]/g, (c) => `\\${c}`)
+  // RFC 2426 §2.6: fold lines longer than 75 octets
+  const fold = (line: string) => {
+    if (line.length <= 75) return line
+    let out = ''; let pos = 0
+    out += line.slice(0, 75); pos = 75
+    while (pos < line.length) { out += '\r\n ' + line.slice(pos, pos + 74); pos += 74 }
+    return out
+  }
 
   const name = esc(profile.business_name ?? '')
   const phone = profile.phone.replace(/\D/g, '')
@@ -54,12 +62,12 @@ export async function GET(request: Request) {
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
-    `FN:${name}`,
-    `N:;${name};;;`,
-    `ORG:${name}`,
+    fold(`FN:${name}`),
+    fold(`N:;${name};;;`),
+    fold(`ORG:${name}`),
     `TEL;TYPE=CELL:+${intlPhone}`,
-    profile.address ? `ADR;TYPE=WORK:;;${esc(profile.address)};;;Казахстан` : null,
-    profile.bio ? `NOTE:${esc(profile.bio)}` : null,
+    profile.address ? fold(`ADR;TYPE=WORK:;;${esc(profile.address)};;;Казахстан`) : null,
+    profile.bio ? fold(`NOTE:${esc(profile.bio)}`) : null,
     `URL:https://tapni.kz/${profile.username}`,
     'END:VCARD',
   ].filter(Boolean).join('\r\n')

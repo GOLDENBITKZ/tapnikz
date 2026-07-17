@@ -77,6 +77,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
               </div>
               <button
                 onClick={closeModal}
+                aria-label="Закрыть"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-gray-400 transition-colors hover:text-white"
               >
                 <X className="h-4 w-4" />

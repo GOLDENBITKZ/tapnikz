@@ -10,6 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from('profiles')
     .select('username, updated_at')
     .order('updated_at', { ascending: false })
+    .limit(5000)
 
   const profileUrls: MetadataRoute.Sitemap = (profiles ?? []).map((p: { username: string; updated_at: string }) => ({
     url: `https://tapni.kz/${p.username}`,
@@ -49,12 +50,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.6,
-    },
-    {
-      url: 'https://tapni.kz/auth',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.4,
     },
     ...nicheUrls,
     ...profileUrls,

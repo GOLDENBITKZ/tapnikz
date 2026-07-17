@@ -7,6 +7,13 @@ const HOME = 'https://tapni.kz'
 
 type SmartQrData = { ios?: string; android?: string; web?: string; label?: string }
 
+function safeHttpUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw)
+    return (u.protocol === 'https:' || u.protocol === 'http:') ? raw : null
+  } catch { return null }
+}
+
 // Returns true if URL is a Play Store / App Store direct link (redirect directly, no intent needed)
 function isStoreUrl(url: string) {
   return /play\.google\.com\/store|apps\.apple\.com/i.test(url)
@@ -81,9 +88,9 @@ export async function GET(
   let data: SmartQrData = {}
   try { data = JSON.parse(link.url) } catch { return Response.redirect(HOME, 302) }
 
-  const ios = data.ios?.trim() || ''
-  const android = data.android?.trim() || ''
-  const web = data.web?.trim() || HOME
+  const ios = safeHttpUrl(data.ios?.trim() ?? '') ?? ''
+  const android = safeHttpUrl(data.android?.trim() ?? '') ?? ''
+  const web = safeHttpUrl(data.web?.trim() ?? '') ?? HOME
   const label = link.title || data.label || 'Открыть приложение'
 
   if (!ios && !android && !web) return Response.redirect(HOME, 302)

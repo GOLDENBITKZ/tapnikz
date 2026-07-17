@@ -41,6 +41,12 @@ export async function POST(request: Request) {
     return Response.json({ error: 'invalid icon_type' }, { status: 400 })
   }
 
+  // Premium-only link types — enforce server-side (UI check is bypassable)
+  const PREMIUM_ONLY = new Set(['product', 'smart_qr'])
+  if (PREMIUM_ONLY.has(iconType) && !prof.is_premium) {
+    return Response.json({ error: 'premium_required' }, { status: 403 })
+  }
+
   const EMPTY_URL_OK = ['lead_form', 'text_block', 'follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'faq', 'video']
   if (!url && !EMPTY_URL_OK.includes(iconType)) {
     return Response.json({ error: 'url required' }, { status: 400 })

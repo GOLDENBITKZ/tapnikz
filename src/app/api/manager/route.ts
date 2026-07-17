@@ -27,24 +27,26 @@ export async function GET(request: Request) {
       .from('profiles')
       .select('username, business_name, is_premium, is_promo, created_at')
       .eq('referred_by', prof.username)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(500),
     adminDb
       .from('sales_commissions')
       .select('id, client_username, plan, sale_amount, commission_amount, status, created_at')
       .eq('manager_username', prof.username)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(500),
   ])
 
   const clientList = clients ?? []
   const commList = commissions ?? []
 
   const totalEarned = commList.reduce(
-    (sum: number, c: { commission_amount: number }) => sum + c.commission_amount,
+    (sum: number, c: { commission_amount: number | null }) => sum + (c.commission_amount ?? 0),
     0
   )
   const pendingPayout = commList
     .filter((c: { status: string }) => c.status === 'pending')
-    .reduce((sum: number, c: { commission_amount: number }) => sum + c.commission_amount, 0)
+    .reduce((sum: number, c: { commission_amount: number | null }) => sum + (c.commission_amount ?? 0), 0)
 
   return Response.json({
     stats: {

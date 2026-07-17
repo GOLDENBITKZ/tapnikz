@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 // Cache profile pages for 60s on the edge — reduces Supabase roundtrips for popular pages
 export const revalidate = 60
 import { makeVcardToken } from '@/lib/vcard-token'
-import { getSupabase, type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours } from '@/lib/supabase'
+import { type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours } from '@/lib/supabase'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   WhatsAppIcon, TelegramIcon, InstagramIcon, TikTokIcon, YouTubeIcon,
@@ -71,7 +71,7 @@ const getData = cache(async (username: string) => {
 
   const { data: links } = await db
     .from('links')
-    .select('id,profile_id,title,url,icon_type,sort_order,click_count,visible_from,visible_until')
+    .select('id,profile_id,title,url,icon_type,sort_order,click_count,is_featured,visible_from,visible_until')
     .eq('profile_id', (profile as Profile).id)
     .order('sort_order')
 
@@ -383,7 +383,7 @@ export default async function ProfilePage({ params }: Props) {
 
   return (
     <main className={`relative min-h-screen ${t.bg} overflow-hidden`}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f') }} />
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className={`absolute -top-32 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full blur-[120px] ${t.glow1}`} />
         <div className={`absolute bottom-0 right-0 h-[300px] w-[300px] rounded-full blur-[80px] ${t.glow2}`} />
