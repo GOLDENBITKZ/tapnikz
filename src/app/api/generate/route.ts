@@ -17,7 +17,7 @@ function checkGenerateRate(ip: string): boolean {
 const VALID_THEMES = ['dark', 'light', 'gradient', 'blogger', 'business', 'seller'] as const
 const VALID_ICONS = [
   'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube',
-  'kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'ediny_qr', 'twogis', 'website',
+  'kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'ediny_qr', 'smart_qr', 'twogis', 'website',
   'phone', 'email', 'kolesa', 'krisha', 'vk', 'facebook',
   'link', 'android', 'ios', 'paypal',
 ] as const

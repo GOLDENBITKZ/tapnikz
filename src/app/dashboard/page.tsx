@@ -26,6 +26,7 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'kaspi_pay',  label: '💸 Kaspi Pay',        placeholder: 'https://pay.kaspi.kz/pay/...' },
   { value: 'kaspi_qr',   label: '📱 Kaspi Pay QR-код', placeholder: 'https://pay.kaspi.kz/pay/...' },
   { value: 'ediny_qr',   label: '🏦 Единый QR — все банки', placeholder: 'https://pay.kaspi.kz/pay/...' },
+  { value: 'smart_qr',   label: '📲 Smart QR — iOS / Android / Web ⚡', placeholder: '' },
   { value: 'kaspi',      label: '🛒 Kaspi магазин',    placeholder: 'https://kaspi.kz/shop/info/...' },
   { value: 'kaspi_shop', label: '🏪 Kaspi товар',      placeholder: 'https://kaspi.kz/shop/p/...' },
   { value: 'twogis',     label: '📍 2ГИС',             placeholder: 'https://2gis.kz/...' },
@@ -86,6 +87,7 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
     case 'kaspi_shop':
     case 'kaspi_qr':  return { dot: 'bg-[#E50000]', ring: 'border-l-[#E50000]' }
     case 'ediny_qr':  return { dot: 'bg-[#1A56DB]', ring: 'border-l-[#1A56DB]' }
+    case 'smart_qr':  return { dot: 'bg-violet-500', ring: 'border-l-violet-500' }
     case 'twogis':     return { dot: 'bg-[#1DB256]', ring: 'border-l-[#1DB256]' }
     case 'kolesa':     return { dot: 'bg-[#FF6600]', ring: 'border-l-orange-500' }
     case 'krisha':     return { dot: 'bg-[#0076CC]', ring: 'border-l-blue-500' }
@@ -369,6 +371,11 @@ export default function DashboardPage() {
   const [faqTitle, setFaqTitle] = useState('')
   const [faqItems, setFaqItems] = useState<{ q: string; a: string }[]>([{ q: '', a: '' }])
 
+  // Smart QR state
+  const [smartQrIos, setSmartQrIos] = useState('')
+  const [smartQrAndroid, setSmartQrAndroid] = useState('')
+  const [smartQrWeb, setSmartQrWeb] = useState('')
+
   // ─── Edit mode state ───────────────────────────────────────────
   const [editingId, setEditingId] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
@@ -400,6 +407,9 @@ export default function DashboardPage() {
   const [editFaqItems, setEditFaqItems] = useState<{ q: string; a: string }[]>([])
   const [editProdUrl, setEditProdUrl] = useState('')
   const [editProdPrice, setEditProdPrice] = useState('')
+  const [editSqIos, setEditSqIos] = useState('')
+  const [editSqAndroid, setEditSqAndroid] = useState('')
+  const [editSqWeb, setEditSqWeb] = useState('')
   const [editVisibleFrom, setEditVisibleFrom] = useState('')
   const [editVisibleUntil, setEditVisibleUntil] = useState('')
 
@@ -635,6 +645,7 @@ export default function DashboardPage() {
     const isImage = linkForm.icon_type === 'image'
     const isVideo = linkForm.icon_type === 'video'
     const isFaq = linkForm.icon_type === 'faq'
+    const isSmartQr = linkForm.icon_type === 'smart_qr'
 
     if (isCountdown) {
       if (!countdownTarget) { setLinkError('Выберите дату и время'); return }
@@ -925,6 +936,40 @@ export default function DashboardPage() {
       return
     }
 
+    if (isSmartQr) {
+      if (!profile.is_premium) { setLinkError('Smart QR доступен только в Premium ⚡'); return }
+      if (!smartQrIos.trim() && !smartQrAndroid.trim() && !smartQrWeb.trim()) {
+        setLinkError('Введите хотя бы одну ссылку (iOS, Android или Web)')
+        return
+      }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({
+          ...(smartQrIos.trim() ? { ios: smartQrIos.trim().startsWith('http') ? smartQrIos.trim() : `https://${smartQrIos.trim()}` } : {}),
+          ...(smartQrAndroid.trim() ? { android: smartQrAndroid.trim().startsWith('http') ? smartQrAndroid.trim() : `https://${smartQrAndroid.trim()}` } : {}),
+          ...(smartQrWeb.trim() ? { web: smartQrWeb.trim().startsWith('http') ? smartQrWeb.trim() : `https://${smartQrWeb.trim()}` } : {}),
+        })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Открыть приложение', url: urlJson, icon_type: 'smart_qr', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error(await res.text())
+        setLinkForm({ title: '', url: '', icon_type: 'smart_qr' })
+        setSmartQrIos('')
+        setSmartQrAndroid('')
+        setSmartQrWeb('')
+        await loadData(user.id)
+      } catch {
+        setLinkError('Не удалось добавить Smart QR')
+      } finally {
+        setAddingLink(false)
+      }
+      return
+    }
+
     if (!isText && !linkForm.title) { setLinkError('Введите название кнопки'); return }
     if (!linkForm.url) { setLinkError(isText ? 'Введите текст' : 'Введите ссылку'); return }
     setLinkError('')
@@ -993,7 +1038,7 @@ export default function DashboardPage() {
     setEditVisibleFrom(toLocalInput(link.visible_from ?? null))
     setEditVisibleUntil(toLocalInput(link.visible_until ?? null))
     const t = link.icon_type
-    if (['follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'product', 'text_block', 'lead_form'].includes(t)) {
+    if (['follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'product', 'text_block', 'lead_form', 'smart_qr'].includes(t)) {
       let d: Record<string, unknown> = {}
       try { d = JSON.parse(link.url) } catch {}
       if (t === 'follow_gate') {
@@ -1033,6 +1078,10 @@ export default function DashboardPage() {
       } else if (t === 'product') {
         setEditProdUrl((d.l as string) ?? '')
         setEditProdPrice((d.price as string) ?? '')
+      } else if (t === 'smart_qr') {
+        setEditSqIos((d.ios as string) ?? '')
+        setEditSqAndroid((d.android as string) ?? '')
+        setEditSqWeb((d.web as string) ?? '')
       } else if (t === 'text_block') {
         setEditUrl(link.url)
       }
@@ -1090,6 +1139,13 @@ export default function DashboardPage() {
         const prevD: Record<string, unknown> = {}
         try { Object.assign(prevD, JSON.parse(link.url)) } catch {}
         newUrl = JSON.stringify({ ...prevD, l: editProdUrl.trim().startsWith('http') ? editProdUrl.trim() : `https://${editProdUrl.trim()}`, price: editProdPrice.trim() })
+      } else if (t === 'smart_qr') {
+        if (!editSqIos.trim() && !editSqAndroid.trim() && !editSqWeb.trim()) return
+        newUrl = JSON.stringify({
+          ...(editSqIos.trim() ? { ios: editSqIos.trim().startsWith('http') ? editSqIos.trim() : `https://${editSqIos.trim()}` } : {}),
+          ...(editSqAndroid.trim() ? { android: editSqAndroid.trim().startsWith('http') ? editSqAndroid.trim() : `https://${editSqAndroid.trim()}` } : {}),
+          ...(editSqWeb.trim() ? { web: editSqWeb.trim().startsWith('http') ? editSqWeb.trim() : `https://${editSqWeb.trim()}` } : {}),
+        })
       } else if (t === 'text_block' || t === 'lead_form') {
         newUrl = link.url // unchanged for lead_form
         if (t === 'text_block') newUrl = editUrl
@@ -1101,7 +1157,7 @@ export default function DashboardPage() {
       if (!newTitle && t !== 'text_block') newTitle = link.title
 
       // Block dangerous URL schemes before saving
-      const JSON_TYPES = ['text_block','product','follow_gate','milestone','instagram_keyword','countdown','pricelist','image','video','faq']
+      const JSON_TYPES = ['text_block','product','follow_gate','milestone','instagram_keyword','countdown','pricelist','image','video','faq','smart_qr']
       if (newUrl && !JSON_TYPES.includes(t) && /^(javascript|data|vbscript):/i.test(newUrl)) {
         setLinkError('Недопустимая схема URL')
         return
@@ -1216,7 +1272,7 @@ export default function DashboardPage() {
   const qrFallbackRef = useRef<HTMLDivElement>(null)
   const qrDownloadRef = useRef<HTMLDivElement>(null)      // 600px with user/brand logo (may taint if user avatar is cross-origin)
   const qrDownloadBrandRef = useRef<HTMLDivElement>(null) // 600px with brand logo only (always clean)
-  const [helpType, setHelpType] = useState<'kaspi' | 'kaspi_pay' | 'kaspi_shop' | 'kaspi_qr' | 'ediny_qr' | 'twogis' | null>(null)
+  const [helpType, setHelpType] = useState<'kaspi' | 'kaspi_pay' | 'kaspi_shop' | 'kaspi_qr' | 'ediny_qr' | 'smart_qr' | 'twogis' | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
 
@@ -1303,7 +1359,7 @@ export default function DashboardPage() {
   const atLimit = !profile?.is_premium && links.length >= FREE_LINK_LIMIT
   const profileUrl = profile ? `https://tapni.kz/${profile.username}` : ''
   const isTextType = linkForm.icon_type === 'text_block'
-  const showHelp = ['kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'ediny_qr', 'twogis'].includes(linkForm.icon_type)
+  const showHelp = ['kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'ediny_qr', 'smart_qr', 'twogis'].includes(linkForm.icon_type)
 
   function downloadQr() {
     const filename = `tapni-qr-${profile?.username ?? 'code'}.png`
@@ -1994,9 +2050,9 @@ export default function DashboardPage() {
                       className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-violet-500/60"
                     >
                       {ICON_OPTIONS
-                        .filter((o) => o.value !== 'product' || profile?.is_premium)
+                        .filter((o) => (o.value !== 'product' && o.value !== 'smart_qr') || profile?.is_premium)
                         .map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}{o.value === 'product' ? ' ⚡' : ''}</option>
+                          <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                     </select>
                     {showHelp && (
@@ -2117,6 +2173,51 @@ export default function DashboardPage() {
                         inputMode="url"
                         className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
                       />
+                    </div>
+                  )}
+
+                  {/* Smart QR — special form */}
+                  {linkForm.icon_type === 'smart_qr' && (
+                    <div className="space-y-3 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-400">
+                        📲 Smart QR — маршруты по платформам
+                      </p>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-gray-400">iOS (App Store / Universal Link)</label>
+                        <input
+                          type="text"
+                          value={smartQrIos}
+                          onChange={(e) => setSmartQrIos(e.target.value)}
+                          placeholder="https://apps.apple.com/app/..."
+                          inputMode="url"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-gray-400">Android (Play Store / App Link)</label>
+                        <input
+                          type="text"
+                          value={smartQrAndroid}
+                          onChange={(e) => setSmartQrAndroid(e.target.value)}
+                          placeholder="https://play.google.com/store/apps/details?id=..."
+                          inputMode="url"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-gray-400">Web (фолбек для Desktop и браузера)</label>
+                        <input
+                          type="text"
+                          value={smartQrWeb}
+                          onChange={(e) => setSmartQrWeb(e.target.value)}
+                          placeholder="https://example.com"
+                          inputMode="url"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-400 leading-relaxed">
+                        Заполните хотя бы одно поле. QR-код ведёт на <span className="font-mono">tapni.kz/qr/l/…</span> — маршрутизация по OS в реальном времени.
+                      </p>
                     </div>
                   )}
 
@@ -2438,7 +2539,7 @@ export default function DashboardPage() {
                   )}
 
                   {/* URL/text field — hidden for types with their own forms */}
-                  {linkForm.icon_type !== 'product' && linkForm.icon_type !== 'follow_gate' && linkForm.icon_type !== 'milestone' && linkForm.icon_type !== 'instagram_keyword' && linkForm.icon_type !== 'countdown' && linkForm.icon_type !== 'pricelist' && linkForm.icon_type !== 'image' && linkForm.icon_type !== 'video' && linkForm.icon_type !== 'faq' && (isTextType ? (
+                  {linkForm.icon_type !== 'product' && linkForm.icon_type !== 'smart_qr' && linkForm.icon_type !== 'follow_gate' && linkForm.icon_type !== 'milestone' && linkForm.icon_type !== 'instagram_keyword' && linkForm.icon_type !== 'countdown' && linkForm.icon_type !== 'pricelist' && linkForm.icon_type !== 'image' && linkForm.icon_type !== 'video' && linkForm.icon_type !== 'faq' && (isTextType ? (
                     <textarea
                       value={linkForm.url}
                       onChange={(e) => setLinkForm((p) => ({ ...p, url: e.target.value }))}
@@ -2646,6 +2747,13 @@ export default function DashboardPage() {
                               placeholder="Название кнопки"
                               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60"
                             />
+
+                            {/* smart_qr */}
+                            {t === 'smart_qr' && (<>
+                              <input type="text" value={editSqIos} onChange={(e) => setEditSqIos(e.target.value)} placeholder="iOS URL (apps.apple.com/...)" inputMode="url" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              <input type="text" value={editSqAndroid} onChange={(e) => setEditSqAndroid(e.target.value)} placeholder="Android URL (play.google.com/...)" inputMode="url" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              <input type="text" value={editSqWeb} onChange={(e) => setEditSqWeb(e.target.value)} placeholder="Web URL (https://...)" inputMode="url" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            </>)}
 
                             {/* follow_gate */}
                             {t === 'follow_gate' && (<>
@@ -3076,6 +3184,7 @@ export default function DashboardPage() {
                 {helpType === 'kaspi_pay' && '💸 Как найти ссылку Kaspi Pay?'}
                 {helpType === 'kaspi_qr'  && '📱 Kaspi Pay QR-код — как настроить?'}
                 {helpType === 'ediny_qr'  && '🏦 Единый QR — принимайте оплату от всех банков'}
+                {helpType === 'smart_qr'  && '📲 Smart QR — один код для iOS, Android и Web'}
                 {helpType === 'kaspi_shop' && '🏪 Как найти ссылку на товар Kaspi?'}
                 {helpType === 'twogis' && '📍 Как найти ссылку в 2ГИС?'}
               </p>
@@ -3146,6 +3255,20 @@ export default function DashboardPage() {
                 <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700 space-y-1.5">
                   <p><b>🏦 Единый QR (с 19 июля 2026)</b> — ваш QR-код Kaspi теперь принимает оплату от клиентов <b>любого банка</b> Казахстана: Halyk, BCC, Freedom, Altyn и других.</p>
                   <p>На странице отображается QR-код + кнопка «Открыть в Kaspi» для мобильных. Клиенты других банков могут сохранить QR и открыть его из галереи в своём банковском приложении.</p>
+                </div>
+              </>
+            )}
+
+            {helpType === 'smart_qr' && (
+              <>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p><b>iOS:</b> App Store ссылка вида <span className="font-mono text-xs">apps.apple.com/app/…</span> — или любой Universal Link вашего приложения</p>
+                  <p><b>Android:</b> Play Store вида <span className="font-mono text-xs">play.google.com/store/apps/…</span> — или App Link вашего приложения</p>
+                  <p><b>Web:</b> сайт или страница на случай если приложение не установлено (Desktop пользователи всегда попадают сюда)</p>
+                </div>
+                <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs text-violet-700 space-y-1.5">
+                  <p><b>📲 Как работает Smart QR:</b> QR-код кодирует постоянный адрес <span className="font-mono">tapni.kz/qr/l/…</span>. Когда кто-то сканирует — сервер определяет OS и мгновенно перенаправляет: iOS → App Store, Android → Play Store / приложение напрямую, Desktop → веб.</p>
+                  <p>Смените ссылки в дашборде — QR перепечатывать не нужно. Каждый скан считается отдельно от обычных кликов.</p>
                 </div>
               </>
             )}

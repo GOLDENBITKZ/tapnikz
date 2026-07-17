@@ -27,6 +27,7 @@ import { PricelistBlock } from '@/components/pricelist-block'
 import { ImageExpandBlock } from '@/components/image-expand-block'
 import { KaspiQrBlock } from '@/components/kaspi-qr-block'
 import { EdinyyQrBlock } from '@/components/ediny-qr-block'
+import { SmartQrBlock } from '@/components/smart-qr-block'
 import Link from 'next/link'
 import { MapPin, Zap, ArrowLeft, ShoppingCart, ClipboardList, UserPlus } from 'lucide-react'
 
@@ -802,6 +803,22 @@ export default async function ProfilePage({ params }: Props) {
                       url={link.url}
                       title={link.title || 'Оплата — любой банк'}
                       username={profile.username}
+                      themeText={t.text}
+                    />
+                  </div>
+                )
+              }
+
+              if (link.icon_type === 'smart_qr') {
+                let sqData: { ios?: string; android?: string; web?: string; label?: string } = {}
+                try { sqData = JSON.parse(link.url) } catch { return null }
+                if (!sqData.ios && !sqData.android && !sqData.web) return null
+                return (
+                  <div key={link.id} style={staggerStyle} className={`animate-btn-stagger${link.is_featured ? ' ring-2 ring-yellow-400/50 rounded-2xl' : ''}`}>
+                    <SmartQrBlock
+                      linkId={link.id}
+                      data={sqData}
+                      title={link.title || sqData.label || 'Открыть приложение'}
                       themeText={t.text}
                     />
                   </div>
