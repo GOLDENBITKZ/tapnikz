@@ -17,6 +17,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<'ok' | 'err' | null>(null)
@@ -29,7 +30,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
       const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, link_id: linkId, name: name.trim(), phone: phone.trim(), message: message.trim() }),
+        body: JSON.stringify({ username, link_id: linkId, name: name.trim(), phone: phone.trim(), email: email.trim(), message: message.trim() }),
       })
       setResult(res.ok ? 'ok' : 'err')
     } catch {
@@ -41,7 +42,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
 
   function closeModal() {
     setOpen(false)
-    setTimeout(() => { setName(''); setPhone(''); setMessage(''); setResult(null) }, 300)
+    setTimeout(() => { setName(''); setPhone(''); setEmail(''); setMessage(''); setResult(null) }, 300)
   }
 
   return (
@@ -124,6 +125,22 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
                     placeholder="+7 700 123 4567"
                     autoComplete="tel"
                     inputMode="tel"
+                    className={`w-full rounded-xl border border-white/10 ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
+                    style={{ background: 'rgba(255,255,255,0.05)' }}
+                  />
+                </div>
+
+                <div>
+                  <label className={`mb-1.5 block text-xs font-medium ${themeSubtext}`}>
+                    Email (необязательно)
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="info@example.com"
+                    autoComplete="email"
+                    inputMode="email"
                     className={`w-full rounded-xl border border-white/10 ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
                     style={{ background: 'rgba(255,255,255,0.05)' }}
                   />

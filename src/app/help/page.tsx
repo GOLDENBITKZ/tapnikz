@@ -3,12 +3,12 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Помощь и инструкции · tapni.kz',
-  description: 'Ответы на частые вопросы: как добавить кнопку Kaspi Pay, 2ГИС, WhatsApp в Instagram bio. Пошаговые инструкции для tapni.kz.',
+  description: 'Ответы на частые вопросы: как добавить кнопку Kaspi Pay, 2ГИС, WhatsApp, FAQ, видео, прайс-лист в Instagram bio. Пошаговые инструкции для tapni.kz.',
   alternates: { canonical: 'https://tapni.kz/help' },
 }
 
 const WA = 'https://wa.me/77755696531'
-const TG = 'https://t.me/Tapnikzbot'
+const TG = '/go/tg?u=Tapnikzbot'
 
 const SECTIONS = [
   {
@@ -27,11 +27,20 @@ const SECTIONS = [
         ],
       },
       {
+        q: 'Как добавить ссылку tapni.kz в Instagram bio?',
+        a: [
+          'Перейдите в Instagram → Редактировать профиль.',
+          'Найдите поле «Ссылка» или «Ссылка в Bio».',
+          'Введите ваш адрес: tapni.kz/ваш-ник.',
+          'Сохраните — теперь все контакты доступны через один тап.',
+        ],
+      },
+      {
         q: 'Как добавить кнопку WhatsApp?',
         a: [
-          'В кабинете откройте вкладку «Ссылки».',
+          'В кабинете откройте вкладку «Ссылки» → нажмите «+ Добавить ссылку».',
           'Выберите тип «💬 WhatsApp».',
-          'В поле ввода введите только номер телефона: 77001234567 (без + и пробелов).',
+          'В поле ввода введите только номер: 77001234567 (без + и пробелов).',
           'Придумайте название кнопки, например «Написать нам».',
           'Нажмите «Добавить» — кнопка появится на вашей странице.',
         ],
@@ -43,15 +52,6 @@ const SECTIONS = [
           'Введите ваш username в Telegram (без @) — например username123.',
           'Или введите ссылку на канал: t.me/channel_name.',
           'Нажмите «Добавить».',
-        ],
-      },
-      {
-        q: 'Как поставить ссылку tapni.kz в Instagram bio?',
-        a: [
-          'Перейдите в Instagram → Редактировать профиль.',
-          'Найдите поле «Ссылка» или «Ссылка в Bio».',
-          'Введите ваш адрес: tapni.kz/ваш-ник.',
-          'Сохраните. Теперь все контакты доступны через один тап.',
         ],
       },
     ],
@@ -115,6 +115,73 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'content-blocks',
+    title: '🧩 Блоки контента (Premium)',
+    items: [
+      {
+        q: 'Как добавить FAQ (вопросы и ответы)?',
+        a: [
+          'В разделе «Ссылки» нажмите «+ Добавить ссылку» → выберите «❓ FAQ / Вопросы и ответы».',
+          'Введите название блока, например «Часто задаваемые вопросы».',
+          'Добавьте пары вопрос–ответ: нажимайте «+ Добавить вопрос».',
+          'Нажмите «Добавить» — на вашей странице появится раскрывающийся аккордеон.',
+          '⚡ Функция доступна в Premium.',
+        ],
+      },
+      {
+        q: 'Как добавить прайс-лист или список услуг?',
+        a: [
+          'Выберите тип «💰 Прайс-лист / Услуги».',
+          'Введите название прайса, например «Наши услуги».',
+          'Добавьте позиции: название → цена → описание (опционально).',
+          'Можно добавить до 20 позиций.',
+          'На вашей странице отобразится красивая таблица услуг с ценами.',
+          '⚡ Функция доступна в Premium.',
+        ],
+      },
+      {
+        q: 'Как добавить таймер обратного отсчёта?',
+        a: [
+          'Выберите тип «⏳ Таймер обратного отсчёта».',
+          'Введите название акции, например «До конца распродажи».',
+          'Укажите дату и время окончания акции.',
+          'На странице отобразится тикающий таймер — создаёт ощущение срочности.',
+          '⚡ Функция доступна в Premium.',
+        ],
+      },
+      {
+        q: 'Как добавить баннер-изображение?',
+        a: [
+          'Выберите тип «🖼 Баннер-изображение».',
+          'Выберите режим «Кнопка» (изображение раскрывается по нажатию) или «Баннер» (всегда видно).',
+          'Загрузите изображение (JPG/PNG) — оно автоматически сжимается до WebP.',
+          'Для режима «Кнопка» введите ссылку, куда ведёт нажатие.',
+          '⚡ Функция доступна в Premium.',
+        ],
+      },
+      {
+        q: 'Как добавить видео (YouTube / TikTok)?',
+        a: [
+          'Выберите тип «📹 Видео».',
+          'Вставьте ссылку на видео в YouTube или TikTok.',
+          'На странице отобразится встроенный плеер — видео можно смотреть прямо на вашей странице.',
+          '⚡ Функция доступна в Premium.',
+        ],
+      },
+      {
+        q: 'Как добавить форму заявки / записи?',
+        a: [
+          'Выберите тип «📋 Запись / Заявка».',
+          'Введите название кнопки, например «Записаться на маникюр».',
+          'Посетитель нажимает кнопку → открывается форма (имя, телефон, email).',
+          'Заявки попадают во вкладку «Лиды» в вашем кабинете.',
+          'В Premium — полная история заявок; бесплатно — последние 3.',
+          '⚡ Функция доступна в Premium.',
+        ],
+      },
+    ],
+  },
+  {
     id: 'profile',
     title: '🖼 Логотип и оформление',
     items: [
@@ -123,8 +190,8 @@ const SECTIONS = [
         a: [
           'В кабинете перейдите на вкладку «Профиль».',
           'Нажмите «Загрузить логотип» под аватаркой.',
-          'Выберите фото или логотип с телефона/компьютера (JPG, PNG, до 10 МБ).',
-          'Изображение автоматически сжимается до 200×200 пикселей и оптимизируется.',
+          'Выберите фото или логотип (JPG, PNG, до 10 МБ).',
+          'Изображение автоматически сжимается и оптимизируется.',
           'Нажмите «Сохранить профиль» — логотип появится на вашей странице.',
         ],
       },
@@ -132,8 +199,9 @@ const SECTIONS = [
         q: 'Как сменить тему оформления?',
         a: [
           'В разделе «Профиль» прокрутите до блока «Тема оформления».',
-          'Доступно 6 тем: Тёмная, Светлая, Градиент, Блогер, Бизнес, Селлер.',
-          'Нажмите на понравившуюся тему и сохраните профиль.',
+          'Доступно 6 тем: Тёмная, Светлая, Градиент, 💄 Блогер, 💼 Бизнес, 🛒 Селлер.',
+          'Нажмите на понравившуюся тему — мгновенный предпросмотр.',
+          'Нажмите «Сохранить профиль».',
         ],
       },
       {
@@ -149,37 +217,140 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'links',
+    title: '🔗 Управление кнопками',
+    items: [
+      {
+        q: 'Как изменить порядок кнопок?',
+        a: [
+          'В кабинете откройте вкладку «Ссылки».',
+          'Слева от каждой кнопки есть значок ⠿ (перетаскивание).',
+          'Зажмите его и перетащите кнопку на нужное место.',
+          'Порядок сохраняется автоматически.',
+        ],
+      },
+      {
+        q: 'Как закрепить кнопку вверху (⭐ Featured)?',
+        a: [
+          'В списке кнопок нажмите значок ⭐ рядом с нужной кнопкой.',
+          'Кнопка получит звёздочку и всегда будет показываться первой на вашей странице.',
+          'Повторное нажатие снимает закрепление.',
+        ],
+      },
+      {
+        q: 'Как скрыть кнопку по расписанию?',
+        a: [
+          'При создании или редактировании кнопки найдите блок «Отображение по расписанию».',
+          'Укажите дату/время начала («показывать с») и конца («скрыть до»).',
+          'Кнопка автоматически появляется и исчезает в указанное время — удобно для акций и праздничных предложений.',
+        ],
+      },
+      {
+        q: 'Что такое «Текст / Описание» (текстовый блок)?',
+        a: [
+          'Это карточка без ссылки — только текст, видимый на вашей странице.',
+          'Используйте для: расписания работы, акционных предложений, описания услуг.',
+          'Пример: заголовок «Режим работы», текст «Пн-Пт 9:00-18:00».',
+        ],
+      },
+      {
+        q: 'Почему кнопка «Позвонить» не работает на ПК?',
+        a: [
+          'Кнопка использует протокол tel: — он работает только на мобильных устройствах.',
+          'На компьютере без телефонии кнопка не откроет звонок — это нормально.',
+          'Для универсального охвата добавьте WhatsApp — работает на всех устройствах.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'analytics',
+    title: '📊 Аналитика (Premium)',
+    items: [
+      {
+        q: 'Как посмотреть статистику кликов?',
+        a: [
+          'В вашем кабинете во вкладке «Ссылки» рядом с каждой кнопкой отображается счётчик кликов.',
+          'Общее количество просмотров профиля видно в верхней части.',
+          '⚡ Полная аналитика (CTR по каждой кнопке) доступна в Premium.',
+        ],
+      },
+      {
+        q: 'Где смотреть заявки из форм?',
+        a: [
+          'Перейдите во вкладку «Лиды» в кабинете.',
+          'Здесь собраны все заявки от кнопок типа «Запись / Заявка».',
+          'Для каждой заявки отображается: имя, телефон, email, дата.',
+          'Бесплатно — последние 3 заявки; Premium — полная история без ограничений.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'telegram',
+    title: '💬 Telegram бот (@Tapnikzbot)',
+    items: [
+      {
+        q: 'Как привязать Telegram к аккаунту?',
+        a: [
+          'Откройте наш Telegram-бот: t.me/Tapnikzbot',
+          'Нажмите «Старт» или отправьте /start.',
+          'Нажмите кнопку «Поделиться номером» — бот найдёт ваш аккаунт по номеру телефона.',
+          'После привязки: сброс пароля и уведомления будут приходить прямо в Telegram.',
+        ],
+      },
+      {
+        q: 'Как оплатить Premium через Telegram (автоактивация)?',
+        a: [
+          'Оплатите через Kaspi Pay или перевод на Halyk Bank.',
+          'Откройте бот @Tapnikzbot и отправьте скриншот или PDF чека/квитанции.',
+          'Бот автоматически проверит чек и активирует Premium за несколько секунд.',
+          'Принимаются чеки Kaspi Pay и Halyk Bank.',
+          'Если чек не распознан — заявка уйдёт администратору для ручной проверки.',
+        ],
+      },
+      {
+        q: 'Какие ещё уведомления присылает бот?',
+        a: [
+          'За 7 дней до окончания Premium — напоминание о продлении.',
+          'За 3 дня до окончания — повторное напоминание с кнопкой оплаты.',
+          'Ссылка для сброса пароля (если привязан Telegram — не нужно ждать WhatsApp).',
+          'Подтверждение активации Premium после оплаты.',
+        ],
+      },
+    ],
+  },
+  {
     id: 'premium',
     title: '⚡ Premium подписка',
     items: [
       {
-        q: 'Что даёт Premium?',
+        q: 'Что входит в Premium?',
         a: [
           'Безлимитное количество кнопок (бесплатно — 3).',
-          'Возможность загрузить свой логотип.',
-          'Доступ к 3 дополнительным темам: Блогер, Бизнес, Селлер.',
-          'Страница без водяного знака tapni.kz.',
+          'Все типы контента: FAQ, видео, прайс-лист, таймер, баннер, форма заявок.',
+          'Аналитика — CTR по каждой кнопке и просмотры профиля.',
+          '6 тем оформления (включая Блогер, Бизнес, Селлер).',
           'QR-код высокого разрешения для печати.',
           'Возможность сменить адрес tapni.kz/ник.',
-          'Аналитика — сколько раз нажали на каждую кнопку.',
+          'Страница без водяного знака tapni.kz.',
         ],
       },
       {
         q: 'Как оплатить Premium?',
         a: [
-          'Перейдите в кабинет → вкладка «Оплата».',
-          'Или на страницу tapni.kz/pay.',
+          'Перейдите в кабинет → вкладка «Оплата» или на tapni.kz/pay.',
           'Выберите тариф: 1 000 ₸/мес или 10 000 ₸/год.',
-          'Введите ваш username на tapni.kz — появится код платежа (TAP-ваш-ник).',
-          'Оплатите через Kaspi Pay кнопкой на странице.',
-          'Или переведите на Halyk Bank +77755696531, укажите код в назначении.',
-          'Нажмите «Я оплатил — активировать Premium» — активируем за 15 минут.',
+          'Оплатите через Kaspi Pay или переводом на Halyk Bank +77755696531.',
+          'Укажите код платежа TAP-ваш-ник в назначении перевода.',
+          'Отправьте скриншот чека в @Tapnikzbot — Premium активируется автоматически за несколько секунд.',
+          'Или нажмите «Я оплатил» — активация за 15 минут вручную.',
         ],
       },
       {
-        q: 'Как узнать что Premium активирован?',
+        q: 'Как узнать, что Premium активирован?',
         a: [
-          'В кабинете рядом с вашим username появится значок ⚡ PREMIUM.',
+          'В кабинете рядом с вашим именем появится значок ⚡ PREMIUM.',
           'На вкладке «Оплата» будет написано «Premium активен» с датой окончания.',
           'Если привязан Telegram — получите уведомление в боте.',
         ],
@@ -187,9 +358,9 @@ const SECTIONS = [
       {
         q: 'Можно ли выставить счёт для юридического лица?',
         a: [
-          'Да. На странице tapni.kz/pay в самом низу есть раздел «Выставить счёт для юридического лица».',
+          'Да. На tapni.kz/pay внизу есть раздел «Счёт для юридического лица».',
           'Нажмите на него, введите название компании и БИН (12 цифр).',
-          'Нажмите «Запросить счёт на оплату» — вышлем счёт в WhatsApp в течение 2 часов.',
+          'Вышлем счёт в WhatsApp в течение 2 часов.',
           'Доступно только для годового тарифа — 10 000 ₸/год.',
         ],
       },
@@ -202,63 +373,20 @@ const SECTIONS = [
       {
         q: 'Забыл пароль — как восстановить?',
         a: [
-          'Перейдите на tapni.kz/auth → вкладка «Войти».',
-          'Нажмите «Забыли пароль?» под кнопкой входа.',
+          'Перейдите на tapni.kz/auth → нажмите «Забыли пароль?».',
           'Введите номер телефона, с которым регистрировались.',
-          'Нажмите «Отправить ссылку».',
-          'Если привязан Telegram — ссылка придёт прямо в бот.',
+          'Если привязан Telegram — ссылка придёт прямо в бот @Tapnikzbot.',
           'Если Telegram не привязан — поддержка вышлет ссылку в WhatsApp за 15 минут.',
           'По ссылке введите новый пароль — минимум 8 символов.',
-        ],
-      },
-      {
-        q: 'Как привязать Telegram к аккаунту?',
-        a: [
-          'Откройте наш Telegram-бот: t.me/Tapnikzbot',
-          'Нажмите «Поделиться номером» или отправьте команду /start.',
-          'Поделитесь номером телефона через кнопку в Telegram.',
-          'Бот найдёт ваш аккаунт и привяжет Telegram.',
-          'После этого сброс пароля придёт автоматически в бот.',
         ],
       },
       {
         q: 'Как изменить адрес страницы (ник)?',
         a: [
           '⚡ Функция доступна только в Premium.',
-          'В кабинете → вкладка «Профиль» → прокрутите до блока «Изменить адрес страницы».',
+          'В кабинете → вкладка «Профиль» → блок «Изменить адрес страницы».',
           'Введите новый ник и нажмите «Сохранить».',
-          '⚠️ После смены старые QR-коды перестанут работать — нужно будет перепечатать.',
-        ],
-      },
-    ],
-  },
-  {
-    id: 'links',
-    title: '🔗 Управление кнопками',
-    items: [
-      {
-        q: 'Как изменить порядок кнопок?',
-        a: [
-          'Удалите кнопку которую хотите переместить.',
-          'Добавьте её заново — она появится последней.',
-          'Повторите для всех кнопок в нужном порядке.',
-          '💡 В следующих версиях добавим перетаскивание.',
-        ],
-      },
-      {
-        q: 'Что такое «Текст / Описание» (текстовый блок)?',
-        a: [
-          'Это специальная карточка без ссылки — только текст.',
-          'Используйте для: расписания работы, акционных предложений, описания услуг.',
-          'В поле «Заголовок» можно написать «Режим работы», а в тексте — «Пн-Пт 9:00-18:00».',
-        ],
-      },
-      {
-        q: 'Почему кнопка «Позвонить» не работает на некоторых устройствах?',
-        a: [
-          'Кнопка использует протокол tel: — он работает только на мобильных устройствах.',
-          'На компьютере без телефонии кнопка не откроет звонок — это нормально.',
-          'Для надёжности добавьте WhatsApp кнопку — она работает на всех устройствах.',
+          '⚠️ После смены старые QR-коды перестанут работать — нужно перепечатать.',
         ],
       },
     ],
@@ -267,20 +395,20 @@ const SECTIONS = [
 
 export default function HelpPage() {
   return (
-    <main className="min-h-screen bg-[#08080f] text-white">
+    <main className="min-h-screen bg-white text-gray-900 selection:bg-violet-200/60">
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/3 top-0 h-[600px] w-[600px] rounded-full bg-violet-800/[0.07] blur-3xl" />
+        <div className="absolute left-1/3 top-0 h-[600px] w-[600px] rounded-full bg-violet-200/40 blur-3xl" />
       </div>
 
       {/* Nav */}
-      <nav className="relative z-10 border-b border-white/[0.05] px-5 py-3.5">
+      <nav className="relative z-10 border-b border-gray-200 bg-white/90 px-5 py-3.5 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/brand-logo.jpeg" alt="tapni.kz" className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20" width={36} height={36} />
-            <span className="text-sm font-extrabold text-white">tapni.kz</span>
+            <img src="/brand-logo.jpeg" alt="tapni.kz" className="h-9 w-9 rounded-full object-cover ring-2 ring-violet-200" width={36} height={36} />
+            <span className="text-sm font-extrabold text-gray-900">tapni.kz</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-xs text-gray-400 hover:text-white transition-colors">Кабинет</Link>
+            <Link href="/dashboard" className="text-xs text-gray-500 hover:text-gray-900 transition-colors">Кабинет</Link>
             <a href={WA} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-[#25D366]/30 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20">WhatsApp</a>
           </div>
         </div>
@@ -288,15 +416,15 @@ export default function HelpPage() {
 
       <div className="relative mx-auto max-w-3xl px-5 pb-20 pt-8">
         <div className="mb-8">
-          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-violet-400">Справочный центр</p>
-          <h1 className="text-2xl font-extrabold text-white sm:text-3xl">Помощь и инструкции</h1>
-          <p className="mt-2 text-sm text-gray-400">Ответы на самые частые вопросы по работе с tapni.kz</p>
+          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-violet-600">Справочный центр</p>
+          <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">Помощь и инструкции</h1>
+          <p className="mt-2 text-sm text-gray-500">Ответы на самые частые вопросы по работе с tapni.kz</p>
         </div>
 
         {/* Quick links */}
         <div className="mb-8 flex flex-wrap gap-2">
           {SECTIONS.map((s) => (
-            <a key={s.id} href={`#${s.id}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:border-violet-500/40 hover:text-white">
+            <a key={s.id} href={`#${s.id}`} className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-violet-400 hover:text-violet-700">
               {s.title}
             </a>
           ))}
@@ -306,26 +434,26 @@ export default function HelpPage() {
         <div className="space-y-10">
           {SECTIONS.map((section) => (
             <section key={section.id} id={section.id}>
-              <h2 className="mb-4 text-base font-bold text-white">{section.title}</h2>
+              <h2 className="mb-4 text-base font-bold text-gray-900">{section.title}</h2>
               <div className="space-y-3">
                 {section.items.map((item) => (
-                  <details key={item.q} className="group rounded-2xl border border-white/[0.07] bg-white/[0.03] open:bg-white/[0.05]">
-                    <summary className="flex cursor-pointer items-center justify-between gap-4 px-4 py-4 text-sm font-semibold text-white list-none">
+                  <details key={item.q} className="group rounded-2xl border border-gray-200 bg-white shadow-sm open:shadow-md">
+                    <summary className="flex cursor-pointer items-center justify-between gap-4 px-4 py-4 text-sm font-semibold text-gray-900 list-none">
                       {item.q}
-                      <svg className="h-4 w-4 flex-shrink-0 text-gray-500 transition-transform group-open:rotate-180" viewBox="0 0 16 16" fill="none">
+                      <svg className="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform group-open:rotate-180" viewBox="0 0 16 16" fill="none">
                         <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </summary>
-                    <div className="border-t border-white/[0.06] px-4 pb-4 pt-3">
+                    <div className="border-t border-gray-100 px-4 pb-4 pt-3">
                       <ol className="space-y-2">
                         {item.a.map((step, i) => (
-                          <li key={i} className={`flex gap-3 text-sm text-gray-400 ${step.startsWith('⚡') || step.startsWith('⚠️') || step.startsWith('💡') ? 'items-start' : 'items-start'}`}>
+                          <li key={i} className="flex gap-3 items-start">
                             {step.startsWith('⚡') || step.startsWith('⚠️') || step.startsWith('💡') || step.startsWith('Да.') ? (
-                              <span className="leading-relaxed">{step}</span>
+                              <span className="text-sm leading-relaxed text-gray-600">{step}</span>
                             ) : (
                               <>
-                                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-violet-600/20 text-[10px] font-bold text-violet-400">{i + 1}</span>
-                                <span className="leading-relaxed">{step}</span>
+                                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-700">{i + 1}</span>
+                                <span className="text-sm leading-relaxed text-gray-600">{step}</span>
                               </>
                             )}
                           </li>
@@ -340,14 +468,14 @@ export default function HelpPage() {
         </div>
 
         {/* Support CTA */}
-        <div className="mt-12 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 text-center">
-          <p className="mb-1 text-base font-bold text-white">Не нашли ответ?</p>
-          <p className="mb-5 text-sm text-gray-400">Напишите нам — ответим быстро</p>
+        <div className="mt-12 rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center shadow-sm">
+          <p className="mb-1 text-base font-bold text-gray-900">Не нашли ответ?</p>
+          <p className="mb-5 text-sm text-gray-500">Напишите нам — ответим быстро</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <a href={TG} target="_blank" rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 rounded-xl border border-[#2AABEE]/30 bg-[#2AABEE]/10 px-5 py-3 text-sm font-semibold text-[#2AABEE] transition-colors hover:bg-[#2AABEE]/20">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.88 14.08l-2.95-.924c-.64-.204-.654-.64.136-.945l11.521-4.443c.532-.194.998.13.975.48z"/></svg>
-              Telegram-бот
+              Telegram-бот @Tapnikzbot
             </a>
             <a href={WA} target="_blank" rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 rounded-xl border border-[#25D366]/30 bg-[#25D366]/10 px-5 py-3 text-sm font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20">
@@ -358,7 +486,7 @@ export default function HelpPage() {
         </div>
 
         <p className="mt-6 text-center">
-          <Link href="/" className="text-xs text-gray-600 transition-colors hover:text-gray-400">← На главную tapni.kz</Link>
+          <Link href="/" className="text-xs text-gray-400 transition-colors hover:text-gray-700">← На главную tapni.kz</Link>
         </p>
       </div>
     </main>

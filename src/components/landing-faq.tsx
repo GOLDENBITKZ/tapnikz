@@ -30,7 +30,7 @@ const FAQS = [
   },
   {
     q: 'Работает ли tapni.kz с TikTok, YouTube и другими платформами?',
-    a: 'Да. Поддерживаются: WhatsApp, Telegram, Instagram, TikTok, YouTube, Facebook, ВКонтакте, Kaspi Pay, Kaspi магазин, 2ГИС, Kolesa.kz, Krisha.kz, и любой сайт. Всего 18 типов кнопок.',
+    a: 'Да. Поддерживаются: WhatsApp, Telegram, Instagram, TikTok, YouTube, Facebook, ВКонтакте, Kaspi Pay, Kaspi QR, Kaspi магазин, 2ГИС, Kolesa.kz, Krisha.kz и другие. Всего 35+ типов кнопок.',
   },
   {
     q: 'Можно ли поставить QR-код tapni.kz на визитку или баннер?',
@@ -41,26 +41,30 @@ const FAQS = [
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border-b border-white/[0.07]">
+    <div className="border-b border-gray-200 last:border-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-4 py-4 text-left"
+        className="flex w-full items-center justify-between gap-4 py-4 text-left group"
         aria-expanded={open}
       >
-        <span className="text-sm font-semibold text-white">{q}</span>
-        <ChevronDown
-          className={`h-4 w-4 flex-shrink-0 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <span className={`text-sm font-semibold transition-colors ${open ? 'text-gray-900' : 'text-gray-700 group-hover:text-gray-900'}`}>{q}</span>
+        <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200 ${open ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'}`}>
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </span>
       </button>
-      {open && <p className="pb-4 text-sm leading-relaxed text-gray-400">{a}</p>}
+      <div className={`grid transition-all duration-200 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden">
+          <p className="pb-4 text-sm leading-relaxed text-gray-600">{a}</p>
+        </div>
+      </div>
     </div>
   )
 }
 
 export function LandingFaq() {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5">
+    <div className="rounded-2xl border border-gray-200 bg-white px-5">
       {FAQS.map((f) => (
         <FaqItem key={f.q} q={f.q} a={f.a} />
       ))}

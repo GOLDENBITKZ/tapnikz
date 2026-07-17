@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 // Rate limit: max 3 reset requests per phone per hour
 const rateMap = new Map<string, { count: number; resetAt: number }>()
@@ -13,14 +13,6 @@ function checkRate(phone: string): boolean {
   if (entry.count >= 3) return false
   entry.count++
   return true
-}
-
-function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
 }
 
 async function sendTelegram(chatId: string, text: string) {
@@ -58,7 +50,8 @@ export async function POST(request: Request) {
     return Response.json({ ok: true })
   }
 
-  const db = adminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = getSupabaseAdmin() as any
 
   // Look up profile (don't reveal whether phone exists to the caller)
   const { data: profile } = await db
@@ -100,6 +93,7 @@ export async function POST(request: Request) {
   if (profile.telegram_chat_id) {
     // Automated: send directly to user's Telegram
     await sendTelegram(profile.telegram_chat_id, msg)
+    return Response.json({ ok: true, hasTelegram: true })
   } else {
     // Manual fallback: notify admin to forward via WhatsApp
     await notifyAdmin(
@@ -109,7 +103,6 @@ export async function POST(request: Request) {
       `⚠️ Telegram не привязан — отправьте ссылку через WhatsApp на этот номер.\n\n` +
       `🔗 Ссылка (одноразовая, 1 ч):\n${actionLink}`
     )
+    return Response.json({ ok: true, hasTelegram: false })
   }
-
-  return Response.json({ ok: true, hasTelegram: !!profile.telegram_chat_id })
 }

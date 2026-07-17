@@ -20,8 +20,8 @@ export async function POST(request: Request) {
   const { prof, adminDb } = auth
 
   if (!prof.is_premium) {
-    const { count } = await adminDb.from('links').select('*', { count: 'exact', head: true }).eq('profile_id', prof.id)
-    if ((count ?? 0) >= FREE_LIMIT) return Response.json({ error: 'limit_reached' }, { status: 403 })
+    const { count: countBefore } = await adminDb.from('links').select('*', { count: 'exact', head: true }).eq('profile_id', prof.id)
+    if ((countBefore ?? 0) >= FREE_LIMIT) return Response.json({ error: 'limit_reached' }, { status: 403 })
   }
 
   let body: { title?: string; url?: string; icon_type?: string; sort_order?: number }
@@ -30,12 +30,27 @@ export async function POST(request: Request) {
   const url = body.url ?? ''
   const iconType = body.icon_type ?? 'link'
 
-  if (!url && iconType !== 'lead_form' && iconType !== 'text_block') {
+  const VALID_ICON_TYPES = new Set([
+    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr',
+    'twogis','website','phone','email','kolesa','krisha','vk','facebook','link',
+    'text_block','product','lead_form','android','ios','menu','paypal',
+    'instagram_dm','instagram_reel','follow_gate','milestone','instagram_keyword',
+    'countdown','pricelist','image','video','faq',
+  ])
+  if (!VALID_ICON_TYPES.has(iconType)) {
+    return Response.json({ error: 'invalid icon_type' }, { status: 400 })
+  }
+
+  const EMPTY_URL_OK = ['lead_form', 'text_block', 'follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'faq', 'video']
+  if (!url && !EMPTY_URL_OK.includes(iconType)) {
     return Response.json({ error: 'url required' }, { status: 400 })
   }
 
+  // Types that store JSON (not a URL) in the url field — skip URL validation
+  const JSON_URL_TYPES = ['text_block', 'product', 'follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq']
+
   // Validate URL scheme at write time (mirrors /api/click validation)
-  if (url && iconType !== 'text_block' && iconType !== 'product') {
+  if (url && !JSON_URL_TYPES.includes(iconType)) {
     try {
       const parsed = new URL(url.startsWith('tel:') || url.startsWith('mailto:') ? url : url.startsWith('http') ? url : `https://${url}`)
       if (!['http:', 'https:', 'tel:', 'mailto:'].includes(parsed.protocol)) {
@@ -51,13 +66,24 @@ export async function POST(request: Request) {
 
   const { data, error } = await adminDb.from('links').insert([{
     profile_id: prof.id,
-    title: body.title ?? '',
-    url,
+    title: (body.title ?? '').slice(0, 100),
+    url: url.slice(0, 2048),
     icon_type: iconType,
     sort_order: body.sort_order ?? 0,
   }]).select('id').maybeSingle()
 
   if (error) return Response.json({ error: 'Internal error' }, { status: 500 })
+
+  // Re-check count after insert to close the race-condition window for free-tier users.
+  // If two concurrent requests both passed the pre-check, the second insert here gets rolled back.
+  if (!prof.is_premium && data?.id) {
+    const { count: countAfter } = await adminDb.from('links').select('*', { count: 'exact', head: true }).eq('profile_id', prof.id)
+    if ((countAfter ?? 0) > FREE_LIMIT) {
+      await adminDb.from('links').delete().eq('id', data.id)
+      return Response.json({ error: 'limit_reached' }, { status: 403 })
+    }
+  }
+
   return Response.json({ ok: true, id: data?.id })
 }
 
@@ -70,6 +96,10 @@ export async function PATCH(request: Request) {
   let items: { id: string; sort_order: number }[]
   try { items = await request.json() } catch { return Response.json({ error: 'invalid json' }, { status: 400 }) }
   if (!Array.isArray(items) || items.length === 0) return Response.json({ error: 'array required' }, { status: 400 })
+  if (items.length > 200) return Response.json({ error: 'too many items' }, { status: 400 })
+  if (items.some((i) => typeof i.sort_order !== 'number' || !isFinite(i.sort_order) || !Number.isInteger(i.sort_order))) {
+    return Response.json({ error: 'sort_order must be an integer' }, { status: 400 })
+  }
 
   // Verify all links belong to this profile (prevents reordering others' links)
   const ids = items.map((i) => i.id)
@@ -79,9 +109,12 @@ export async function PATCH(request: Request) {
 
   if (safeItems.length === 0) return Response.json({ ok: true })
 
-  await Promise.all(
+  const results = await Promise.all(
     safeItems.map((i) => adminDb.from('links').update({ sort_order: i.sort_order }).eq('id', i.id))
   )
+
+  const failed = results.some((r: { error: unknown }) => r.error)
+  if (failed) return Response.json({ error: 'partial update failure' }, { status: 500 })
 
   return Response.json({ ok: true })
 }

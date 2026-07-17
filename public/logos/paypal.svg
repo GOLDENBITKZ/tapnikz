@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <defs>
+    <linearGradient id="pp-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#009CDE"/>
+      <stop offset="100%" stop-color="#003087"/>
+    </linearGradient>
+  </defs>
+  <rect width="24" height="24" rx="5" fill="url(#pp-bg)"/>
+  <!-- Back P (light blue offset) -->
+  <path fill="rgba(255,255,255,0.4)" d="M13.2 4.5h2.3c1.8 0 2.9 1 2.6 3-.3 2.2-1.7 3.3-3.7 3.3h-.7c-.3 0-.5.2-.55.5l-.55 3.5h-1.8l2.4-10.3z"/>
+  <!-- Front P (white) -->
+  <path fill="white" d="M9.2 4.5h2.3c1.8 0 2.9 1 2.6 3-.3 2.2-1.7 3.3-3.7 3.3h-.7c-.3 0-.5.2-.55.5l-.55 3.5h-1.8L9.2 4.5z"/>
+</svg>

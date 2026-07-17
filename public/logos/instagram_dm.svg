@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <defs>
+    <radialGradient id="ig-dm" cx="30%" cy="107%" r="150%">
+      <stop offset="0%" stop-color="#fdf497"/>
+      <stop offset="20%" stop-color="#fd5949"/>
+      <stop offset="60%" stop-color="#d6249f"/>
+      <stop offset="90%" stop-color="#285AEB"/>
+    </radialGradient>
+  </defs>
+  <rect width="24" height="24" rx="5" fill="url(#ig-dm)"/>
+  <!-- Message bubble with lightning bolt (Direct style) -->
+  <path d="M12 3.5C7.3 3.5 3.5 7 3.5 11.3c0 2.3 1 4.3 2.7 5.8L5.5 20l3.2-1.7c1 .3 2.1.5 3.3.5 4.7 0 8.5-3.5 8.5-7.8S16.7 3.5 12 3.5z" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M8.5 10.5l2 2.2 4.5-4.2" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

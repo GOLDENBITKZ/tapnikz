@@ -3,21 +3,19 @@ import { NextResponse, type NextRequest } from 'next/server'
 export function proxy(request: NextRequest) {
   const response = NextResponse.next()
 
-  // Security headers for all responses
-  response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set('X-Frame-Options', 'DENY')
-  response.headers.set('X-XSS-Protection', '1; mode=block')
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  // Only add CSP — other security headers are already set in next.config.ts headers()
   response.headers.set(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",       // Next.js requires unsafe-eval in dev
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://ahsfumqlrpikkeriyngv.supabase.co",
+      // https: allows user-provided image URLs in image blocks and product cards
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' https:",
       "connect-src 'self' https://*.supabase.co https://api.telegram.org",
       "font-src 'self'",
+      "frame-src https://www.youtube.com https://www.tiktok.com",
       "frame-ancestors 'none'",
     ].join('; ')
   )
@@ -26,6 +24,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Apply to all routes except static assets
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

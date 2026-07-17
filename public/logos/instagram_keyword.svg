@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <radialGradient id="ig-kg" cx="30%" cy="107%" r="150%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#feda75"/>
+      <stop offset="25%" stop-color="#fa7e1e"/>
+      <stop offset="50%" stop-color="#d62976"/>
+      <stop offset="75%" stop-color="#962fbf"/>
+      <stop offset="100%" stop-color="#4f5bd5"/>
+    </radialGradient>
+  </defs>
+  <rect width="40" height="40" rx="10" fill="url(#ig-kg)"/>
+  <!-- speech bubble -->
+  <rect x="7" y="9" width="22" height="16" rx="4" fill="white"/>
+  <polygon points="11,25 8,31 17,25" fill="white"/>
+  <!-- dots -->
+  <circle cx="13" cy="17" r="2" fill="url(#ig-kg)"/>
+  <circle cx="18" cy="17" r="2" fill="url(#ig-kg)"/>
+  <circle cx="23" cy="17" r="2" fill="url(#ig-kg)"/>
+</svg>

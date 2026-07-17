@@ -23,13 +23,33 @@ export async function POST(request: Request) {
   const { count: existing } = await adminDb.from('links').select('*', { count: 'exact', head: true }).eq('profile_id', prof.id)
   if ((existing ?? 0) > 0) return Response.json({ error: 'profile already has links' }, { status: 409 })
 
+  const VALID_ICON_TYPES = new Set([
+    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr',
+    'twogis','website','phone','email','kolesa','krisha','vk','facebook','link',
+    'text_block','product','lead_form','android','ios','menu','paypal',
+    'instagram_dm','instagram_reel','follow_gate','milestone','instagram_keyword',
+    'countdown','pricelist','image','video','faq',
+  ])
+  const JSON_URL_TYPES = new Set(['text_block','product','follow_gate','milestone','instagram_keyword','countdown','pricelist','image','video','faq'])
+  const SAFE_SCHEMES = /^(https?|tel:|mailto:|\{)/i
+
+  for (const l of links) {
+    if (!VALID_ICON_TYPES.has(l.icon_type)) {
+      return Response.json({ error: `invalid icon_type: ${l.icon_type}` }, { status: 400 })
+    }
+    const url = (l.url ?? '').replace(PLACEHOLDER_PREFIX, '')
+    if (url && !JSON_URL_TYPES.has(l.icon_type) && !SAFE_SCHEMES.test(url)) {
+      return Response.json({ error: 'invalid url scheme' }, { status: 400 })
+    }
+  }
+
   // Free users: cap at 3 template links
   const limit = prof.is_premium ? links.length : Math.min(links.length, 3)
   const rows = links.slice(0, limit).map((l, i) => ({
     profile_id: prof.id,
-    title: l.title,
+    title: String(l.title ?? '').slice(0, 100),
     // Strip placeholder marker — URL stored as-is (stub), user must edit before clicking
-    url: (l.url ?? '').replace(PLACEHOLDER_PREFIX, ''),
+    url: (l.url ?? '').replace(PLACEHOLDER_PREFIX, '').slice(0, 2048),
     icon_type: l.icon_type,
     sort_order: i,
   }))

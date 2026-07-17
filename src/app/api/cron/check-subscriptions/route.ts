@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { sendTelegram, adminChatId } from '@/lib/telegram'
+import { activatePremium } from '@/lib/activate-premium'
 
 const BOT_URL = () => `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`
 const SITE_URL = 'https://tapni.kz'
@@ -39,6 +40,8 @@ export async function GET(request: Request) {
   const db = getSupabaseAdmin() as any
   const now = new Date()
   const chatId = adminChatId()
+
+  try {
 
   // ── 1. Expire overdue subscriptions ──────────────────────────────────
   const { data: expired } = await db
@@ -129,81 +132,279 @@ export async function GET(request: Request) {
     }
   }
 
-  // ── 4. Referral bonus — award +7 days to both parties ───────────────
-  // Find users referred >= 7 days ago where bonus hasn't been given yet
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
-  const { data: pendingReferrals } = await db
+  // ── 4. Onboarding sequences ────────────────────────────────────────────
+  let onboardingCount = 0
+
+  // Step 2 (day +2): nudge to add buttons if links_count < 2
+  const twoDaysAgo = new Date(now.getTime() - 2 * 86400000).toISOString()
+  const oneDayAgo = new Date(now.getTime() - 1 * 86400000).toISOString()
+
+  const { data: step1Users } = await db
     .from('profiles')
-    .select('id, username, referred_by, telegram_chat_id, subscription_expires_at')
-    .not('referred_by', 'is', null)
-    .eq('referral_bonus_given', false)
-    .lte('created_at', sevenDaysAgo)
+    .select('id, username, business_name, telegram_chat_id')
+    .eq('onboarding_step', 1)
+    .not('telegram_chat_id', 'is', null)
+    .lte('onboarding_sent_at', twoDaysAgo)
+    .gte('onboarding_sent_at', new Date(now.getTime() - 10 * 86400000).toISOString())
 
-  const addDays = (base: string | null, days: number) => {
-    const d = base ? new Date(base) : new Date()
-    if (d < now) d.setTime(now.getTime())
-    d.setDate(d.getDate() + days)
-    return d.toISOString()
-  }
-
-  let bonusCount = 0
-  for (const referee of (pendingReferrals ?? []) as {
-    id: string; username: string; referred_by: string; telegram_chat_id: string | null;
-    subscription_expires_at: string | null;
-  }[]) {
-    const { data: referrer } = await db
-      .from('profiles')
-      .select('id, username, is_premium, subscription_expires_at, subscription_plan, telegram_chat_id')
-      .eq('username', referee.referred_by)
-      .maybeSingle()
-
-    if (!referrer) {
-      // Referrer doesn't exist — mark as given to avoid repeated checks
-      await db.from('profiles').update({ referral_bonus_given: true }).eq('id', referee.id)
+  for (const u of (step1Users ?? [])) {
+    // Check link count
+    const { count: linkCount } = await db
+      .from('links').select('*', { count: 'exact', head: true }).eq('profile_id', u.id)
+    if ((linkCount ?? 0) >= 2) {
+      // Already set up, skip to step 3
+      await db.from('profiles').update({ onboarding_step: 2, onboarding_sent_at: new Date().toISOString() }).eq('id', u.id)
       continue
     }
+    await notifyUser(
+      u.telegram_chat_id,
+      `💡 <b>Подсказка для ${u.business_name}</b>\n\n` +
+      `Для бизнеса в Казахстане рекомендуем добавить:\n` +
+      `✅ <b>WhatsApp</b> — клиенты пишут напрямую\n` +
+      `✅ <b>Kaspi Pay</b> — оплата без наличных\n` +
+      `✅ <b>2ГИС</b> — клиенты найдут вас на карте\n\n` +
+      `Добавьте их в дашборде за 2 минуты 👇`,
+      [[{ text: '✏️ Добавить кнопки', url: `${SITE_URL}/dashboard` }]]
+    )
+    await db.from('profiles').update({ onboarding_step: 2, onboarding_sent_at: new Date().toISOString() }).eq('id', u.id)
+    onboardingCount++
+  }
 
-    // Award referrer +7 days (extend existing subscription if active)
-    await db.from('profiles').update({
-      is_premium: true,
-      subscription_expires_at: addDays(referrer.subscription_expires_at, 7),
-      subscription_plan: referrer.subscription_plan ?? 'monthly',
-    }).eq('id', referrer.id)
+  // Step 3 (day +5): share nudge if view_count < 10
+  const fiveDaysAgo = new Date(now.getTime() - 5 * 86400000).toISOString()
+  const threeDaysAgo = new Date(now.getTime() - 3 * 86400000).toISOString()
 
-    // Award referee +7 days (extend their existing subscription too)
-    await db.from('profiles').update({
-      is_premium: true,
-      subscription_expires_at: addDays(referee.subscription_expires_at, 7),
-      subscription_plan: 'monthly',
-      referral_bonus_given: true,
-    }).eq('id', referee.id)
+  const { data: step2Users } = await db
+    .from('profiles')
+    .select('id, username, business_name, telegram_chat_id, view_count')
+    .eq('onboarding_step', 2)
+    .not('telegram_chat_id', 'is', null)
+    .lte('onboarding_sent_at', threeDaysAgo)
+    .gte('onboarding_sent_at', new Date(now.getTime() - 14 * 86400000).toISOString())
 
-    bonusCount++
-
-    // Notify referrer
-    if (referrer.telegram_chat_id) {
+  for (const u of (step2Users ?? [])) {
+    if ((u.view_count ?? 0) < 10) {
+      const shareText = encodeURIComponent(`Все мои контакты здесь: ${SITE_URL}/${u.username} 👆`)
       await notifyUser(
-        referrer.telegram_chat_id,
-        `🎁 <b>Реферальный бонус!</b>\n\n` +
-        `Ваш друг <b>${referee.username}</b> зарегистрировался по вашей ссылке.\n` +
-        `Вам начислено <b>+7 дней Premium</b>! 🎉`,
-        [[{ text: '📊 Моя статистика', url: `${SITE_URL}/dashboard` }]]
+        u.telegram_chat_id,
+        `🚀 <b>Ваша страница готова — поделитесь!</b>\n\n` +
+        `Отправьте ссылку в:\n` +
+        `• WhatsApp-статус\n` +
+        `• Instagram bio\n` +
+        `• Telegram-канал\n\n` +
+        `Готовый текст для клиентов:\n` +
+        `<i>"Все мои контакты здесь: ${SITE_URL}/${u.username} 👆"</i>`,
+        [
+          [{ text: '📤 Поделиться в Telegram', url: `https://t.me/share/url?url=${encodeURIComponent(`${SITE_URL}/${u.username}`)}&text=${shareText}` }],
+          [{ text: '🌐 Открыть страницу', url: `${SITE_URL}/${u.username}` }],
+        ]
       )
     }
+    await db.from('profiles').update({ onboarding_step: 3, onboarding_sent_at: new Date().toISOString() }).eq('id', u.id)
+    onboardingCount++
+  }
 
-    // Notify referee
-    if (referee.telegram_chat_id) {
-      await notifyUser(
-        referee.telegram_chat_id,
-        `🎁 <b>Реферальный бонус активирован!</b>\n\n` +
-        `Вам начислено <b>+7 дней Premium</b> за регистрацию по реферальной ссылке! 🎉`,
-        [[{ text: '🚀 Открыть кабинет', url: `${SITE_URL}/dashboard` }]]
-      )
+  // Step 4 (day +7): referral nudge
+  const { data: step3Users } = await db
+    .from('profiles')
+    .select('id, username, business_name, telegram_chat_id')
+    .eq('onboarding_step', 3)
+    .not('telegram_chat_id', 'is', null)
+    .lte('onboarding_sent_at', twoDaysAgo)
+    .gte('onboarding_sent_at', new Date(now.getTime() - 21 * 86400000).toISOString())
+
+  for (const u of (step3Users ?? [])) {
+    await notifyUser(
+      u.telegram_chat_id,
+      `💼 <b>Зарабатывайте с tapni.kz!</b>\n\n` +
+      `Рекомендуйте tapni.kz и получайте <b>20% комиссии</b> с первой оплаты каждого клиента.\n\n` +
+      `Ваша ссылка для приглашения клиентов:\n` +
+      `<code>${SITE_URL}/auth?ref=${u.username}</code>\n\n` +
+      `Узнайте подробнее о программе менеджеров 👇`,
+      [
+        [{ text: '💼 Стать менеджером', url: `${SITE_URL}/partners` }],
+        [{ text: '📤 Поделиться ссылкой', url: `https://t.me/share/url?url=${encodeURIComponent(`${SITE_URL}/auth?ref=${u.username}`)}&text=${encodeURIComponent(`Попробуй tapni.kz — мобильная визитка для бизнеса в Казахстане. Kaspi Pay, 2ГИС, WhatsApp в одной ссылке!`)}` }],
+      ]
+    )
+    await db.from('profiles').update({ onboarding_step: 4, onboarding_sent_at: new Date().toISOString() }).eq('id', u.id)
+    onboardingCount++
+  }
+
+  if (onboardingCount > 0) {
+    await sendTelegram(chatId, `📬 Onboarding сообщений отправлено: <b>${onboardingCount}</b>`)
+  }
+
+  // ── 5. Manager inactivity: warn at 45 days, deactivate at 60 days ──────
+  const day45ago = new Date(now.getTime() - 45 * 86400000).toISOString()
+  const day47ago = new Date(now.getTime() - 47 * 86400000).toISOString()
+  const day60ago = new Date(now.getTime() - 60 * 86400000).toISOString()
+
+  const { data: inactiveManagers } = await db
+    .from('profiles')
+    .select('id, username, telegram_chat_id, manager_since')
+    .eq('is_manager', true)
+    .not('manager_since', 'is', null)
+    .lte('manager_since', day45ago)
+
+  // Batch clientCount query to avoid N+1 per manager
+  const mgrUsernames = (inactiveManagers ?? []).map(
+    (m: { username: string }) => m.username
+  )
+  const clientCountMap = new Map<string, number>()
+  if (mgrUsernames.length > 0) {
+    const { data: referredRows } = await db
+      .from('profiles')
+      .select('referred_by')
+      .in('referred_by', mgrUsernames)
+    for (const row of (referredRows ?? []) as { referred_by: string }[]) {
+      clientCountMap.set(row.referred_by, (clientCountMap.get(row.referred_by) ?? 0) + 1)
     }
   }
 
-  if (bonusCount > 0) {
-    await sendTelegram(chatId, `🎁 Реферальных бонусов выдано: <b>${bonusCount}</b>`)
+  let deactivated = 0
+  const deactivatedNames: string[] = []
+  for (const mgr of (inactiveManagers ?? []) as {
+    id: string; username: string; telegram_chat_id: string | null; manager_since: string
+  }[]) {
+    if ((clientCountMap.get(mgr.username) ?? 0) > 0) continue
+
+    if (mgr.manager_since <= day60ago) {
+      // Deactivate — 60+ days with 0 clients; clear manager_since to avoid re-triggering
+      await db.from('profiles').update({ is_manager: false, manager_since: null }).eq('id', mgr.id)
+      deactivated++
+      deactivatedNames.push(`@${mgr.username}`)
+      if (mgr.telegram_chat_id) {
+        await notifyUser(
+          mgr.telegram_chat_id,
+          `⚠️ <b>Статус менеджера деактивирован</b>\n\n` +
+          `За 60 дней не появилось ни одного клиента.\n\n` +
+          `Хотите продолжить — активируйтесь снова: ${SITE_URL}/partners`
+        )
+      }
+    } else if (mgr.manager_since > day47ago) {
+      // Warning — only fire for managers in the 45-47 day window (at most ~3 warnings total)
+      if (mgr.telegram_chat_id) {
+        const daysActive = Math.floor((now.getTime() - new Date(mgr.manager_since).getTime()) / 86400000)
+        const daysLeft = Math.max(1, 60 - daysActive)
+        await notifyUser(
+          mgr.telegram_chat_id,
+          `⏳ <b>Напоминание для менеджера tapni.kz</b>\n\n` +
+          `Вы активированы, но клиентов ещё нет.\n` +
+          `Через ${daysLeft} дней статус будет снят автоматически.\n\n` +
+          `Поделитесь ссылкой:\n<code>${SITE_URL}/auth?ref=${mgr.username}</code>`,
+          [[{ text: '📊 Открыть кабинет', url: `${SITE_URL}/manager` }]]
+        )
+      }
+    }
+  }
+
+  if (deactivated > 0) {
+    await sendTelegram(
+      adminChatId(),
+      `🔴 Деактивировано менеджеров (неактивность): <b>${deactivated}</b>\n${deactivatedNames.join(', ')}`
+    )
+  }
+
+  // ── 6. Auto-confirm pending payments after N hours ────────────────────
+  // Default 72h — admin must confirm within 3 days or explicitly cancel
+  const pendingHours = parseInt(process.env.PENDING_AUTO_CONFIRM_HOURS ?? '72')
+  const pendingCutoff = new Date(now.getTime() - pendingHours * 3600_000).toISOString()
+
+  // Only auto-confirm if receipt was uploaded AND validated by AI (prevents fake receipts)
+  const { data: pendingPayments } = await db
+    .from('payments')
+    .select('id, username, plan')
+    .eq('status', 'pending')
+    .lt('created_at', pendingCutoff)
+    .not('receipt_url', 'is', null)
+    .eq('auto_validated', true)
+
+  let autoConfirmed = 0
+  for (const pmt of (pendingPayments ?? []) as { id: string; username: string; plan: string }[]) {
+    const plan = pmt.plan === 'annual' ? 'annual' : 'monthly'
+    const result = await activatePremium({
+      username: pmt.username,
+      plan,
+      pendingPaymentId: pmt.id,
+      provider: 'auto_confirmed',
+      note: `Авто-подтверждение через ${pendingHours}ч`,
+    })
+    if (result.success) autoConfirmed++
+  }
+
+  // Clean up stale pending rows WITHOUT receipt that are older than (pendingHours + 24h).
+  // Must run AFTER auto-confirm step. Only deletes rows with no receipt_url (rows with receipt
+  // are either auto-confirmed above, or still waiting — keep them until pendingHours + buffer).
+  try {
+    await db
+      .from('payments')
+      .delete()
+      .eq('status', 'pending')
+      .is('receipt_url', null)
+      .lt('created_at', new Date(now.getTime() - (pendingHours + 24) * 3600_000).toISOString())
+  } catch { /* non-fatal */ }
+
+  if (autoConfirmed > 0) {
+    await sendTelegram(chatId, `⚡ Авто-подтверждено платежей: <b>${autoConfirmed}</b>`)
+  }
+
+  // ── 7. Weekly stats digest (Mondays only) ─────────────────────────────
+  let digestCount = 0
+  if (now.getUTCDay() === 1) { // Monday
+    const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
+
+    // Get all users with Telegram linked
+    const { data: tgUsers } = await db
+      .from('profiles')
+      .select('id, username, business_name, telegram_chat_id, view_count')
+      .not('telegram_chat_id', 'is', null)
+      .limit(500)
+
+    for (const u of (tgUsers ?? []) as { id: string; username: string; business_name: string; telegram_chat_id: string; view_count: number }[]) {
+      try {
+        // Count clicks in last 7 days via click_events
+        const { count: weekClicks } = await db
+          .from('click_events')
+          .select('*', { count: 'exact', head: true })
+          .in('link_id', db.from('links').select('id').eq('profile_id', u.id))
+          .gte('created_at', weekAgo)
+
+        // Count leads in last 7 days
+        const { count: weekLeads } = await db
+          .from('lead_submissions')
+          .select('*', { count: 'exact', head: true })
+          .eq('profile_id', u.id)
+          .gte('created_at', weekAgo)
+
+        const clicks = weekClicks ?? 0
+        const leads = weekLeads ?? 0
+
+        // Only send if there's something to report
+        if (clicks === 0 && leads === 0) continue
+
+        const viewsStr = u.view_count > 0 ? `\n👁 Просмотров всего: <b>${u.view_count}</b>` : ''
+        const leadsStr = leads > 0 ? `\n📋 Новых заявок: <b>${leads}</b>` : ''
+        const clicksStr = clicks > 0 ? `\n👆 Кликов за неделю: <b>${clicks}</b>` : ''
+
+        await notifyUser(
+          u.telegram_chat_id,
+          `📊 <b>Ваша статистика за неделю</b>\n` +
+          `tapni.kz/${u.username}${viewsStr}${clicksStr}${leadsStr}\n\n` +
+          `${leads > 0 ? '🎉 Клиенты оставляют заявки! Отвечайте быстро — это увеличивает конверсию.' : '💡 Поделитесь ссылкой в Instagram Bio или WhatsApp-статусе.'}`,
+          [[
+            { text: '📊 Полная аналитика', url: `${SITE_URL}/dashboard` },
+            ...(leads > 0 ? [{ text: '📋 Заявки', url: `${SITE_URL}/dashboard` }] : []),
+          ]]
+        )
+        digestCount++
+        // Small delay to avoid Telegram rate limits
+        await new Promise((r) => setTimeout(r, 100))
+      } catch { /* skip user on error */ }
+    }
+
+    if (digestCount > 0) {
+      await sendTelegram(chatId, `📨 Еженедельный дайджест отправлен: <b>${digestCount}</b> пользователей`)
+    }
   }
 
   return Response.json({
@@ -211,6 +412,20 @@ export async function GET(request: Request) {
     expired: expired?.length ?? 0,
     expiring7: expiring7?.length ?? 0,
     expiring3: expiring3?.length ?? 0,
-    referralBonuses: bonusCount,
+    onboarding: onboardingCount,
+    managersDeactivated: deactivated,
+    autoConfirmed,
+    weeklyDigest: digestCount,
   })
+  } catch (err) {
+    const msg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err)
+    if (chatId) {
+      await sendTelegram(chatId,
+        `🚨 <b>CRON ОШИБКА — check-subscriptions</b>\n\n` +
+        `<code>${msg.slice(0, 500)}</code>\n\n` +
+        `Подписки и уведомления могут не обрабатываться!`
+      ).catch(() => {})
+    }
+    return Response.json({ ok: false, error: msg }, { status: 500 })
+  }
 }

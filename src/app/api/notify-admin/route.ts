@@ -67,21 +67,27 @@ export async function POST(request: Request) {
   let text: string
 
   if ('type' in body && body.type === 'new_user') {
-    // Require valid JWT — prevents anonymous gift-code activation
-    const callerUsername = await verifyAuthUsername(request)
-    if (!callerUsername) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    // Verify by DB: profile must exist and have been created within the last 5 minutes.
+    // JWT-based auth is unreliable here — after auth.signUp() the session may not be
+    // immediately available if Supabase email confirmation is enabled.
+    const adminDb2 = getSupabaseAdmin() as any
+    const { data: newProf } = await adminDb2.from('profiles')
+      .select('id, created_at, business_name, phone')
+      .eq('username', username)
+      .maybeSingle()
+    if (!newProf) {
+      return Response.json({ error: 'profile not found' }, { status: 404 })
     }
-    if (callerUsername !== username) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    const ageMs = Date.now() - new Date(newProf.created_at).getTime()
+    if (ageMs > 300_000) {
+      return Response.json({ error: 'registration window expired' }, { status: 403 })
     }
 
-    const b = body as { type: 'new_user'; username: string; phone: string; business_name: string }
     text =
       `🆕 <b>Новый пользователь</b>\n\n` +
       `📎 tapni.kz/${username}\n` +
-      `👤 ${esc(b.business_name)}\n` +
-      `📱 +${esc(b.phone)}`
+      `👤 ${esc(String(newProf.business_name ?? ''))}\n` +
+      `📱 +${esc(String(newProf.phone ?? ''))}`
 
     let giftActivated = false
     try {
@@ -129,81 +135,42 @@ export async function POST(request: Request) {
     const days = plan === 'annual' ? 365 : 30
     const planLabel = plan === 'annual' ? '⭐ Годовая (10 000 ₸)' : '📅 Месячная (1 000 ₸)'
 
-    // Auto-provision 3 days immediately so user gets instant access
-    // Guard: don't provision if already has active premium (prevents cycling abuse)
-    let provisioned = false
-    let userTgId: string | null = null
+    // Create pending payment — admin activates manually or cron auto-confirms after PENDING_AUTO_CONFIRM_HOURS
+    let pendingId: string | null = null
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const adminDb = getSupabaseAdmin() as any
-      const { data: existing } = await adminDb
-        .from('profiles')
-        .select('is_premium, subscription_expires_at, telegram_chat_id')
-        .eq('username', username)
-        .maybeSingle()
-      const alreadyActive = existing?.is_premium &&
-        existing?.subscription_expires_at &&
-        new Date(existing.subscription_expires_at) > new Date()
-      userTgId = existing?.telegram_chat_id ?? null
-      if (alreadyActive) {
-        provisioned = false
-      } else {
-      const provExpires = new Date(Date.now() + 3 * 86400000).toISOString()
-      const { data: provData } = await adminDb
-        .from('profiles')
-        .update({ is_premium: true, subscription_expires_at: provExpires, subscription_plan: plan, updated_at: new Date().toISOString() })
-        .eq('username', username)
-        .select('id, telegram_chat_id')
-        .maybeSingle()
-      if (provData) {
-        provisioned = true
-        userTgId = provData.telegram_chat_id ?? userTgId
-      }
-      } // end if !alreadyActive
+      const { data: pmtData } = await adminDb.from('payments').insert({
+        username,
+        plan,
+        amount: plan === 'annual' ? 10000 : 1000,
+        days,
+        method: 'kaspi',
+        status: 'pending',
+        provider: 'kaspi_manual',
+        ...(b.phone ? { notes: `phone: +${b.phone}` } : {}),
+      }).select('id').maybeSingle()
+      pendingId = pmtData?.id ?? null
     } catch {
-      // DB error — admin activates manually
+      // payments table may not exist — run SUPABASE_MIGRATION_V7.sql + V12.sql
     }
 
     text =
-      `💳 <b>Запрос Premium${provisioned ? ' — авто-выдан на 3 дня ⚡' : ''}</b>\n\n` +
+      `💳 <b>Запрос Premium — ожидает подтверждения</b>\n\n` +
       `📎 tapni.kz/${username}\n` +
-      // FIX #7: escape phone field
       (b.phone ? `📱 +${esc(b.phone)}\n` : '') +
       `📦 ${planLabel}\n` +
-      `🔑 Код: TAP-${username}` +
-      (provisioned
-        ? `\n\n⚠️ Временный доступ выдан. Подтвердите оплату → продлится до ${days} дней. Если не оплачено — отмените.`
-        : '')
+      `🔑 Код: TAP-${username}\n\n` +
+      `⏱ Авто-активация через ${process.env.PENDING_AUTO_CONFIRM_HOURS ?? '6'}ч если не отменить.`
 
     await sendTelegramWithButtons(chatId, text, [
-      [{ text: `✅ Подтвердить ${days} дней`, callback_data: `quick_activate:${username}:${days}` }],
-      [{ text: '❌ Отменить (не оплачено)', callback_data: `cancel_premium:${username}` }],
+      [
+        { text: `⚡ Активировать (${days} д)`, callback_data: `quick_activate:${username}:${days}` },
+        { text: '❌ Отменить', callback_data: `cancel_premium:${username}` },
+      ],
     ])
 
-    if (provisioned && userTgId && process.env.TELEGRAM_BOT_TOKEN) {
-      const expiryDate = new Date(Date.now() + 3 * 86400000).toLocaleDateString('ru-KZ')
-      try {
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: userTgId,
-            text:
-              `⚡ <b>Premium активирован!</b>\n\n` +
-              `${plan === 'annual' ? '⭐ Годовая подписка' : '📅 Месячная подписка'}\n` +
-              `📅 Действует до: <b>${expiryDate}</b>\n\n` +
-              `✅ Безлимит кнопок · Логотип · QR-код\n\n` +
-              `После подтверждения платежа подписка продлится до полного срока.`,
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: [[{ text: '🔑 Открыть кабинет', url: 'https://tapni.kz/dashboard' }]] },
-          }),
-        })
-      } catch {
-        // non-fatal
-      }
-    }
-
-    return Response.json({ ok: true, provisioned })
+    return Response.json({ ok: true, pending: true, pendingId })
 
   } else if ('type' in body && body.type === 'invoice_request') {
     // FIX #1: Require auth for invoice requests too
@@ -230,6 +197,14 @@ export async function POST(request: Request) {
       `\n✅ Активировать после оплаты: <code>/activate ${username} 365</code>`
 
   } else {
+    // Legacy path — require auth to prevent anonymous admin spam
+    const callerUsername = await verifyAuthUsername(request)
+    if (!callerUsername) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (callerUsername !== username) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
     if (!checkRate(username)) {
       return Response.json({ ok: true })
     }

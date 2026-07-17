@@ -18,15 +18,18 @@ export default function SetPasswordPage() {
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    // Supabase fires PASSWORD_RECOVERY when it detects the recovery token in the URL hash
+    // If PASSWORD_RECOVERY never fires (expired/used link), show error after 8s
+    const timeout = setTimeout(() => setState('error'), 8000)
     const { data: { subscription } } = getSupabase().auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
+        clearTimeout(timeout)
         setState('ready')
       }
     })
-    // FIX #5: removed getSession() fallback — any logged-in session would expose
-    // the password-change form to non-recovery users (normal auth sessions included)
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -49,25 +52,25 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#08080f] px-5 py-12 text-white">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 py-12 text-gray-900 selection:bg-violet-200/60">
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-800/20 blur-3xl" />
+        <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-200/40 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-sm">
         <Link href="/" className="mb-8 flex flex-col items-center gap-3">
-          <img src="/brand-logo.jpeg" alt="tapni.kz" className="h-16 w-16 rounded-full object-cover ring-2 ring-white/20 shadow-xl shadow-violet-900/40" />
-          <span className="text-lg font-extrabold tracking-tight text-white">tapni.kz</span>
+          <img src="/brand-logo.jpeg" alt="tapni.kz" className="h-16 w-16 rounded-full object-cover ring-2 ring-violet-200 shadow-xl shadow-violet-100" />
+          <span className="text-lg font-extrabold tracking-tight text-gray-900">tapni.kz</span>
         </Link>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-6 backdrop-blur-md">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-100">
           {state === 'waiting' && (
             <div className="flex flex-col items-center gap-3 py-6">
-              <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-              <p className="text-sm text-gray-400">Проверяем ссылку...</p>
-              <p className="text-center text-xs text-gray-600">
+              <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+              <p className="text-sm text-gray-500">Проверяем ссылку...</p>
+              <p className="text-center text-xs text-gray-400">
                 Если страница зависла — ссылка устарела или уже использована.{' '}
-                <Link href="/auth/reset" className="text-violet-400 hover:underline">Запросить новую</Link>
+                <Link href="/auth/reset" className="text-violet-600 hover:underline">Запросить новую</Link>
               </p>
             </div>
           )}
@@ -75,12 +78,12 @@ export default function SetPasswordPage() {
           {state === 'ready' && (
             <>
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-violet-600/20">
-                  <Lock className="h-5 w-5 text-violet-400" />
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-violet-100">
+                  <Lock className="h-5 w-5 text-violet-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white">Задайте новый пароль</p>
-                  <p className="text-xs text-gray-400">Минимум 8 символов</p>
+                  <p className="text-sm font-bold text-gray-900">Задайте новый пароль</p>
+                  <p className="text-xs text-gray-500">Минимум 8 символов</p>
                 </div>
               </div>
 
@@ -92,12 +95,12 @@ export default function SetPasswordPage() {
                     onChange={(e) => { setPassword(e.target.value); setErrorMsg('') }}
                     placeholder="Новый пароль"
                     autoComplete="new-password"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 pr-10 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 pr-10 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                   />
                   <button
                     type="button"
                     onClick={() => setShow((p) => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -109,11 +112,11 @@ export default function SetPasswordPage() {
                   onChange={(e) => { setConfirm(e.target.value); setErrorMsg('') }}
                   placeholder="Повторите пароль"
                   autoComplete="new-password"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                 />
 
                 {errorMsg && (
-                  <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-300">
+                  <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-600">
                     <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                     {errorMsg}
                   </div>
@@ -133,19 +136,19 @@ export default function SetPasswordPage() {
 
           {state === 'done' && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20">
-                <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100">
+                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
               </div>
-              <p className="text-base font-bold text-white">Пароль обновлён!</p>
-              <p className="text-xs text-gray-400">Переходим в кабинет...</p>
+              <p className="text-base font-bold text-gray-900">Пароль обновлён!</p>
+              <p className="text-xs text-gray-500">Переходим в кабинет...</p>
             </div>
           )}
 
           {state === 'error' && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <AlertCircle className="h-10 w-10 text-red-400" />
-              <p className="text-sm font-semibold text-white">Ссылка недействительна</p>
-              <p className="text-xs text-gray-400">Возможно, ссылка устарела или уже использована.</p>
+              <AlertCircle className="h-10 w-10 text-red-500" />
+              <p className="text-sm font-semibold text-gray-900">Ссылка недействительна</p>
+              <p className="text-xs text-gray-500">Возможно, ссылка устарела или уже использована.</p>
               <Link
                 href="/auth/reset"
                 className="mt-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-500"

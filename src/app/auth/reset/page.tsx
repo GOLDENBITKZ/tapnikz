@@ -44,42 +44,42 @@ export default function ResetPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#08080f] px-5 py-12 text-white">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 py-12 text-gray-900 selection:bg-violet-200/60">
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-800/20 blur-3xl" />
+        <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-200/40 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-sm">
         <Link href="/" className="mb-8 flex flex-col items-center gap-3">
-          <img src="/brand-logo.jpeg" alt="tapni.kz" className="h-16 w-16 rounded-full object-cover ring-2 ring-white/20 shadow-xl shadow-violet-900/40" />
-          <span className="text-lg font-extrabold tracking-tight text-white">tapni.kz</span>
+          <img src="/brand-logo.jpeg" alt="tapni.kz" className="h-16 w-16 rounded-full object-cover ring-2 ring-violet-200 shadow-xl shadow-violet-100" />
+          <span className="text-lg font-extrabold tracking-tight text-gray-900">tapni.kz</span>
         </Link>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-6 backdrop-blur-md">
-          <h1 className="mb-1 text-base font-bold text-white">Восстановление пароля</h1>
-          <p className="mb-5 text-xs text-gray-400">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-100">
+          <h1 className="mb-1 text-base font-bold text-gray-900">Восстановление пароля</h1>
+          <p className="mb-5 text-xs text-gray-500">
             Введите номер телефона — отправим ссылку для сброса
           </p>
 
           {result ? (
             <div className="space-y-4">
               {result.hasTelegram ? (
-                <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-4">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-400" />
+                <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />
                   <div>
-                    <p className="text-sm font-semibold text-emerald-300">Ссылка отправлена в Telegram</p>
-                    <p className="mt-1 text-xs text-emerald-400/80">
+                    <p className="text-sm font-semibold text-emerald-700">Ссылка отправлена в Telegram</p>
+                    <p className="mt-1 text-xs text-emerald-600">
                       Проверьте наш бот в Telegram — там будет кнопка для задания нового пароля.
                       Ссылка действует <b>1 час</b> и одноразовая.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4">
-                  <Send className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-400" />
+                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+                  <Send className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-300">Запрос принят</p>
-                    <p className="mt-1 text-xs text-amber-400/80">
+                    <p className="text-sm font-semibold text-amber-700">Запрос принят</p>
+                    <p className="mt-1 text-xs text-amber-600">
                       Ваш Telegram не привязан к аккаунту. Наша поддержка вышлет ссылку в WhatsApp
                       на ваш номер в течение 15 минут (в рабочее время).
                     </p>
@@ -101,14 +101,14 @@ export default function ResetPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-300">
-                  Номер телефона <span className="text-red-400">*</span>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700">
+                  Номер телефона <span className="text-red-500">*</span>
                 </label>
-                <div className={`flex items-center overflow-hidden rounded-xl border bg-white/[0.06] transition-colors ${
-                  error ? 'border-red-500/60' : 'border-white/10 focus-within:border-violet-500/60'
+                <div className={`flex items-center overflow-hidden rounded-xl border bg-gray-50 transition-colors ${
+                  error ? 'border-red-400' : 'border-gray-200 focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/20'
                 }`}>
-                  <Phone className="ml-3 h-4 w-4 flex-shrink-0 text-gray-500" />
-                  <span className="pl-1.5 text-sm text-gray-500">+7</span>
+                  <Phone className="ml-3 h-4 w-4 flex-shrink-0 text-gray-400" />
+                  <span className="pl-1.5 text-sm text-gray-400">+7</span>
                   <input
                     type="tel"
                     value={phone.replace(/^7/, '')}
@@ -119,14 +119,14 @@ export default function ResetPage() {
                     placeholder="700 123 4567"
                     inputMode="numeric"
                     autoComplete="tel"
-                    className="flex-1 bg-transparent py-3 pl-1 pr-3 text-base text-white placeholder-gray-600 outline-none"
+                    className="flex-1 bg-transparent py-3 pl-1 pr-3 text-base text-gray-900 placeholder-gray-400 outline-none"
                   />
                 </div>
-                {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
+                {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
               </div>
 
-              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3">
-                <p className="text-xs leading-relaxed text-blue-300/80">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <p className="text-xs leading-relaxed text-blue-600">
                   🔒 Ссылка для сброса будет отправлена только на ваш Telegram или WhatsApp — никто другой её не получит.
                 </p>
               </div>
@@ -144,7 +144,7 @@ export default function ResetPage() {
         </div>
 
         <p className="mt-6 text-center">
-          <Link href="/auth" className="inline-flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-gray-300">
+          <Link href="/auth" className="inline-flex items-center gap-1.5 text-xs text-gray-400 transition-colors hover:text-gray-700">
             <ArrowLeft className="h-3.5 w-3.5" />
             Вернуться ко входу
           </Link>

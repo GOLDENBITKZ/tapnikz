@@ -7,13 +7,16 @@ import {
   User, Link2, CreditCard, Loader2, Trash2, Plus, LogOut, ExternalLink,
   CheckCircle2, AlertCircle, MessageCircle, Palette, Building2,
   QrCode, Download, HelpCircle, X, ImagePlus, Zap, FileText, AtSign, BarChart2,
-  ClipboardList, Clock, GripVertical, Eye, Share2, Users,
+  ClipboardList, Clock, GripVertical, Eye, Share2, Users, Pencil, Check, Star,
 } from 'lucide-react'
+
 import { TEMPLATES, PLACEHOLDER_PREFIX } from '@/lib/templates'
 import type { LeadSubmission } from '@/lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
 import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, type WorkingHours, FREE_LINK_LIMIT, FREE_LEADS_VISIBLE } from '@/lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
+import { OnboardingWizard } from '@/components/onboarding-wizard'
 
 type DashTab = 'profile' | 'links' | 'leads' | 'payment'
 
@@ -21,10 +24,16 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'whatsapp',   label: '💬 WhatsApp',        placeholder: 'https://wa.me/77001234567' },
   { value: 'telegram',   label: '✈️ Telegram',         placeholder: 'https://t.me/username' },
   { value: 'kaspi_pay',  label: '💸 Kaspi Pay',        placeholder: 'https://pay.kaspi.kz/pay/...' },
+  { value: 'kaspi_qr',   label: '📱 Kaspi Pay QR-код', placeholder: 'https://pay.kaspi.kz/pay/...' },
   { value: 'kaspi',      label: '🛒 Kaspi магазин',    placeholder: 'https://kaspi.kz/shop/info/...' },
   { value: 'kaspi_shop', label: '🏪 Kaspi товар',      placeholder: 'https://kaspi.kz/shop/p/...' },
   { value: 'twogis',     label: '📍 2ГИС',             placeholder: 'https://2gis.kz/...' },
-  { value: 'instagram',  label: '📸 Instagram',        placeholder: 'https://instagram.com/username' },
+  { value: 'instagram',      label: '📸 Instagram',           placeholder: 'https://instagram.com/username' },
+  { value: 'instagram_dm',   label: '💬 Написать в Direct',  placeholder: 'https://ig.me/m/username' },
+  { value: 'instagram_reel', label: '🎬 Reels / Пост',       placeholder: 'https://instagram.com/reel/...' },
+  { value: 'follow_gate',    label: '🔒 Подпишись и получи', placeholder: '' },
+  { value: 'milestone',         label: '🚀 Вирусный вызов',            placeholder: '' },
+  { value: 'instagram_keyword', label: '🗝️ DM-триггер (ключ. слово)', placeholder: '' },
   { value: 'tiktok',     label: '🎵 TikTok',           placeholder: 'https://tiktok.com/@username' },
   { value: 'youtube',    label: '▶️ YouTube',           placeholder: 'https://youtube.com/@channel' },
   { value: 'website',    label: '🌐 Сайт',             placeholder: 'https://example.com' },
@@ -37,6 +46,12 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'android',    label: '🤖 Google Play',       placeholder: 'https://play.google.com/store/apps/details?id=...' },
   { value: 'ios',        label: '🍎 App Store',         placeholder: 'https://apps.apple.com/app/...' },
   { value: 'menu',       label: '🍽 Меню',              placeholder: 'https://example.com/menu' },
+  { value: 'paypal',     label: '💳 PayPal',            placeholder: 'https://paypal.me/username' },
+  { value: 'countdown',  label: '⏳ Таймер обратного отсчёта', placeholder: '' },
+  { value: 'pricelist',  label: '💰 Прайс-лист / Услуги',    placeholder: '' },
+  { value: 'image',      label: '🖼 Баннер-изображение',      placeholder: '' },
+  { value: 'video',      label: '📹 Видео (YouTube / TikTok)', placeholder: '' },
+  { value: 'faq',        label: '❓ FAQ / Вопросы и ответы',  placeholder: '' },
   { value: 'text_block', label: '📝 Текст / Описание',  placeholder: 'Ваш текст, часы работы, акции...' },
   { value: 'product',    label: '🛍 Карточка товара',   placeholder: 'https://kaspi.kz/shop/p/...' },
   { value: 'lead_form',  label: '📋 Запись / Заявка',   placeholder: 'Записаться на услугу' },
@@ -57,12 +72,18 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
   switch (type) {
     case 'whatsapp':   return { dot: 'bg-[#25D366]', ring: 'border-l-[#25D366]' }
     case 'telegram':   return { dot: 'bg-[#2AABEE]', ring: 'border-l-[#2AABEE]' }
-    case 'instagram':  return { dot: 'bg-pink-500', ring: 'border-l-pink-500' }
+    case 'instagram':      return { dot: 'bg-pink-500', ring: 'border-l-pink-500' }
+    case 'instagram_dm':   return { dot: 'bg-pink-500', ring: 'border-l-pink-500' }
+    case 'instagram_reel': return { dot: 'bg-pink-400', ring: 'border-l-pink-400' }
+    case 'follow_gate':    return { dot: 'bg-violet-400', ring: 'border-l-violet-400' }
+    case 'milestone':         return { dot: 'bg-pink-400', ring: 'border-l-pink-400' }
+    case 'instagram_keyword': return { dot: 'bg-pink-500', ring: 'border-l-pink-500' }
     case 'tiktok':     return { dot: 'bg-gray-300', ring: 'border-l-gray-400' }
     case 'youtube':    return { dot: 'bg-[#FF0000]', ring: 'border-l-[#FF0000]' }
     case 'kaspi':
     case 'kaspi_pay':
-    case 'kaspi_shop': return { dot: 'bg-[#E50000]', ring: 'border-l-[#E50000]' }
+    case 'kaspi_shop':
+    case 'kaspi_qr': return { dot: 'bg-[#E50000]', ring: 'border-l-[#E50000]' }
     case 'twogis':     return { dot: 'bg-[#1DB256]', ring: 'border-l-[#1DB256]' }
     case 'kolesa':     return { dot: 'bg-[#FF6600]', ring: 'border-l-orange-500' }
     case 'krisha':     return { dot: 'bg-[#0076CC]', ring: 'border-l-blue-500' }
@@ -74,6 +95,12 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
     case 'android':    return { dot: 'bg-[#3DDC84]', ring: 'border-l-[#3DDC84]' }
     case 'ios':        return { dot: 'bg-[#007AFF]', ring: 'border-l-[#007AFF]' }
     case 'menu':       return { dot: 'bg-[#FF8C00]', ring: 'border-l-[#FF8C00]' }
+    case 'paypal':     return { dot: 'bg-[#003087]', ring: 'border-l-[#003087]' }
+    case 'countdown':  return { dot: 'bg-amber-400', ring: 'border-l-amber-400' }
+    case 'pricelist':  return { dot: 'bg-emerald-400', ring: 'border-l-emerald-400' }
+    case 'image':      return { dot: 'bg-sky-400', ring: 'border-l-sky-400' }
+    case 'video':      return { dot: 'bg-rose-400', ring: 'border-l-rose-400' }
+    case 'faq':        return { dot: 'bg-indigo-400', ring: 'border-l-indigo-400' }
     case 'text_block': return { dot: 'bg-gray-500', ring: 'border-l-gray-500' }
     case 'product':    return { dot: 'bg-violet-400', ring: 'border-l-violet-400' }
     case 'lead_form':  return { dot: 'bg-violet-400', ring: 'border-l-violet-400' }
@@ -85,13 +112,21 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
 const RESERVED_SLUGS = new Set([
   'auth', 'dashboard', 'pay', 'api', 'admin', 'tapni', 'home', 'root',
   'sitemap.xml', 'robots.txt', 'about', 'privacy', 'terms', 'login', 'register',
+  // niche/city pages
+  'kaspi-prodavets', 'instagram-bloger', 'kafe-restoran', 'master-uslugi',
+  'salon-krasoty', 'fotografy', 'fitness', 'nedvizhimost', 'avto', 'dostavka',
+  'almaty', 'astana', 'shymkent', 'aktobe', 'karaganda', 'atyrau',
+  'kostanay', 'pavlodar', 'semey', 'taraz',
+  // service pages
+  'discover', 'help', 'partners',
 ])
 
 // Smart URL config: show a fixed prefix, user only types the short part
 const SMART_INPUTS: Partial<Record<IconType, { prefix: string; placeholder: string }>> = {
   whatsapp:  { prefix: 'wa.me/', placeholder: '77001234567' },
   telegram:  { prefix: 't.me/', placeholder: 'username' },
-  instagram: { prefix: 'instagram.com/', placeholder: 'username' },
+  instagram:    { prefix: 'instagram.com/', placeholder: 'username' },
+  instagram_dm: { prefix: 'ig.me/m/', placeholder: 'your_username' },
   tiktok:    { prefix: 'tiktok.com/@', placeholder: 'username' },
   youtube:   { prefix: 'youtube.com/@', placeholder: 'channel' },
   vk:        { prefix: 'vk.com/', placeholder: 'nickname' },
@@ -120,7 +155,9 @@ async function compressToWebP(file: File, maxPx: number, maxBytes: number): Prom
   canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
 
   const toBlob = (q: number) =>
-    new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), 'image/webp', q))
+    new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob_null')), 'image/webp', q)
+    )
 
   // Binary search: find highest quality ≤ maxBytes
   let lo = 0.05, hi = 0.95, best: Blob | null = null
@@ -138,17 +175,25 @@ async function compressToWebP(file: File, maxPx: number, maxBytes: number): Prom
   return best ?? await toBlob(0.05)
 }
 
+
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [links, setLinks] = useState<LinkRow[]>([])
-  const [tab, setTab] = useState<DashTab>('profile')
+  const [tab, setTab] = useState<DashTab>(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'links') return 'links'
+    return 'profile'
+  })
+  const [linkCopied, setLinkCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const [accessToken, setAccessToken] = useState<string>('')
 
   // Leads
   const [leads, setLeads] = useState<LeadSubmission[]>([])
+
+  // 7-day click timeline
+  const [recentClicks, setRecentClicks] = useState<{ created_at: string }[]>([])
 
   // Drag-and-drop reorder
   const [dragId, setDragId] = useState<string | null>(null)
@@ -188,7 +233,7 @@ export default function DashboardPage() {
   }
 
   const [whMode, setWhMode] = useState<'simple' | 'schedule'>('simple')
-  const [extSchedule, setExtSchedule] = useState<ExtScheduleForm>(makeDefaultExt())
+  const [extSchedule, setExtSchedule] = useState<ExtScheduleForm>(makeDefaultExt)
 
   function updateSlot(dayKey: WhKey, idx: number, field: keyof SlotDraft, value: string) {
     setExtSchedule((prev) => {
@@ -258,8 +303,9 @@ export default function DashboardPage() {
     for (const { key } of WH_DAYS) {
       const day = extSchedule[key]
       if (!day.enabled) { wh[key] = null; continue }
+      const toMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
       const validSlots = day.slots
-        .filter((s) => /^\d{2}:\d{2}$/.test(s.start) && /^\d{2}:\d{2}$/.test(s.end))
+        .filter((s) => /^\d{2}:\d{2}$/.test(s.start) && /^\d{2}:\d{2}$/.test(s.end) && toMinutes(s.start) < toMinutes(s.end))
         .map((s) => ({ name: s.name.trim(), time: `${s.start}-${s.end}` }))
       wh[key] = validSlots.length > 0 ? validSlots : null
     }
@@ -274,6 +320,7 @@ export default function DashboardPage() {
   })
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMsg, setProfileMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
 
   const [linkForm, setLinkForm] = useState<{ title: string; url: string; icon_type: IconType }>({
     title: '',
@@ -290,6 +337,69 @@ export default function DashboardPage() {
   const [productPrice, setProductPrice] = useState('')
   const [productLinkUrl, setProductLinkUrl] = useState('')
   const [productPhotoUploading, setProductPhotoUploading] = useState(false)
+  const [followGateHandle, setFollowGateHandle] = useState('')
+  const [followGateContent, setFollowGateContent] = useState('')
+  const [milestoneGoal, setMilestoneGoal] = useState('500')
+  const [milestoneHours, setMilestoneHours] = useState('24')
+  const [milestoneRewardUrl, setMilestoneRewardUrl] = useState('')
+  const [milestoneRewardCode, setMilestoneRewardCode] = useState('')
+  const [keywordIg, setKeywordIg] = useState('')
+  const [keywordWord, setKeywordWord] = useState('')
+  const [keywordReward, setKeywordReward] = useState('')
+  // Countdown block state
+  const [countdownTarget, setCountdownTarget] = useState('')
+  const [countdownLabel, setCountdownLabel] = useState('')
+  // Pricelist block state
+  const [pricelistTitle, setPricelistTitle] = useState('')
+  const [pricelistItems, setPricelistItems] = useState<{ name: string; price: string; desc: string }[]>([{ name: '', price: '', desc: '' }])
+  // Image block state
+  const [imageSrc, setImageSrc] = useState('')
+  const [imageSp, setImageSp] = useState('')          // storage path for cleanup on delete
+  const [imageAlt, setImageAlt] = useState('')
+  const [imageLink, setImageLink] = useState('')
+  const [imageDisplayMode, setImageDisplayMode] = useState<'image' | 'button'>('image')
+  const [imageUploadMode, setImageUploadMode] = useState<'url' | 'file'>('url')
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageUploadError, setImageUploadError] = useState('')
+  // Video block state
+  const [videoUrl, setVideoUrl] = useState('')
+  // FAQ block state
+  const [faqTitle, setFaqTitle] = useState('')
+  const [faqItems, setFaqItems] = useState<{ q: string; a: string }[]>([{ q: '', a: '' }])
+
+  // ─── Edit mode state ───────────────────────────────────────────
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editUrl, setEditUrl] = useState('')      // simple types
+  const [editFgHandle, setEditFgHandle] = useState('')
+  const [editFgContent, setEditFgContent] = useState('')
+  const [editMsGoal, setEditMsGoal] = useState('')
+  const [editMsHours, setEditMsHours] = useState('')
+  const [editMsRewardUrl, setEditMsRewardUrl] = useState('')
+  const [editMsRewardCode, setEditMsRewardCode] = useState('')
+  const [editKwIg, setEditKwIg] = useState('')
+  const [editKwWord, setEditKwWord] = useState('')
+  const [editKwReward, setEditKwReward] = useState('')
+  const [editCdTarget, setEditCdTarget] = useState('')
+  const [editCdLabel, setEditCdLabel] = useState('')
+  const [editPlTitle, setEditPlTitle] = useState('')
+  const [editPlItems, setEditPlItems] = useState<{ name: string; price: string; desc: string }[]>([])
+  const [editImgSrc, setEditImgSrc] = useState('')
+  const [editImgSp, setEditImgSp] = useState('')      // storage path of current image (for old-file cleanup)
+  const [editImgAlt, setEditImgAlt] = useState('')
+  const [editImgLink, setEditImgLink] = useState('')
+  const [editImgDisplayMode, setEditImgDisplayMode] = useState<'image' | 'button'>('image')
+  const [editImgUploadMode, setEditImgUploadMode] = useState<'url' | 'file'>('url')
+  const [editImgUploading, setEditImgUploading] = useState(false)
+  const [editImgUploadError, setEditImgUploadError] = useState('')
+  const [editVidUrl, setEditVidUrl] = useState('')
+  const [editFaqTitle, setEditFaqTitle] = useState('')
+  const [editFaqItems, setEditFaqItems] = useState<{ q: string; a: string }[]>([])
+  const [editProdUrl, setEditProdUrl] = useState('')
+  const [editProdPrice, setEditProdPrice] = useState('')
+  const [editVisibleFrom, setEditVisibleFrom] = useState('')
+  const [editVisibleUntil, setEditVisibleUntil] = useState('')
 
   // Username change (premium)
   const [newUsername, setNewUsername] = useState('')
@@ -297,11 +407,17 @@ export default function DashboardPage() {
   const [savingUsername, setSavingUsername] = useState(false)
 
   const loadData = useCallback(async (userId: string) => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
     const [{ data: prof }, { data: lnks }, { data: lds }] = await Promise.all([
-      getSupabase().from('profiles').select('*').eq('id', userId).single(),
-      getSupabase().from('links').select('*').eq('profile_id', userId).order('sort_order'),
+      getSupabase().from('profiles').select('id,username,business_name,bio,phone,address,avatar_url,theme,is_premium,subscription_expires_at,subscription_plan,telegram_chat_id,view_count,working_hours,referred_by,referral_bonus_given,created_at,updated_at').eq('id', userId).single(),
+      getSupabase().from('links').select('id,profile_id,title,url,icon_type,sort_order,click_count,created_at,visible_from,visible_until,is_featured').eq('profile_id', userId).order('sort_order'),
       getSupabase().from('lead_submissions').select('*').eq('profile_id', userId).order('created_at', { ascending: false }).limit(50),
     ])
+    // Fetch click_events scoped to this user's link IDs (avoids platform-wide query)
+    const linkIds = (lnks ?? []).map((l: { id: string }) => l.id)
+    const { data: clicks } = linkIds.length > 0
+      ? await getSupabase().from('click_events').select('created_at').in('link_id', linkIds).gte('created_at', sevenDaysAgo)
+      : { data: [] }
     if (prof) {
       setProfile(prof as Profile)
       setProfileForm({
@@ -350,6 +466,7 @@ export default function DashboardPage() {
     }
     if (lnks) setLinks(lnks as LinkRow[])
     if (lds) setLeads(lds as LeadSubmission[])
+    if (clicks) setRecentClicks(clicks as { created_at: string }[])
   }, [])
 
   useEffect(() => {
@@ -357,7 +474,14 @@ export default function DashboardPage() {
       if (!session) { router.replace('/auth'); return }
       setUser(session.user)
       setAccessToken(session.access_token)
-      loadData(session.user.id).finally(() => setLoading(false))
+      loadData(session.user.id).finally(() => {
+        setLoading(false)
+        // Open Links tab for new users (?welcome=1) or ?tab=links
+        const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+        if (sp?.get('welcome') === '1' || sp?.get('tab') === 'links') {
+          setTab('links')
+        }
+      })
     })
   }, [router, loadData])
 
@@ -398,9 +522,9 @@ export default function DashboardPage() {
   async function changeUsername() {
     if (!user || !profile) return
     const slug = newUsername.trim().toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .replace(/-+/g, '-')
+      .replace(/[^a-z0-9._-]/g, '-')
+      .replace(/^[._-]+|[._-]+$/g, '')
+      .replace(/[-._]{2,}/g, (m) => m[0])
 
     if (slug.length < 2) { setUsernameMsg({ type: 'err', text: 'Минимум 2 символа' }); return }
     if (RESERVED_SLUGS.has(slug)) { setUsernameMsg({ type: 'err', text: 'Это слово зарезервировано' }); return }
@@ -427,11 +551,25 @@ export default function DashboardPage() {
     }
   }
 
+
+
   function normalizeUrl(raw: string, type: IconType): string {
     const u = raw.trim()
     if (!u) return u
     if (type === 'text_block') return u
-    if (type === 'product') return u  // url field stores pre-built JSON for product type
+    if (type === 'product') return u
+    if (type === 'follow_gate') return u
+    if (type === 'milestone') return u
+    if (type === 'instagram_keyword') return u
+    if (type === 'countdown') return u
+    if (type === 'pricelist') return u
+    if (type === 'image') return u
+    if (type === 'video') return u
+    if (type === 'faq') return u
+    if (type === 'instagram_dm') {
+      if (u.startsWith('http')) return u
+      return `https://ig.me/m/${u.replace(/^@/, '')}`
+    }
     if (type === 'phone') {
       const digits = u.replace(/\D/g, '')
       return `tel:+${digits.length === 10 ? '7' + digits : digits}`
@@ -469,6 +607,14 @@ export default function DashboardPage() {
       if (u.startsWith('http')) return u
       return `https://facebook.com/${u}`
     }
+    // 2GIS: when copied from the app, the text may be "Название заведения https://2gis.kz/..."
+    // Extract the URL part if the pasted text contains an http URL
+    if (type === 'twogis') {
+      const urlMatch = u.match(/https?:\/\/\S+/)
+      const extracted = urlMatch ? urlMatch[0] : u
+      if (!extracted.startsWith('http')) return `https://${extracted}`
+      return extracted
+    }
     if (!u.startsWith('http') && !u.startsWith('//')) return `https://${u}`
     return u
   }
@@ -479,6 +625,233 @@ export default function DashboardPage() {
     const isText = linkForm.icon_type === 'text_block'
     const isProduct = linkForm.icon_type === 'product'
     const isLeadForm = linkForm.icon_type === 'lead_form'
+    const isFollowGate = linkForm.icon_type === 'follow_gate'
+    const isMilestone = linkForm.icon_type === 'milestone'
+    const isKeyword = linkForm.icon_type === 'instagram_keyword'
+    const isCountdown = linkForm.icon_type === 'countdown'
+    const isPricelist = linkForm.icon_type === 'pricelist'
+    const isImage = linkForm.icon_type === 'image'
+    const isVideo = linkForm.icon_type === 'video'
+    const isFaq = linkForm.icon_type === 'faq'
+
+    if (isCountdown) {
+      if (!countdownTarget) { setLinkError('Выберите дату и время'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({ target: countdownTarget, label: countdownLabel.trim() || 'До события' })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Таймер', url: urlJson, icon_type: 'countdown', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'countdown' })
+        setCountdownTarget('')
+        setCountdownLabel('')
+        await loadData(user.id)
+      } catch { setLinkError('Не удалось добавить таймер') }
+      finally { setAddingLink(false) }
+      return
+    }
+
+    if (isPricelist) {
+      const validItems = pricelistItems.filter((i) => i.name.trim() && i.price.trim())
+      if (validItems.length === 0) { setLinkError('Добавьте хотя бы одну позицию с названием и ценой'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({ title: pricelistTitle.trim() || 'Услуги', items: validItems })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || pricelistTitle.trim() || 'Прайс-лист', url: urlJson, icon_type: 'pricelist', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'pricelist' })
+        setPricelistTitle('')
+        setPricelistItems([{ name: '', price: '', desc: '' }])
+        await loadData(user.id)
+      } catch { setLinkError('Не удалось добавить прайс-лист') }
+      finally { setAddingLink(false) }
+      return
+    }
+
+    if (isImage) {
+      if (!imageSrc.trim()) { setLinkError('Введите URL изображения'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const src = imageSrc.trim().startsWith('http') ? imageSrc.trim() : `https://${imageSrc.trim()}`
+        const lnk = imageLink.trim() ? (imageLink.trim().startsWith('http') ? imageLink.trim() : `https://${imageLink.trim()}`) : ''
+        const urlJson = JSON.stringify({
+          src,
+          ...(imageSp ? { sp: imageSp } : {}),
+          mode: imageDisplayMode,
+          ...(imageAlt.trim() ? { alt: imageAlt.trim() } : {}),
+          ...(lnk ? { link: lnk } : {}),
+        })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Изображение', url: urlJson, icon_type: 'image', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'image' })
+        setImageSrc('')
+        setImageSp('')
+        setImageAlt('')
+        setImageLink('')
+        setImageDisplayMode('image')
+        await loadData(user.id)
+      } catch { setLinkError('Не удалось добавить изображение') }
+      finally { setAddingLink(false) }
+      return
+    }
+
+    if (isVideo) {
+      if (!videoUrl.trim()) { setLinkError('Введите ссылку на видео'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({ url: videoUrl.trim().startsWith('http') ? videoUrl.trim() : `https://${videoUrl.trim()}` })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Видео', url: urlJson, icon_type: 'video', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'video' })
+        setVideoUrl('')
+        await loadData(user.id)
+      } catch { setLinkError('Не удалось добавить видео') }
+      finally { setAddingLink(false) }
+      return
+    }
+
+    if (isFaq) {
+      const validItems = faqItems.filter((i) => i.q.trim() && i.a.trim())
+      if (validItems.length === 0) { setLinkError('Добавьте хотя бы один вопрос с ответом'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({ title: faqTitle.trim() || 'Часто задаваемые вопросы', items: validItems })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || faqTitle.trim() || 'FAQ', url: urlJson, icon_type: 'faq', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'faq' })
+        setFaqTitle('')
+        setFaqItems([{ q: '', a: '' }])
+        await loadData(user.id)
+      } catch { setLinkError('Не удалось добавить FAQ') }
+      finally { setAddingLink(false) }
+      return
+    }
+
+    if (isKeyword) {
+      if (!keywordIg.trim()) { setLinkError('Введите Instagram @username'); return }
+      if (!keywordWord.trim()) { setLinkError('Введите ключевое слово'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({
+          ig: keywordIg.replace(/^@/, '').trim(),
+          keyword: keywordWord.trim().toUpperCase(),
+          reward: keywordReward.trim(),
+        })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || `Напиши «${keywordWord.trim().toUpperCase()}» в Direct`, url: urlJson, icon_type: 'instagram_keyword', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'instagram_keyword' })
+        setKeywordIg('')
+        setKeywordWord('')
+        setKeywordReward('')
+        await loadData(user.id)
+      } catch {
+        setLinkError('Не удалось добавить DM-триггер')
+      } finally {
+        setAddingLink(false)
+      }
+      return
+    }
+
+    if (isMilestone) {
+      const goal = parseInt(milestoneGoal) || 500
+      if (goal < 10) { setLinkError('Цель — минимум 10 просмотров'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({
+          goal,
+          hours: parseInt(milestoneHours) || 24,
+          started_at: new Date().toISOString(),
+          baseline: profile.view_count ?? 0,
+          reward_url: milestoneRewardUrl.trim() ? (milestoneRewardUrl.trim().startsWith('http') ? milestoneRewardUrl.trim() : `https://${milestoneRewardUrl.trim()}`) : '',
+          reward_code: milestoneRewardCode.trim(),
+          reward_label: linkForm.title,
+        })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Вирусный вызов', url: urlJson, icon_type: 'milestone', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'milestone' })
+        setMilestoneGoal('500')
+        setMilestoneHours('24')
+        setMilestoneRewardUrl('')
+        setMilestoneRewardCode('')
+        await loadData(user.id)
+      } catch {
+        setLinkError('Не удалось добавить вирусный вызов')
+      } finally {
+        setAddingLink(false)
+      }
+      return
+    }
+
+    if (isFollowGate) {
+      if (!followGateHandle.trim()) { setLinkError('Введите Instagram @username'); return }
+      if (!followGateContent.trim()) { setLinkError('Введите ссылку на контент'); return }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({
+          ig: followGateHandle.replace(/^@/, '').trim(),
+          content: followGateContent.trim().startsWith('http') ? followGateContent.trim() : `https://${followGateContent.trim()}`,
+          label: linkForm.title,
+        })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Получить материал', url: urlJson, icon_type: 'follow_gate', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error()
+        setLinkForm({ title: '', url: '', icon_type: 'follow_gate' })
+        setFollowGateHandle('')
+        setFollowGateContent('')
+        await loadData(user.id)
+      } catch {
+        setLinkError('Не удалось добавить гейт')
+      } finally {
+        setAddingLink(false)
+      }
+      return
+    }
 
     if (isLeadForm) {
       setLinkError('')
@@ -589,18 +962,189 @@ export default function DashboardPage() {
     setDeletingId(id)
     try {
       const link = links.find((l) => l.id === id)
-      await getSupabase().from('links').delete().eq('id', id)
+      const { error } = await getSupabase().from('links').delete().eq('id', id).eq('profile_id', user!.id)
+      if (error) throw error
       setLinks((prev) => prev.filter((l) => l.id !== id))
-      // Clean up product photo from storage
-      if (link?.icon_type === 'product' && link.url.startsWith('{')) {
+      // Clean up storage files for product and image types
+      if ((link?.icon_type === 'product' || link?.icon_type === 'image') && link.url.startsWith('{')) {
         try {
           const pd = JSON.parse(link.url) as { sp?: string }
           if (pd.sp) await getSupabase().storage.from('avatars').remove([pd.sp])
         } catch {}
       }
+    } catch {
+      setLinkError('Не удалось удалить кнопку. Попробуйте ещё раз.')
     } finally {
       setDeletingId(null)
     }
+  }
+
+  function toLocalInput(iso: string | null): string {
+    if (!iso) return ''
+    const d = new Date(iso)
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  }
+
+  function openEdit(link: LinkRow) {
+    setEditingId(link.id)
+    setEditTitle(link.title)
+    setEditVisibleFrom(toLocalInput(link.visible_from ?? null))
+    setEditVisibleUntil(toLocalInput(link.visible_until ?? null))
+    const t = link.icon_type
+    if (['follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'product', 'text_block', 'lead_form'].includes(t)) {
+      let d: Record<string, unknown> = {}
+      try { d = JSON.parse(link.url) } catch {}
+      if (t === 'follow_gate') {
+        setEditFgHandle((d.ig as string) ?? '')
+        setEditFgContent((d.content as string) ?? '')
+      } else if (t === 'milestone') {
+        setEditMsGoal(String(d.goal ?? 500))
+        setEditMsHours(String(d.hours ?? 24))
+        setEditMsRewardUrl((d.reward_url as string) ?? '')
+        setEditMsRewardCode((d.reward_code as string) ?? '')
+      } else if (t === 'instagram_keyword') {
+        setEditKwIg((d.ig as string) ?? '')
+        setEditKwWord((d.keyword as string) ?? '')
+        setEditKwReward((d.reward as string) ?? '')
+      } else if (t === 'countdown') {
+        const raw = (d.target as string) ?? ''
+        // Convert ISO to datetime-local format (slice removes seconds/Z)
+        setEditCdTarget(raw ? raw.slice(0, 16) : '')
+        setEditCdLabel((d.label as string) ?? '')
+      } else if (t === 'pricelist') {
+        setEditPlTitle((d.title as string) ?? '')
+        const items = (d.items as { name: string; price: string; desc?: string }[]) ?? []
+        setEditPlItems(items.map((i) => ({ name: i.name, price: i.price, desc: i.desc ?? '' })))
+      } else if (t === 'image') {
+        setEditImgSrc((d.src as string) ?? '')
+        setEditImgSp((d.sp as string) ?? '')
+        setEditImgAlt((d.alt as string) ?? '')
+        setEditImgLink((d.link as string) ?? '')
+        setEditImgDisplayMode((d.mode as 'image' | 'button') ?? 'image')
+        setEditImgUploadMode('url')
+      } else if (t === 'video') {
+        setEditVidUrl((d.url as string) ?? '')
+      } else if (t === 'faq') {
+        setEditFaqTitle((d.title as string) ?? '')
+        const items = (d.items as { q: string; a: string }[]) ?? []
+        setEditFaqItems(items.map((i) => ({ q: i.q, a: i.a })))
+      } else if (t === 'product') {
+        setEditProdUrl((d.l as string) ?? '')
+        setEditProdPrice((d.price as string) ?? '')
+      } else if (t === 'text_block') {
+        setEditUrl(link.url)
+      }
+    } else {
+      // Simple link: strip protocol/prefix for smart-input types
+      const si = SMART_INPUTS[t]
+      if (si) {
+        const stripped = link.url
+          .replace(/^https?:\/\//, '')
+          .replace(si.prefix, '')
+          .replace(/^@/, '')
+        setEditUrl(stripped)
+      } else {
+        setEditUrl(link.url)
+      }
+    }
+  }
+
+  async function saveEdit(link: LinkRow) {
+    setSavingEdit(true)
+    try {
+      const t = link.icon_type
+      let newUrl = editUrl
+      let newTitle = editTitle
+
+      if (t === 'follow_gate') {
+        if (!editFgHandle.trim() || !editFgContent.trim()) return
+        newUrl = JSON.stringify({ ig: editFgHandle.replace(/^@/, '').trim(), content: editFgContent.trim().startsWith('http') ? editFgContent.trim() : `https://${editFgContent.trim()}`, label: newTitle })
+      } else if (t === 'milestone') {
+        const prevD: Record<string, unknown> = {}
+        try { Object.assign(prevD, JSON.parse(link.url)) } catch {}
+        newUrl = JSON.stringify({ ...prevD, goal: parseInt(editMsGoal) || 500, hours: parseInt(editMsHours) || 24, reward_url: editMsRewardUrl.trim(), reward_code: editMsRewardCode.trim(), reward_label: newTitle })
+      } else if (t === 'instagram_keyword') {
+        newUrl = JSON.stringify({ ig: editKwIg.replace(/^@/, '').trim(), keyword: editKwWord.trim().toUpperCase(), reward: editKwReward.trim() })
+      } else if (t === 'countdown') {
+        if (!editCdTarget) return
+        newUrl = JSON.stringify({ target: editCdTarget, label: editCdLabel.trim() || 'До события' })
+      } else if (t === 'pricelist') {
+        const validItems = editPlItems.filter((i) => i.name.trim() && i.price.trim())
+        if (validItems.length === 0) return
+        newUrl = JSON.stringify({ title: editPlTitle.trim() || 'Услуги', items: validItems })
+      } else if (t === 'image') {
+        if (!editImgSrc.trim()) return
+        const src = editImgSrc.trim().startsWith('http') ? editImgSrc.trim() : `https://${editImgSrc.trim()}`
+        const lnk = editImgLink.trim() ? (editImgLink.trim().startsWith('http') ? editImgLink.trim() : `https://${editImgLink.trim()}`) : ''
+        newUrl = JSON.stringify({ src, ...(editImgSp ? { sp: editImgSp } : {}), mode: editImgDisplayMode, ...(editImgAlt.trim() ? { alt: editImgAlt.trim() } : {}), ...(lnk ? { link: lnk } : {}) })
+      } else if (t === 'video') {
+        if (!editVidUrl.trim()) return
+        newUrl = JSON.stringify({ url: editVidUrl.trim().startsWith('http') ? editVidUrl.trim() : `https://${editVidUrl.trim()}` })
+      } else if (t === 'faq') {
+        const validItems = editFaqItems.filter((i) => i.q.trim() && i.a.trim())
+        if (validItems.length === 0) return
+        newUrl = JSON.stringify({ title: editFaqTitle.trim() || 'Часто задаваемые вопросы', items: validItems })
+      } else if (t === 'product') {
+        const prevD: Record<string, unknown> = {}
+        try { Object.assign(prevD, JSON.parse(link.url)) } catch {}
+        newUrl = JSON.stringify({ ...prevD, l: editProdUrl.trim().startsWith('http') ? editProdUrl.trim() : `https://${editProdUrl.trim()}`, price: editProdPrice.trim() })
+      } else if (t === 'text_block' || t === 'lead_form') {
+        newUrl = link.url // unchanged for lead_form
+        if (t === 'text_block') newUrl = editUrl
+      } else {
+        // Simple link: normalize URL
+        newUrl = normalizeUrl(editUrl, t)
+      }
+
+      if (!newTitle && t !== 'text_block') newTitle = link.title
+
+      // Block dangerous URL schemes before saving
+      const JSON_TYPES = ['text_block','product','follow_gate','milestone','instagram_keyword','countdown','pricelist','image','video','faq']
+      if (newUrl && !JSON_TYPES.includes(t) && /^(javascript|data|vbscript):/i.test(newUrl)) {
+        setLinkError('Недопустимая схема URL')
+        return
+      }
+
+      const fromISO = editVisibleFrom ? new Date(editVisibleFrom).toISOString() : null
+      const untilISO = editVisibleUntil ? new Date(editVisibleUntil).toISOString() : null
+      await getSupabase().from('links').update({ title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO }).eq('id', link.id).eq('profile_id', user!.id)
+      setLinks((prev) => prev.map((l) => l.id === link.id ? { ...l, title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO } : l))
+      setEditingId(null)
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  async function toggleFeatured(link: LinkRow) {
+    const sb = getSupabase()
+    if (link.is_featured) {
+      setLinks((prev) => prev.map((l) => l.id === link.id ? { ...l, is_featured: false } : l))
+      await sb.from('links').update({ is_featured: false }).eq('id', link.id).eq('profile_id', user!.id)
+    } else {
+      setLinks((prev) => prev.map((l) => ({ ...l, is_featured: l.id === link.id })))
+      await sb.from('links').update({ is_featured: false }).eq('profile_id', user!.id)
+      await sb.from('links').update({ is_featured: true }).eq('id', link.id).eq('profile_id', user!.id)
+    }
+  }
+
+  async function moveLink(id: string, direction: 'up' | 'down') {
+    const idx = links.findIndex((l) => l.id === id)
+    if (idx === -1) return
+    const newIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (newIdx < 0 || newIdx >= links.length) return
+    const reordered = [...links]
+    const [moved] = reordered.splice(idx, 1)
+    reordered.splice(newIdx, 0, moved)
+    const withOrder = reordered.map((l, i) => ({ ...l, sort_order: i }))
+    setLinks(withOrder)
+    try {
+      const res = await fetch('/api/links', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        body: JSON.stringify(withOrder.map((l) => ({ id: l.id, sort_order: l.sort_order }))),
+      })
+      if (!res.ok) setLinks(links)
+    } catch { setLinks(links) }
   }
 
   async function handleDrop(targetId: string) {
@@ -616,13 +1160,14 @@ export default function DashboardPage() {
     setLinks(withOrder) // optimistic update
     setDragId(null); setDragOverId(null)
     try {
-      await fetch('/api/links', {
+      const res = await fetch('/api/links', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify(withOrder.map((l) => ({ id: l.id, sort_order: l.sort_order }))),
       })
+      if (!res.ok) throw new Error('reorder_failed')
     } catch {
-      setLinks(oldLinks) // revert on error
+      setLinks(oldLinks) // revert on network error or HTTP 4xx/5xx
     }
   }
 
@@ -650,9 +1195,16 @@ export default function DashboardPage() {
     setSavingWh(true)
     try {
       const wh = buildWorkingHours()
-      await getSupabase().from('profiles').update({ working_hours: wh }).eq('id', user.id)
-      setProfile((p) => p ? { ...p, working_hours: wh as WorkingHours } : p)
-    } catch { /* ignore */ } finally {
+      const { error } = await getSupabase().from('profiles').update({ working_hours: wh }).eq('id', user.id)
+      if (!error) {
+        setProfile((p) => p ? { ...p, working_hours: wh as WorkingHours } : p)
+        setProfileMsg({ type: 'ok', text: 'Расписание сохранено' })
+      } else {
+        setProfileMsg({ type: 'err', text: 'Ошибка сохранения расписания' })
+      }
+    } catch {
+      setProfileMsg({ type: 'err', text: 'Ошибка сохранения расписания' })
+    } finally {
       setSavingWh(false)
     }
   }
@@ -662,7 +1214,7 @@ export default function DashboardPage() {
   const qrFallbackRef = useRef<HTMLDivElement>(null)
   const qrDownloadRef = useRef<HTMLDivElement>(null)      // 600px with user/brand logo (may taint if user avatar is cross-origin)
   const qrDownloadBrandRef = useRef<HTMLDivElement>(null) // 600px with brand logo only (always clean)
-  const [helpType, setHelpType] = useState<'kaspi' | 'kaspi_pay' | 'kaspi_shop' | 'twogis' | null>(null)
+  const [helpType, setHelpType] = useState<'kaspi' | 'kaspi_pay' | 'kaspi_shop' | 'kaspi_qr' | 'twogis' | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
 
@@ -712,11 +1264,44 @@ export default function DashboardPage() {
     }
   }
 
+  async function uploadBannerImage(
+    file: File,
+    onSuccess: (url: string) => void,
+    onError: (msg: string) => void,
+    setLoading: (v: boolean) => void,
+    onPath?: (sp: string) => void,
+  ) {
+    if (!user) return
+    if (file.size > 10 * 1024 * 1024) { onError('Максимальный размер — 10 МБ'); return }
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp']
+    if (!allowed.includes(file.type)) { onError('Только JPG, PNG или WebP'); return }
+    onError('')
+    setLoading(true)
+    try {
+      const webpBlob = await compressToWebP(file, 1200, 500 * 1024)
+      const path = `${user.id}/banner_${Date.now()}.webp`
+      const { error: upErr } = await getSupabase()
+        .storage.from('avatars')
+        .upload(path, webpBlob, { upsert: false, contentType: 'image/webp' })
+      if (upErr) throw upErr
+      const { data: { publicUrl } } = getSupabase()
+        .storage.from('avatars')
+        .getPublicUrl(path)
+      onSuccess(publicUrl)
+      onPath?.(path)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      onError(`Ошибка загрузки: ${msg}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const selectedOption = ICON_OPTIONS.find((o) => o.value === linkForm.icon_type)
   const atLimit = !profile?.is_premium && links.length >= FREE_LINK_LIMIT
   const profileUrl = profile ? `https://tapni.kz/${profile.username}` : ''
   const isTextType = linkForm.icon_type === 'text_block'
-  const showHelp = ['kaspi', 'kaspi_pay', 'kaspi_shop', 'twogis'].includes(linkForm.icon_type)
+  const showHelp = ['kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'twogis'].includes(linkForm.icon_type)
 
   function downloadQr() {
     const filename = `tapni-qr-${profile?.username ?? 'code'}.png`
@@ -756,25 +1341,26 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#08080f]">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
       </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#08080f] pb-24 text-white">
+    <>
+    <main className="min-h-screen bg-gray-50 pb-24 text-gray-900">
       {/* ─── Header ─── */}
-      <header className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#08080f]/90 px-5 py-3.5 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/90 px-5 py-3.5 backdrop-blur-md">
         <div className="mx-auto flex max-w-md items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <img src="/brand-logo.jpeg" alt="tapni.kz" className="h-8 w-8 rounded-full object-cover ring-[1.5px] ring-white/20" />
-            <span className="text-sm font-bold text-white hidden sm:block">tapni.kz</span>
+            <span className="text-sm font-bold text-gray-900 hidden sm:block">tapni.kz</span>
           </Link>
           <div className="flex items-center gap-2">
             <Link
               href="/help"
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-violet-500/40 hover:text-violet-400"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 transition-colors hover:border-violet-400 hover:text-gray-900"
               title="Помощь и инструкции"
             >
               <HelpCircle className="h-3.5 w-3.5" />
@@ -784,7 +1370,7 @@ export default function DashboardPage() {
               <Link
                 href={`/${profile.username}`}
                 target="_blank"
-                className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-violet-500/40 hover:text-white"
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-violet-400 hover:text-gray-900"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 Моя страница
@@ -792,7 +1378,7 @@ export default function DashboardPage() {
             )}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-red-500/40 hover:text-red-400"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-red-500/40 hover:text-red-400"
             >
               <LogOut className="h-3.5 w-3.5" />
             </button>
@@ -803,18 +1389,33 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-md px-5 pt-6">
         {profile && (
           <div className="mb-5">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-500">
               Добро пожаловать,{' '}
-              <span className="font-semibold text-white">{profile.business_name}</span>
+              <span className="font-semibold text-gray-900">{profile.business_name}</span>
             </p>
-            <p className="text-xs text-gray-600">
-              tapni.kz/{profile.username}
-              {profile.is_premium && (
-                <span className="ml-2 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-semibold text-yellow-400">
-                  ⚡ PREMIUM
-                </span>
-              )}
-            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <p className="text-xs text-gray-600">
+                tapni.kz/{profile.username}
+                {profile.is_premium && (
+                  <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-semibold text-yellow-700">
+                    ⚡ PREMIUM
+                  </span>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://tapni.kz/${profile.username}`).then(() => {
+                    setLinkCopied(true)
+                    setTimeout(() => setLinkCopied(false), 2000)
+                  }).catch(() => {})
+                }}
+                className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-500 shadow-sm transition-colors hover:border-violet-300 hover:text-violet-600 active:scale-95"
+              >
+                {linkCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Share2 className="h-3 w-3" />}
+                {linkCopied ? 'Скопировано!' : 'Скопировать'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -836,18 +1437,33 @@ export default function DashboardPage() {
             >
               <span className="text-lg flex-shrink-0">{urgent ? '🚨' : '⏰'}</span>
               <div className="flex-1 min-w-0">
-                <p className={`text-xs font-bold truncate ${urgent ? 'text-red-300' : 'text-yellow-300'}`}>{label}</p>
+                <p className={`text-xs font-bold truncate ${urgent ? 'text-red-600' : 'text-yellow-700'}`}>{label}</p>
                 <p className="text-[11px] text-gray-500">Нажмите чтобы продлить</p>
               </div>
               <span className={`flex-shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold ${
-                urgent ? 'bg-red-500/20 text-red-300' : 'bg-yellow-500/20 text-yellow-400'
+                urgent ? 'bg-red-500/20 text-red-600' : 'bg-yellow-500/20 text-yellow-700'
               }`}>Продлить →</span>
             </Link>
           )
         })()}
 
+        {/* ─── Telegram connect nudge (only if not linked) ─── */}
+        {profile && !profile.telegram_chat_id && (
+          <a
+            href="/go/tg?u=Tapnikzbot"
+            className="mb-4 flex items-center gap-3 rounded-2xl border border-[#2AABEE]/20 bg-[#2AABEE]/[0.06] px-4 py-3 transition-colors hover:bg-[#2AABEE]/[0.10]"
+          >
+            <span className="text-lg flex-shrink-0">💬</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-[#2AABEE]">Привяжите Telegram бот</p>
+              <p className="text-[11px] text-gray-500">Уведомления, сброс пароля, автооплата</p>
+            </div>
+            <span className="flex-shrink-0 text-[11px] font-semibold text-[#2AABEE]">@Tapnikzbot →</span>
+          </a>
+        )}
+
         {/* ─── Tabs ─── */}
-        <div className="mb-6 grid grid-cols-4 gap-1 rounded-xl bg-white/[0.05] p-1">
+        <div className="mb-6 grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1">
           {(
             [
               ['profile', User, 'Профиль'],
@@ -862,7 +1478,7 @@ export default function DashboardPage() {
               className={`flex flex-col items-center gap-1 rounded-lg py-2.5 text-xs font-semibold transition-all duration-200 ${
                 tab === id
                   ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40'
-                  : 'text-gray-400 hover:text-gray-200'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -876,7 +1492,7 @@ export default function DashboardPage() {
           <form onSubmit={saveProfile} className="space-y-5">
             {/* Avatar upload */}
             <div>
-              <label className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-300">
+              <label className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-600">
                 <ImagePlus className="h-3.5 w-3.5 text-violet-400" />
                 Логотип / Фото
               </label>
@@ -901,7 +1517,7 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-gray-300 transition-colors hover:border-violet-500/40 hover:text-white">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-violet-500/40 hover:text-gray-900">
                     <ImagePlus className="h-3.5 w-3.5 flex-shrink-0" />
                     {profile?.avatar_url ? 'Заменить' : 'Загрузить логотип'}
                     <input
@@ -933,19 +1549,19 @@ export default function DashboardPage() {
 
             {profile?.phone && (
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-300">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-600">
                   <MessageCircle className="h-3.5 w-3.5 text-emerald-400" />
                   Ваш номер телефона
                 </label>
-                <div className="flex items-center rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-3">
+                <div className="flex items-center rounded-xl border border-gray-200 bg-white px-3 py-3">
                   <span className="text-sm text-gray-400">+</span>
-                  <span className="ml-1 text-sm font-medium text-white">{profile.phone}</span>
+                  <span className="ml-1 text-sm font-medium text-gray-900">{profile.phone}</span>
                 </div>
               </div>
             )}
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-300">
+              <label className="mb-1.5 block text-xs font-medium text-gray-600">
                 Название бизнеса / Имя <span className="text-red-400">*</span>
               </label>
               <input
@@ -953,35 +1569,35 @@ export default function DashboardPage() {
                 value={profileForm.business_name}
                 onChange={(e) => setProfileForm((p) => ({ ...p, business_name: e.target.value }))}
                 placeholder="Цветы Алматы"
-                className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-300">Описание (Bio)</label>
+              <label className="mb-1.5 block text-xs font-medium text-gray-600">Описание (Bio)</label>
               <textarea
                 value={profileForm.bio}
                 onChange={(e) => setProfileForm((p) => ({ ...p, bio: e.target.value }))}
                 placeholder="Доставка цветов по Алматы 24/7 🌸"
                 rows={3}
-                className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-300">Адрес / Дополнительно</label>
+              <label className="mb-1.5 block text-xs font-medium text-gray-600">Адрес / Дополнительно</label>
               <input
                 type="text"
                 value={profileForm.address}
                 onChange={(e) => setProfileForm((p) => ({ ...p, address: e.target.value }))}
                 placeholder="г. Алматы, ул. Абая 10"
-                className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
               />
               <p className="mt-1 text-xs text-gray-600">Показывается на вашей публичной странице</p>
             </div>
 
             <div>
-              <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-300">
+              <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600">
                 <Palette className="h-3.5 w-3.5" />
                 Тема оформления
               </label>
@@ -994,30 +1610,30 @@ export default function DashboardPage() {
                     className={`rounded-xl border p-2.5 text-center transition-all duration-200 ${
                       profileForm.theme === t.value
                         ? 'border-violet-500 ring-2 ring-violet-500/40'
-                        : 'border-white/10 hover:border-white/20'
+                        : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className={`mx-auto mb-1.5 h-7 w-full rounded-lg ${t.preview}`} />
-                    <span className="text-[10px] font-medium text-gray-300 leading-tight">{t.label}</span>
+                    <span className="text-[10px] font-medium text-gray-600 leading-tight">{t.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Working hours */}
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
-              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <Clock className="h-4 w-4 text-violet-400" />
                 Режим работы
               </p>
 
               {/* Mode toggle */}
-              <div className="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+              <div className="mb-4 flex gap-1 rounded-xl border border-gray-200 bg-white p-1">
                 <button
                   type="button"
                   onClick={switchToSimple}
                   className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    whMode === 'simple' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                    whMode === 'simple' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-700'
                   }`}
                 >
                   Обычный
@@ -1026,7 +1642,7 @@ export default function DashboardPage() {
                   type="button"
                   onClick={switchToSchedule}
                   className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    whMode === 'schedule' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                    whMode === 'schedule' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-700'
                   }`}
                 >
                   Расписание
@@ -1045,7 +1661,7 @@ export default function DashboardPage() {
                           value={whForm[key]}
                           onChange={(e) => setWhForm((f) => ({ ...f, [key]: e.target.value }))}
                           placeholder="09:00-20:00"
-                          className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-gray-700 outline-none transition-colors focus:border-violet-500/60"
+                          className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
                         />
                       </div>
                     ))}
@@ -1062,17 +1678,17 @@ export default function DashboardPage() {
                   {WH_DAYS.map(({ key, label }) => {
                     const day = extSchedule[key]
                     return (
-                      <div key={key} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                      <div key={key} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                         {/* Day header */}
                         <div className="mb-2 flex items-center justify-between">
-                          <span className="text-xs font-bold text-gray-300">{label}</span>
+                          <span className="text-xs font-bold text-gray-600">{label}</span>
                           <button
                             type="button"
                             onClick={() => toggleDay(key)}
                             className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                               day.enabled
                                 ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                                : 'bg-white/[0.06] text-gray-500 hover:bg-white/10'
+                                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                             }`}
                           >
                             {day.enabled ? 'Работает' : 'Выходной'}
@@ -1089,20 +1705,20 @@ export default function DashboardPage() {
                                   value={slot.name}
                                   onChange={(e) => updateSlot(key, idx, 'name', e.target.value)}
                                   placeholder="Название"
-                                  className="w-24 min-w-0 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-xs text-white placeholder-gray-700 outline-none focus:border-violet-500/60"
+                                  className="w-24 min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60"
                                 />
                                 <input
                                   type="time"
                                   value={slot.start}
                                   onChange={(e) => updateSlot(key, idx, 'start', e.target.value)}
-                                  className="w-24 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-xs text-white outline-none focus:border-violet-500/60"
+                                  className="w-24 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-900 outline-none focus:border-violet-500/60"
                                 />
                                 <span className="flex-shrink-0 text-[11px] text-gray-600">—</span>
                                 <input
                                   type="time"
                                   value={slot.end}
                                   onChange={(e) => updateSlot(key, idx, 'end', e.target.value)}
-                                  className="w-24 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-xs text-white outline-none focus:border-violet-500/60"
+                                  className="w-24 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-900 outline-none focus:border-violet-500/60"
                                 />
                                 {day.slots.length > 1 && (
                                   <button
@@ -1118,7 +1734,7 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => addSlot(key)}
-                              className="flex items-center gap-1 text-[11px] text-violet-400 transition-colors hover:text-violet-300"
+                              className="flex items-center gap-1 text-[11px] text-violet-400 transition-colors hover:text-violet-600"
                             >
                               <Plus className="h-3 w-3" />
                               Добавить интервал
@@ -1138,7 +1754,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={saveWorkingHours}
                 disabled={savingWh}
-                className="mt-3 flex items-center gap-2 rounded-xl bg-violet-600/20 px-4 py-2 text-xs font-semibold text-violet-300 transition-colors hover:bg-violet-600/30 disabled:opacity-40"
+                className="mt-3 flex items-center gap-2 rounded-xl bg-violet-600/20 px-4 py-2 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-600/30 disabled:opacity-40"
               >
                 {savingWh ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 Сохранить расписание
@@ -1148,8 +1764,8 @@ export default function DashboardPage() {
             {profileMsg && (
               <div className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-sm ${
                 profileMsg.type === 'ok'
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                  : 'border-red-500/30 bg-red-500/10 text-red-300'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+                  : 'border-red-500/30 bg-red-500/10 text-red-600'
               }`}>
                 {profileMsg.type === 'ok'
                   ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
@@ -1169,11 +1785,11 @@ export default function DashboardPage() {
 
             {/* QR Code */}
             {profile && (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setShowQr((v) => !v)}
-                  className="flex w-full items-center justify-between text-sm font-semibold text-white"
+                  className="flex w-full items-center justify-between text-sm font-semibold text-gray-900"
                 >
                   <span className="flex items-center gap-2">
                     <QrCode className="h-4 w-4 text-violet-400" />
@@ -1236,7 +1852,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={downloadQr}
-                        className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-gray-300 transition-colors hover:border-violet-500/40 hover:text-white"
+                        className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 transition-colors hover:border-violet-500/40 hover:text-gray-900"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Скачать PNG 600×600 для печати
@@ -1245,7 +1861,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => setTab('payment')}
-                        className="flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5 text-xs font-semibold text-yellow-400 transition-colors hover:bg-yellow-500/20"
+                        className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100"
                       >
                         <Zap className="h-3.5 w-3.5" />
                         Скачать PNG — только в Premium
@@ -1256,18 +1872,19 @@ export default function DashboardPage() {
               </div>
             )}
 
+
             {/* Username change — premium only */}
             {profile?.is_premium && (
-              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-yellow-400">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-700">
                   <AtSign className="h-4 w-4" />
                   Изменить адрес страницы
                 </p>
                 <p className="mb-3 text-xs text-gray-400">
-                  Текущий: <span className="font-mono text-white">tapni.kz/{profile.username}</span>
+                  Текущий: <span className="font-mono text-gray-700">tapni.kz/{profile.username}</span>
                 </p>
                 <div className="mb-2 flex gap-2">
-                  <div className="flex flex-1 items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.05]">
+                  <div className="flex flex-1 items-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
                     <span className="flex-shrink-0 pl-3 text-xs text-gray-500">tapni.kz/</span>
                     <input
                       type="text"
@@ -1277,14 +1894,14 @@ export default function DashboardPage() {
                         setUsernameMsg(null)
                       }}
                       placeholder={profile.username}
-                      className="flex-1 bg-transparent px-1 py-3 text-base text-white placeholder-gray-600 outline-none"
+                      className="flex-1 bg-transparent px-1 py-3 text-base text-gray-900 placeholder-gray-400 outline-none"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={changeUsername}
                     disabled={savingUsername || !newUsername.trim()}
-                    className="flex items-center gap-1.5 rounded-xl bg-yellow-500/20 px-4 py-3 text-xs font-bold text-yellow-400 transition-colors hover:bg-yellow-500/30 disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-xl bg-amber-100 px-4 py-3 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-200 disabled:opacity-40"
                   >
                     {savingUsername ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Сохранить'}
                   </button>
@@ -1306,17 +1923,17 @@ export default function DashboardPage() {
         {tab === 'links' && (
           <div className="space-y-5">
             {!profile?.is_premium && (
-              <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 text-xs">
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs">
                 <span className="text-gray-400">
                   Кнопки:{' '}
-                  <span className={links.length >= FREE_LINK_LIMIT ? 'text-red-400' : 'text-white'}>
+                  <span className={links.length >= FREE_LINK_LIMIT ? 'text-red-500' : 'text-gray-900'}>
                     {links.length}/{FREE_LINK_LIMIT}
                   </span>
                 </span>
                 {atLimit && (
                   <button
                     onClick={() => setTab('payment')}
-                    className="rounded-lg bg-yellow-500/20 px-2.5 py-1 text-[10px] font-semibold text-yellow-400 transition-colors hover:bg-yellow-500/30"
+                    className="rounded-lg bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-700 transition-colors hover:bg-amber-200"
                   >
                     ⚡ Upgrade → безлимит
                   </button>
@@ -1325,32 +1942,54 @@ export default function DashboardPage() {
             )}
 
             {atLimit ? (
-              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-5 text-center">
-                <p className="mb-1 text-sm font-semibold text-yellow-400">Лимит достигнут</p>
-                <p className="mb-4 text-xs text-gray-400">Бесплатно — {FREE_LINK_LIMIT} кнопки. Premium — безлимит.</p>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                <p className="mb-2 text-sm font-semibold text-amber-700 text-center">⚠️ Лимит {FREE_LINK_LIMIT} кнопок на бесплатном плане</p>
+                <ul className="mb-4 space-y-1 text-xs text-gray-600">
+                  <li>✅ Безлимитное число кнопок</li>
+                  <li>✅ Kaspi Pay, видео, FAQ, прайс, форма заявок</li>
+                  <li>✅ Аналитика просмотров и кликов</li>
+                  <li>✅ Свой логотип, QR-код, смена адреса</li>
+                </ul>
                 <button
                   onClick={() => setTab('payment')}
-                  className="rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 px-5 py-2.5 text-sm font-bold text-white"
+                  className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 px-5 py-2.5 text-sm font-bold text-white"
                 >
-                  ⚡ Premium — 1 000 ₸/мес
+                  ⚡ Перейти на Premium — от 1 000 ₸/мес
                 </button>
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
-                <p className="mb-4 text-sm font-semibold text-white">Добавить кнопку</p>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="mb-4 text-sm font-semibold text-gray-900">Добавить кнопку</p>
                 <form onSubmit={addLink} className="space-y-3" noValidate>
                   {/* Type selector + help button */}
                   <div className="flex gap-2">
                     <select
                       value={linkForm.icon_type}
                       onChange={(e) => {
-                        setLinkForm((p) => ({ ...p, icon_type: e.target.value as IconType, url: '' }))
+                        const newType = e.target.value as IconType
+                        // Auto-fill phone number from profile for phone/whatsapp types
+                        let autoUrl = ''
+                        if (profile?.phone) {
+                          const digits = profile.phone.replace(/\D/g, '')
+                          if (newType === 'whatsapp') autoUrl = digits.startsWith('7') && digits.length === 11 ? digits : digits
+                          else if (newType === 'phone') autoUrl = digits.startsWith('7') && digits.length === 11 ? digits.slice(1) : digits
+                        }
+                        setLinkForm((p) => ({ ...p, icon_type: newType, url: autoUrl }))
                         setProductPhotoFile(null)
                         setProductPhotoPreview('')
                         setProductPrice('')
                         setProductLinkUrl('')
+                        setFollowGateHandle('')
+                        setFollowGateContent('')
+                        setMilestoneGoal('500')
+                        setMilestoneHours('24')
+                        setMilestoneRewardUrl('')
+                        setMilestoneRewardCode('')
+                        setKeywordIg('')
+                        setKeywordWord('')
+                        setKeywordReward('')
                       }}
-                      className="flex-1 rounded-xl border border-white/10 bg-[#1a1a2e] px-3 py-3 text-sm text-white outline-none transition-colors focus:border-violet-500/60"
+                      className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-violet-500/60"
                     >
                       {ICON_OPTIONS
                         .filter((o) => o.value !== 'product' || profile?.is_premium)
@@ -1362,7 +2001,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => setHelpType(linkForm.icon_type as typeof helpType)}
-                        className="flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-gray-400 transition-colors hover:border-violet-500/40 hover:text-violet-400"
+                        className="flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-400 transition-colors hover:border-violet-500/40 hover:text-violet-400"
                         title="Как найти ссылку?"
                       >
                         <HelpCircle className="h-5 w-5" />
@@ -1380,7 +2019,7 @@ export default function DashboardPage() {
                       linkForm.icon_type === 'product' ? 'Название товара' :
                       'Название кнопки'
                     }
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
                   />
 
                   {/* Product card — special form */}
@@ -1404,7 +2043,7 @@ export default function DashboardPage() {
                             <p className="mt-1 text-[10px] text-gray-500">Сжато в WebP · до 50 КБ · 600×400</p>
                           </div>
                         ) : (
-                          <label className="flex h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-violet-500/30 bg-violet-500/[0.04] text-gray-500 transition-colors hover:border-violet-500/60 hover:text-gray-300">
+                          <label className="flex h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-violet-500/30 bg-violet-500/[0.04] text-gray-500 transition-colors hover:border-violet-500/60 hover:text-gray-600">
                             <ImagePlus className="h-6 w-6" />
                             <span className="text-xs">Загрузить фото (JPG/PNG, до 10 МБ)</span>
                             <input
@@ -1436,7 +2075,7 @@ export default function DashboardPage() {
                         value={productPrice}
                         onChange={(e) => setProductPrice(e.target.value)}
                         placeholder="Цена (необязательно): 2 990 ₸"
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
                       />
                       {/* Product URL */}
                       <input
@@ -1445,23 +2084,369 @@ export default function DashboardPage() {
                         onChange={(e) => setProductLinkUrl(e.target.value)}
                         placeholder="Ссылка на товар (Kaspi, сайт...)"
                         inputMode="url"
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
                       />
                     </div>
                   )}
 
-                  {/* URL/text field — hidden for product (product has its own form above) */}
-                  {linkForm.icon_type !== 'product' && (isTextType ? (
+                  {/* Follow gate — special form */}
+                  {linkForm.icon_type === 'follow_gate' && (
+                    <div className="space-y-3 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-400">
+                        🔒 Гейт подписки
+                      </p>
+                      <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60 transition-colors">
+                        <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 py-3 text-xs font-mono text-gray-500 select-none whitespace-nowrap">
+                          instagram.com/
+                        </span>
+                        <input
+                          type="text"
+                          value={followGateHandle}
+                          onChange={(e) => setFollowGateHandle(e.target.value.replace(/^@/, ''))}
+                          placeholder="your_username"
+                          className="flex-1 bg-transparent px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={followGateContent}
+                        onChange={(e) => setFollowGateContent(e.target.value)}
+                        placeholder="Ссылка на материал (PDF, Google Drive, Telegram...)"
+                        inputMode="url"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                    </div>
+                  )}
+
+                  {/* Milestone — special form */}
+                  {linkForm.icon_type === 'milestone' && (
+                    <div className="space-y-3 rounded-2xl border border-pink-500/20 bg-pink-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-pink-400">
+                        🚀 Вирусный вызов
+                      </p>
+                      {/* Goal + Hours row */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="mb-1 block text-[11px] text-gray-400">Цель (просмотров)</label>
+                          <input
+                            type="number"
+                            value={milestoneGoal}
+                            onChange={(e) => setMilestoneGoal(e.target.value)}
+                            placeholder="500"
+                            min="10"
+                            inputMode="numeric"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[11px] text-gray-400">Период</label>
+                          <select
+                            value={milestoneHours}
+                            onChange={(e) => setMilestoneHours(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-violet-500/60"
+                          >
+                            <option value="6">6 часов</option>
+                            <option value="12">12 часов</option>
+                            <option value="24">24 часа</option>
+                            <option value="48">48 часов</option>
+                            <option value="72">72 часа</option>
+                          </select>
+                        </div>
+                      </div>
+                      {/* What unlocks */}
+                      <input
+                        type="text"
+                        value={milestoneRewardUrl}
+                        onChange={(e) => setMilestoneRewardUrl(e.target.value)}
+                        placeholder="Ссылка на скидку/товар (необязательно)"
+                        inputMode="url"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      <input
+                        type="text"
+                        value={milestoneRewardCode}
+                        onChange={(e) => setMilestoneRewardCode(e.target.value)}
+                        placeholder="Промокод (необязательно): TAPNI50"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      <p className="text-[10px] text-gray-600 leading-relaxed">
+                        Таймер и счётчик запускаются в момент сохранения.
+                        Просмотры считаются с нуля — поделитесь ссылкой сразу!
+                      </p>
+                    </div>
+                  )}
+
+                  {/* DM Keyword Trigger — special form */}
+                  {linkForm.icon_type === 'instagram_keyword' && (
+                    <div className="space-y-3 rounded-2xl border border-pink-500/20 bg-pink-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-pink-400">
+                        🗝️ DM-триггер
+                      </p>
+                      <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60 transition-colors">
+                        <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-mono text-gray-500 select-none">
+                          instagram.com/
+                        </span>
+                        <input
+                          type="text"
+                          value={keywordIg}
+                          onChange={(e) => setKeywordIg(e.target.value.replace(/^@/, ''))}
+                          placeholder="your_username"
+                          className="flex-1 bg-transparent px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={keywordWord}
+                        onChange={(e) => setKeywordWord(e.target.value)}
+                        placeholder="Ключевое слово: СКИДКА (покажется крупно)"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      <input
+                        type="text"
+                        value={keywordReward}
+                        onChange={(e) => setKeywordReward(e.target.value)}
+                        placeholder="Что получат: Скидка 20%, PDF-гайд, промокод... (необязательно)"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      <p className="text-[10px] text-gray-600 leading-relaxed">
+                        Скопируйте это слово в шапку Instagram: «Напиши <b className="text-gray-400">{keywordWord || 'СЛОВО'}</b> в Direct →».
+                        Каждый DM повышает ваши охваты в алгоритме.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Countdown — special form */}
+                  {linkForm.icon_type === 'countdown' && (
+                    <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                        ⏳ Таймер обратного отсчёта
+                      </p>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-gray-400">Дата и время окончания</label>
+                        <input
+                          type="datetime-local"
+                          value={countdownTarget}
+                          onChange={(e) => setCountdownTarget(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-violet-500/60 [color-scheme:light]"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={countdownLabel}
+                        onChange={(e) => setCountdownLabel(e.target.value)}
+                        placeholder='Текст таймера: "До акции осталось"'
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                    </div>
+                  )}
+
+                  {/* Pricelist — special form */}
+                  {linkForm.icon_type === 'pricelist' && (
+                    <div className="space-y-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+                        💰 Прайс-лист / Услуги
+                      </p>
+                      <input
+                        type="text"
+                        value={pricelistTitle}
+                        onChange={(e) => setPricelistTitle(e.target.value)}
+                        placeholder='Заголовок: "Наши услуги" (необязательно)'
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      {pricelistItems.map((item, i) => (
+                        <div key={i} className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => setPricelistItems((prev) => prev.map((p, idx) => idx === i ? { ...p, name: e.target.value } : p))}
+                            placeholder="Название услуги"
+                            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                          />
+                          <input
+                            type="text"
+                            value={item.price}
+                            onChange={(e) => setPricelistItems((prev) => prev.map((p, idx) => idx === i ? { ...p, price: e.target.value } : p))}
+                            placeholder="Цена: 5 000 ₸"
+                            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                          />
+                          <input
+                            type="text"
+                            value={item.desc}
+                            onChange={(e) => setPricelistItems((prev) => prev.map((p, idx) => idx === i ? { ...p, desc: e.target.value } : p))}
+                            placeholder="Описание (необязательно)"
+                            className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                          />
+                        </div>
+                      ))}
+                      {pricelistItems.length < 10 ? (
+                        <button
+                          type="button"
+                          onClick={() => setPricelistItems((p) => [...p, { name: '', price: '', desc: '' }])}
+                          className="text-xs text-emerald-400 hover:text-emerald-700"
+                        >
+                          + Добавить позицию
+                        </button>
+                      ) : (
+                        <p className="text-xs text-gray-400">Максимум 10 позиций</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Image — special form */}
+                  {linkForm.icon_type === 'image' && (
+                    <div className="space-y-3 rounded-2xl border border-sky-500/20 bg-sky-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">
+                        🖼 Баннер-изображение
+                      </p>
+                      {/* Display mode */}
+                      <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+                        <button type="button" onClick={() => setImageDisplayMode('image')}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${imageDisplayMode === 'image' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                          🖼 Картинка
+                        </button>
+                        <button type="button" onClick={() => setImageDisplayMode('button')}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${imageDisplayMode === 'button' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                          🔽 Кнопка
+                        </button>
+                      </div>
+                      {/* Source toggle */}
+                      <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+                        <button type="button" onClick={() => setImageUploadMode('url')}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${imageUploadMode === 'url' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                          🔗 URL
+                        </button>
+                        <button type="button" onClick={() => setImageUploadMode('file')}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${imageUploadMode === 'file' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                          📁 Загрузить
+                        </button>
+                      </div>
+                      {imageUploadMode === 'url' ? (
+                        <input
+                          type="text"
+                          value={imageSrc}
+                          onChange={(e) => setImageSrc(e.target.value)}
+                          placeholder="URL изображения: https://..."
+                          inputMode="url"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                        />
+                      ) : (
+                        <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-sky-500/30 bg-sky-500/[0.05] px-3 py-4 text-center hover:border-sky-500/60 transition-colors">
+                          {imageUploading ? (
+                            <span className="text-xs text-sky-400">Загрузка и сжатие…</span>
+                          ) : imageSrc ? (
+                            <>
+                              <img src={imageSrc} alt="" className="max-h-32 w-full rounded-lg object-contain" />
+                              <span className="text-[10px] text-gray-500">Нажмите чтобы заменить</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-2xl">🖼</span>
+                              <span className="text-xs text-gray-400">Нажмите для выбора файла</span>
+                              <span className="text-[10px] text-gray-600">JPG, PNG, WebP · до 10 МБ · сожмётся до WebP</span>
+                            </>
+                          )}
+                          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0]
+                              if (f) uploadBannerImage(f, setImageSrc, setImageUploadError, setImageUploading, setImageSp)
+                              e.target.value = ''
+                            }}
+                          />
+                        </label>
+                      )}
+                      {imageUploadError && <p className="text-xs text-red-400">{imageUploadError}</p>}
+                      {imageSrc && imageUploadMode === 'url' && <img src={imageSrc} alt="preview" className="max-h-24 w-full rounded-lg object-contain opacity-60" />}
+                      <input
+                        type="text"
+                        value={imageAlt}
+                        onChange={(e) => setImageAlt(e.target.value)}
+                        placeholder="Описание изображения (необязательно)"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      <input
+                        type="text"
+                        value={imageLink}
+                        onChange={(e) => setImageLink(e.target.value)}
+                        placeholder="Ссылка при нажатии (необязательно)"
+                        inputMode="url"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                    </div>
+                  )}
+
+                  {/* Video — special form */}
+                  {linkForm.icon_type === 'video' && (
+                    <div className="space-y-3 rounded-2xl border border-rose-500/20 bg-rose-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-400">
+                        📹 Видео
+                      </p>
+                      <input
+                        type="text"
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                        placeholder="https://youtube.com/watch?v=... или https://youtu.be/..."
+                        inputMode="url"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      <p className="text-[10px] text-gray-600">YouTube, YouTube Shorts и TikTok поддерживаются</p>
+                    </div>
+                  )}
+
+                  {/* FAQ — special form */}
+                  {linkForm.icon_type === 'faq' && (
+                    <div className="space-y-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-400">
+                        ❓ FAQ / Вопросы и ответы
+                      </p>
+                      <input
+                        type="text"
+                        value={faqTitle}
+                        onChange={(e) => setFaqTitle(e.target.value)}
+                        placeholder='Заголовок: "Часто задаваемые вопросы" (необязательно)'
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                      />
+                      {faqItems.map((item, i) => (
+                        <div key={i} className="space-y-2">
+                          <input
+                            type="text"
+                            value={item.q}
+                            onChange={(e) => setFaqItems((prev) => prev.map((p, idx) => idx === i ? { ...p, q: e.target.value } : p))}
+                            placeholder={`Вопрос ${i + 1}`}
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                          />
+                          <textarea
+                            value={item.a}
+                            onChange={(e) => setFaqItems((prev) => prev.map((p, idx) => idx === i ? { ...p, a: e.target.value } : p))}
+                            placeholder={`Ответ ${i + 1}`}
+                            rows={2}
+                            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
+                          />
+                        </div>
+                      ))}
+                      {faqItems.length < 10 && (
+                        <button
+                          type="button"
+                          onClick={() => setFaqItems((p) => [...p, { q: '', a: '' }])}
+                          className="text-xs text-indigo-400 hover:text-indigo-300"
+                        >
+                          + Добавить вопрос
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* URL/text field — hidden for types with their own forms */}
+                  {linkForm.icon_type !== 'product' && linkForm.icon_type !== 'follow_gate' && linkForm.icon_type !== 'milestone' && linkForm.icon_type !== 'instagram_keyword' && linkForm.icon_type !== 'countdown' && linkForm.icon_type !== 'pricelist' && linkForm.icon_type !== 'image' && linkForm.icon_type !== 'video' && linkForm.icon_type !== 'faq' && (isTextType ? (
                     <textarea
                       value={linkForm.url}
                       onChange={(e) => setLinkForm((p) => ({ ...p, url: e.target.value }))}
                       placeholder={selectedOption?.placeholder ?? 'Ваш текст...'}
                       rows={4}
-                      className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                      className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
                     />
                   ) : SMART_INPUTS[linkForm.icon_type] ? (
-                    <div className="flex overflow-hidden rounded-xl border border-white/10 bg-white/[0.06] focus-within:border-violet-500/60 transition-colors">
-                      <span className="flex flex-shrink-0 items-center border-r border-white/10 bg-white/[0.06] px-3 py-3 text-xs font-mono text-gray-500 select-none whitespace-nowrap">
+                    <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60 transition-colors">
+                      <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 py-3 text-xs font-mono text-gray-500 select-none whitespace-nowrap">
                         {SMART_INPUTS[linkForm.icon_type]!.prefix}
                       </span>
                       <input
@@ -1487,7 +2472,7 @@ export default function DashboardPage() {
                         }}
                         placeholder={SMART_INPUTS[linkForm.icon_type]!.placeholder}
                         inputMode={linkForm.icon_type === 'phone' ? 'numeric' : 'text'}
-                        className="flex-1 bg-transparent px-3 py-3 text-base text-white placeholder-gray-600 outline-none"
+                        className="flex-1 bg-transparent px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none"
                       />
                     </div>
                   ) : (
@@ -1497,7 +2482,7 @@ export default function DashboardPage() {
                       onChange={(e) => setLinkForm((p) => ({ ...p, url: e.target.value }))}
                       placeholder={selectedOption?.placeholder ?? 'https://...'}
                       inputMode={linkForm.icon_type === 'email' ? 'email' : 'url'}
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-base text-white placeholder-gray-600 outline-none transition-colors focus:border-violet-500/60"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
                     />
                   ))}
 
@@ -1519,7 +2504,7 @@ export default function DashboardPage() {
             {links.length === 0 ? (
               <div className="space-y-4">
                 <div className="rounded-2xl border border-dashed border-violet-500/20 bg-violet-500/[0.03] p-5">
-                  <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                  <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
                     <Zap className="h-4 w-4 text-violet-400" />
                     Добавьте первую кнопку — или выберите шаблон:
                   </p>
@@ -1532,7 +2517,7 @@ export default function DashboardPage() {
                         className="flex flex-col items-start gap-1 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-3 text-left transition-colors hover:bg-violet-500/20 disabled:opacity-50"
                       >
                         <span className="text-lg">{tpl.emoji}</span>
-                        <p className="text-xs font-bold text-white">{tpl.name}</p>
+                        <p className="text-xs font-bold text-gray-900">{tpl.name}</p>
                         <p className="text-[10px] text-gray-500 leading-tight">{tpl.description}</p>
                       </button>
                     ))}
@@ -1551,7 +2536,7 @@ export default function DashboardPage() {
                       <p className="text-sm font-semibold text-amber-300">Шаблон применён — замените ссылки</p>
                       <p className="mt-0.5 text-xs text-amber-400/70">Удалите кнопки с неверными ссылками и добавьте свои. Пока ссылки не заменены — кнопки ведут в никуда.</p>
                     </div>
-                    <button onClick={() => setTemplateApplied(false)} className="flex-shrink-0 text-amber-400/60 hover:text-amber-300">
+                    <button onClick={() => setTemplateApplied(false)} className="flex-shrink-0 text-amber-400/60 hover:text-amber-600">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -1559,57 +2544,289 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   {links.map((link) => {
                     const { dot, ring } = getLinkCardColor(link.icon_type)
+                    const isEditing = editingId === link.id
+                    const t = link.icon_type
+                    const JSON_TYPES = ['follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'product', 'text_block', 'lead_form']
+                    const isJsonType = JSON_TYPES.includes(t)
+                    const si = SMART_INPUTS[t]
                     return (
-                      <div
-                        key={link.id}
-                        draggable
-                        onDragStart={() => setDragId(link.id)}
-                        onDragEnd={() => { setDragId(null); setDragOverId(null) }}
-                        onDragOver={(e) => { e.preventDefault(); setDragOverId(link.id) }}
-                        onDrop={() => handleDrop(link.id)}
-                        className={`flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] border-l-4 ${ring} px-3 py-3 transition-opacity ${dragId === link.id ? 'opacity-40' : dragOverId === link.id && dragId !== link.id ? 'ring-2 ring-violet-500/50' : ''}`}
-                      >
-                        <GripVertical className="h-4 w-4 flex-shrink-0 cursor-grab text-gray-600 active:cursor-grabbing" />
-                        <div className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dot}`} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-white">
-                            {link.title || <span className="italic text-gray-500">без заголовка</span>}
-                          </p>
-                          <p className="truncate text-xs text-gray-500">
-                            {link.icon_type === 'text_block'
-                              ? (link.url.length > 50 ? link.url.slice(0, 50) + '…' : link.url)
-                              : link.icon_type === 'product'
-                                ? (() => { try { const d = JSON.parse(link.url) as { l?: string; price?: string }; return (d.price ? d.price + ' · ' : '') + (d.l ?? '').replace(/^https?:\/\//, '').slice(0, 40) } catch { return 'Карточка товара' } })()
-                                : link.url}
-                          </p>
-                        </div>
-                        <div className="flex flex-shrink-0 items-center gap-2">
-                          {link.icon_type !== 'text_block' && link.icon_type !== 'lead_form' && (
-                            <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-500" title="Кликов">
-                              <BarChart2 className="h-3 w-3" />
-                              {link.click_count ?? 0}
-                            </span>
-                          )}
-                          <button
-                            onClick={() => deleteLink(link.id)}
-                            disabled={deletingId === link.id}
-                            className="flex h-10 w-10 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-red-500/15 hover:text-red-400 disabled:opacity-40"
-                          >
-                            {deletingId === link.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
+                      <div key={link.id} className="rounded-xl">
+                        {/* Link row */}
+                        <div
+                          draggable={!isEditing}
+                          onDragStart={() => !isEditing && setDragId(link.id)}
+                          onDragEnd={() => { setDragId(null); setDragOverId(null) }}
+                          onDragOver={(e) => { e.preventDefault(); setDragOverId(link.id) }}
+                          onDrop={() => handleDrop(link.id)}
+                          className={`flex items-center gap-3 border border-gray-200 bg-white shadow-sm border-l-4 ${ring} px-3 py-3 transition-opacity ${isEditing ? 'rounded-t-xl' : 'rounded-xl'} ${dragId === link.id ? 'opacity-40' : dragOverId === link.id && dragId !== link.id ? 'ring-2 ring-violet-500/50' : ''}`}
+                        >
+                          <div className="flex flex-shrink-0 flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => moveLink(link.id, 'up')}
+                              disabled={links.indexOf(link) === 0}
+                              className="flex h-4 w-4 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 active:scale-95 touch-manipulation"
+                              title="Переместить вверх"
+                            >
+                              <svg viewBox="0 0 8 5" className="h-2 w-2 fill-current"><path d="M4 0 8 5H0z"/></svg>
+                            </button>
+                            <GripVertical className="h-4 w-4 cursor-grab text-gray-400 active:cursor-grabbing hidden sm:block" />
+                            <button
+                              type="button"
+                              onClick={() => moveLink(link.id, 'down')}
+                              disabled={links.indexOf(link) === links.length - 1}
+                              className="flex h-4 w-4 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 active:scale-95 touch-manipulation"
+                              title="Переместить вниз"
+                            >
+                              <svg viewBox="0 0 8 5" className="h-2 w-2 fill-current"><path d="M4 5 0 0h8z"/></svg>
+                            </button>
+                          </div>
+                          <div className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dot}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-gray-900">
+                              {link.title || <span className="italic text-gray-500">без заголовка</span>}
+                            </p>
+                            <p className="truncate text-xs text-gray-500">
+                              {t === 'text_block' ? (link.url.length > 50 ? link.url.slice(0, 50) + '…' : link.url)
+                                : t === 'product' ? (() => { try { const d = JSON.parse(link.url) as { l?: string; price?: string }; return (d.price ? d.price + ' · ' : '') + (d.l ?? '').replace(/^https?:\/\//, '').slice(0, 40) } catch { return 'Карточка товара' } })()
+                                : isJsonType ? t
+                                : link.url.replace(/^https?:\/\//, '').slice(0, 50)}
+                            </p>
+                          </div>
+                          <div className="flex flex-shrink-0 items-center gap-1">
+                            {(link.visible_from || link.visible_until) && !isEditing && (() => {
+                              const now = Date.now()
+                              const hidden =
+                                (link.visible_from && new Date(link.visible_from).getTime() > now) ||
+                                (link.visible_until && new Date(link.visible_until).getTime() < now)
+                              return hidden ? <span title="Скрыто по расписанию"><Clock className="h-3.5 w-3.5 text-amber-400/70" /></span> : null
+                            })()}
+                            {t !== 'text_block' && t !== 'lead_form' && !isEditing && (
+                              <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-500" title="Кликов">
+                                <BarChart2 className="h-3 w-3" />
+                                {link.click_count ?? 0}
+                              </span>
                             )}
-                          </button>
+                            {!isEditing && (
+                              <button
+                                onClick={() => toggleFeatured(link)}
+                                className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${link.is_featured ? 'text-yellow-400 hover:text-yellow-600' : 'text-gray-600 hover:text-yellow-500/70'}`}
+                                title={link.is_featured ? 'Снять выделение' : 'Выделить кнопку'}
+                              >
+                                <Star className={`h-3.5 w-3.5 ${link.is_featured ? 'fill-current' : ''}`} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => isEditing ? setEditingId(null) : openEdit(link)}
+                              className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isEditing ? 'text-gray-400 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-500 hover:bg-violet-500/15 hover:text-violet-400'}`}
+                              title={isEditing ? 'Закрыть' : 'Редактировать'}
+                            >
+                              {isEditing ? <X className="h-4 w-4" /> : <Pencil className="h-3.5 w-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => deleteLink(link.id)}
+                              disabled={deletingId === link.id || isEditing}
+                              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-red-500/15 hover:text-red-400 disabled:opacity-30"
+                            >
+                              {deletingId === link.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Inline edit panel */}
+                        {isEditing && (
+                          <div className={`rounded-b-xl border border-t-0 border-gray-200 bg-white border-l-4 ${ring} p-3 space-y-2`}>
+                            {/* Title */}
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              placeholder="Название кнопки"
+                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60"
+                            />
+
+                            {/* follow_gate */}
+                            {t === 'follow_gate' && (<>
+                              <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60">
+                                <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-xs font-mono text-gray-500">instagram.com/</span>
+                                <input type="text" value={editFgHandle} onChange={(e) => setEditFgHandle(e.target.value.replace(/^@/, ''))} placeholder="username" className="flex-1 bg-transparent px-3 py-2 text-sm text-gray-900 outline-none" />
+                              </div>
+                              <input type="text" value={editFgContent} onChange={(e) => setEditFgContent(e.target.value)} placeholder="Ссылка на материал" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            </>)}
+
+                            {/* milestone */}
+                            {t === 'milestone' && (<>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input type="number" value={editMsGoal} onChange={(e) => setEditMsGoal(e.target.value)} placeholder="Цель (просмотров)" className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500/60" />
+                                <select value={editMsHours} onChange={(e) => setEditMsHours(e.target.value)} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none">
+                                  {['6','12','24','48','72'].map(h => <option key={h} value={h}>{h} ч</option>)}
+                                </select>
+                              </div>
+                              <input type="text" value={editMsRewardUrl} onChange={(e) => setEditMsRewardUrl(e.target.value)} placeholder="Ссылка на награду (необязательно)" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              <input type="text" value={editMsRewardCode} onChange={(e) => setEditMsRewardCode(e.target.value)} placeholder="Промокод (необязательно)" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            </>)}
+
+                            {/* instagram_keyword */}
+                            {t === 'instagram_keyword' && (<>
+                              <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60">
+                                <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-xs font-mono text-gray-500">instagram.com/</span>
+                                <input type="text" value={editKwIg} onChange={(e) => setEditKwIg(e.target.value.replace(/^@/, ''))} placeholder="username" className="flex-1 bg-transparent px-3 py-2 text-sm text-gray-900 outline-none" />
+                              </div>
+                              <input type="text" value={editKwWord} onChange={(e) => setEditKwWord(e.target.value)} placeholder="Ключевое слово" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              <input type="text" value={editKwReward} onChange={(e) => setEditKwReward(e.target.value)} placeholder="Что получат (необязательно)" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            </>)}
+
+                            {/* countdown */}
+                            {t === 'countdown' && (<>
+                              <input type="datetime-local" value={editCdTarget} onChange={(e) => setEditCdTarget(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500/60 [color-scheme:light]" />
+                              <input type="text" value={editCdLabel} onChange={(e) => setEditCdLabel(e.target.value)} placeholder='Текст над таймером' className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            </>)}
+
+                            {/* pricelist */}
+                            {t === 'pricelist' && (<>
+                              <input type="text" value={editPlTitle} onChange={(e) => setEditPlTitle(e.target.value)} placeholder="Заголовок списка" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              {editPlItems.map((item, i) => (
+                                <div key={i} className="grid grid-cols-2 gap-2">
+                                  <input type="text" value={item.name} onChange={(e) => setEditPlItems((p) => p.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))} placeholder="Название" className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                                  <input type="text" value={item.price} onChange={(e) => setEditPlItems((p) => p.map((x, idx) => idx === i ? { ...x, price: e.target.value } : x))} placeholder="Цена" className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                                  <input type="text" value={item.desc} onChange={(e) => setEditPlItems((p) => p.map((x, idx) => idx === i ? { ...x, desc: e.target.value } : x))} placeholder="Описание (необязательно)" className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                                </div>
+                              ))}
+                              {editPlItems.length < 10 && <button type="button" onClick={() => setEditPlItems((p) => [...p, { name: '', price: '', desc: '' }])} className="text-xs text-emerald-400 hover:text-emerald-700">+ Добавить позицию</button>}
+                            </>)}
+
+                            {/* image */}
+                            {t === 'image' && (<>
+                              <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+                                <button type="button" onClick={() => setEditImgDisplayMode('image')}
+                                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${editImgDisplayMode === 'image' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                                  🖼 Картинка
+                                </button>
+                                <button type="button" onClick={() => setEditImgDisplayMode('button')}
+                                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${editImgDisplayMode === 'button' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                                  🔽 Кнопка
+                                </button>
+                              </div>
+                              <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+                                <button type="button" onClick={() => setEditImgUploadMode('url')}
+                                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${editImgUploadMode === 'url' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                                  🔗 URL
+                                </button>
+                                <button type="button" onClick={() => setEditImgUploadMode('file')}
+                                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${editImgUploadMode === 'file' ? 'bg-sky-500/30 text-sky-300' : 'text-gray-500 hover:text-gray-600'}`}>
+                                  📁 Загрузить
+                                </button>
+                              </div>
+                              {editImgUploadMode === 'url' ? (
+                                <input type="text" value={editImgSrc} onChange={(e) => setEditImgSrc(e.target.value)} placeholder="URL изображения" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              ) : (
+                                <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-sky-500/30 bg-sky-500/[0.05] px-3 py-4 text-center hover:border-sky-500/60 transition-colors">
+                                  {editImgUploading ? (
+                                    <span className="text-xs text-sky-400">Загрузка и сжатие…</span>
+                                  ) : editImgSrc ? (
+                                    <>
+                                      <img src={editImgSrc} alt="" className="max-h-32 w-full rounded-lg object-contain" />
+                                      <span className="text-[10px] text-gray-500">Нажмите чтобы заменить</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="text-2xl">🖼</span>
+                                      <span className="text-xs text-gray-400">Нажмите для выбора файла</span>
+                                      <span className="text-[10px] text-gray-600">JPG, PNG, WebP · до 10 МБ · сожмётся до WebP</span>
+                                    </>
+                                  )}
+                                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0]
+                                      if (f) uploadBannerImage(f, setEditImgSrc, setEditImgUploadError, setEditImgUploading, (newSp) => {
+                                          if (editImgSp) getSupabase().storage.from('avatars').remove([editImgSp]).catch(() => {})
+                                          setEditImgSp(newSp)
+                                        })
+                                      e.target.value = ''
+                                    }}
+                                  />
+                                </label>
+                              )}
+                              {editImgUploadError && <p className="text-xs text-red-400">{editImgUploadError}</p>}
+                              <input type="text" value={editImgAlt} onChange={(e) => setEditImgAlt(e.target.value)} placeholder="Описание (необязательно)" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              <input type="text" value={editImgLink} onChange={(e) => setEditImgLink(e.target.value)} placeholder="Ссылка при нажатии (необязательно)" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            </>)}
+
+                            {/* video */}
+                            {t === 'video' && (
+                              <input type="text" value={editVidUrl} onChange={(e) => setEditVidUrl(e.target.value)} placeholder="YouTube / TikTok URL" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            )}
+
+                            {/* faq */}
+                            {t === 'faq' && (<>
+                              <input type="text" value={editFaqTitle} onChange={(e) => setEditFaqTitle(e.target.value)} placeholder="Заголовок FAQ" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              {editFaqItems.map((item, i) => (
+                                <div key={i} className="space-y-1.5">
+                                  <input type="text" value={item.q} onChange={(e) => setEditFaqItems((p) => p.map((x, idx) => idx === i ? { ...x, q: e.target.value } : x))} placeholder={`Вопрос ${i + 1}`} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                                  <textarea value={item.a} onChange={(e) => setEditFaqItems((p) => p.map((x, idx) => idx === i ? { ...x, a: e.target.value } : x))} placeholder={`Ответ ${i + 1}`} rows={2} className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                                </div>
+                              ))}
+                              {editFaqItems.length < 10 && <button type="button" onClick={() => setEditFaqItems((p) => [...p, { q: '', a: '' }])} className="text-xs text-indigo-400 hover:text-indigo-300">+ Добавить вопрос</button>}
+                            </>)}
+
+                            {/* product */}
+                            {t === 'product' && (<>
+                              <input type="text" value={editProdUrl} onChange={(e) => setEditProdUrl(e.target.value)} placeholder="Ссылка на товар" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              <input type="text" value={editProdPrice} onChange={(e) => setEditProdPrice(e.target.value)} placeholder="Цена (необязательно): 2 990 ₸" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            </>)}
+
+                            {/* text_block */}
+                            {t === 'text_block' && (
+                              <textarea value={editUrl} onChange={(e) => setEditUrl(e.target.value)} rows={3} placeholder="Текст блока..." className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                            )}
+
+                            {/* Simple link types — URL field */}
+                            {!isJsonType && (
+                              si ? (
+                                <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60">
+                                  <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-xs font-mono text-gray-500 whitespace-nowrap">{si.prefix}</span>
+                                  <input type="text" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder={si.placeholder} className="flex-1 bg-transparent px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none" />
+                                </div>
+                              ) : (
+                                <input type="text" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder="URL или номер" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-violet-500/60" />
+                              )
+                            )}
+
+                            {/* Scheduling */}
+                            <div className="border-t border-gray-200 pt-2">
+                              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-600">Расписание показа (необязательно)</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="mb-1 block text-[10px] text-gray-600">Показывать с</label>
+                                  <input type="datetime-local" value={editVisibleFrom} onChange={(e) => setEditVisibleFrom(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-900 outline-none focus:border-violet-500/60" />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] text-gray-600">Скрыть после</label>
+                                  <input type="datetime-local" value={editVisibleUntil} onChange={(e) => setEditVisibleUntil(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-900 outline-none focus:border-violet-500/60" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Save button */}
+                            <button
+                              type="button"
+                              onClick={() => saveEdit(link)}
+                              disabled={savingEdit}
+                              className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600/80 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-600 disabled:opacity-50"
+                            >
+                              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                              Сохранить
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
                 </div>
 
                 {/* Analytics summary */}
-                {links.some((l) => l.icon_type !== 'text_block' && l.icon_type !== 'lead_form') && (
-                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                {links.some((l) => !['text_block', 'lead_form', 'countdown', 'image', 'video'].includes(l.icon_type)) && (
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                     <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       <BarChart2 className="h-3.5 w-3.5 text-violet-400" />
                       Статистика
@@ -1617,31 +2834,35 @@ export default function DashboardPage() {
                     {(profile?.view_count ?? 0) > 0 && (
                       <div className="mb-3 flex items-center gap-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2.5">
                         <Eye className="h-4 w-4 flex-shrink-0 text-violet-400" />
-                        <span className="text-sm text-gray-300">Просмотров страницы</span>
-                        <span className="ml-auto text-sm font-bold text-white">{profile?.view_count ?? 0}</span>
+                        <span className="text-sm text-gray-600">Просмотров страницы</span>
+                        <span className="ml-auto text-sm font-bold text-gray-900">{profile?.view_count ?? 0}</span>
                       </div>
                     )}
                     <div className="space-y-2">
                       {links
-                        .filter((l) => l.icon_type !== 'text_block' && l.icon_type !== 'lead_form')
+                        .filter((l) => !['text_block', 'lead_form', 'countdown', 'image', 'video'].includes(l.icon_type))
                         .sort((a, b) => (b.click_count ?? 0) - (a.click_count ?? 0))
                         .map((link) => {
                           const maxClicks = Math.max(...links.map((l) => l.click_count ?? 0), 1)
                           const pct = Math.round(((link.click_count ?? 0) / maxClicks) * 100)
                           const { dot } = getLinkCardColor(link.icon_type)
+                          const ctr = (profile?.view_count ?? 0) > 0
+                            ? ((link.click_count ?? 0) / profile!.view_count * 100).toFixed(1)
+                            : null
                           return (
                             <div key={link.id} className="flex items-center gap-3">
                               <div className={`h-2 w-2 flex-shrink-0 rounded-full ${dot}`} />
                               <div className="min-w-0 flex-1">
                                 <div className="mb-1 flex items-center justify-between">
-                                  <span className="truncate text-xs text-gray-300">
+                                  <span className="truncate text-xs text-gray-600">
                                     {link.title || link.icon_type}
                                   </span>
-                                  <span className="ml-2 flex-shrink-0 text-xs font-bold text-white">
-                                    {link.click_count ?? 0}
+                                  <span className="ml-2 flex-shrink-0 flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-gray-900">{link.click_count ?? 0}</span>
+                                    {ctr !== null && <span className="text-[10px] text-gray-600">{ctr}%</span>}
                                   </span>
                                 </div>
-                                <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.07]">
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-200">
                                   <div
                                     className={`h-full rounded-full transition-all duration-500 ${dot}`}
                                     style={{ width: `${pct}%` }}
@@ -1652,6 +2873,38 @@ export default function DashboardPage() {
                           )
                         })}
                     </div>
+                    {recentClicks.length > 0 && (() => {
+                      const days: Record<string, number> = {}
+                      for (let i = 6; i >= 0; i--) {
+                        const d = new Date(Date.now() - i * 86400000)
+                        days[d.toISOString().slice(0, 10)] = 0
+                      }
+                      for (const c of recentClicks) {
+                        const key = c.created_at.slice(0, 10)
+                        if (key in days) days[key]++
+                      }
+                      const dayKeys = Object.keys(days)
+                      const maxVal = Math.max(...Object.values(days), 1)
+                      const dayLabels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+                      return (
+                        <div className="mt-4">
+                          <p className="mb-2 text-[10px] uppercase tracking-wider text-gray-600">Клики за 7 дней</p>
+                          <div className="flex items-end gap-1.5 h-14">
+                            {dayKeys.map((key) => {
+                              const val = days[key]
+                              const pct = Math.max(4, Math.round((val / maxVal) * 100))
+                              const dow = new Date(key + 'T12:00:00').getDay()
+                              return (
+                                <div key={key} className="flex flex-1 flex-col items-center gap-1">
+                                  <div className="w-full rounded-t-sm bg-violet-500/40 transition-all" style={{ height: `${pct}%` }} title={`${val} кл.`} />
+                                  <span className="text-[9px] text-gray-600">{dayLabels[dow]}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })()}
                     <p className="mt-3 text-[11px] text-gray-600">
                       Переходы считаются с момента создания кнопки
                     </p>
@@ -1667,13 +2920,13 @@ export default function DashboardPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-white">Заявки от клиентов</p>
+                <p className="text-sm font-semibold text-gray-900">Заявки от клиентов</p>
                 <p className="text-xs text-gray-500">Через кнопку «Записаться» на вашей странице</p>
               </div>
               {!profile?.is_premium && leads.length > 0 && (
                 <button
                   onClick={() => setTab('payment')}
-                  className="rounded-lg bg-yellow-500/20 px-2.5 py-1.5 text-[10px] font-semibold text-yellow-400 transition-colors hover:bg-yellow-500/30"
+                  className="rounded-lg bg-amber-100 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700 transition-colors hover:bg-amber-200"
                 >
                   ⚡ Premium
                 </button>
@@ -1681,7 +2934,7 @@ export default function DashboardPage() {
             </div>
 
             {leads.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
                 <ClipboardList className="mx-auto mb-3 h-10 w-10 text-gray-600" />
                 <p className="mb-1 text-sm font-semibold text-gray-400">Заявок пока нет</p>
                 <p className="text-xs text-gray-600">
@@ -1693,17 +2946,20 @@ export default function DashboardPage() {
                 {(!profile?.is_premium ? leads.slice(0, FREE_LEADS_VISIBLE) : leads).map((lead) => (
                   <div
                     key={lead.id}
-                    className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4"
+                    className="rounded-xl border border-gray-200 bg-white p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-white">{lead.name}</p>
+                        <p className="truncate text-sm font-semibold text-gray-900">{lead.name}</p>
                         <a
                           href={`tel:${lead.phone}`}
-                          className="text-xs text-violet-400 hover:text-violet-300"
+                          className="text-xs text-violet-400 hover:text-violet-600"
                         >
                           {lead.phone}
                         </a>
+                        {lead.email && (
+                          <a href={`mailto:${lead.email}`} className="mt-0.5 block text-xs text-blue-400 hover:text-blue-300 truncate">{lead.email}</a>
+                        )}
                         {lead.message && (
                           <p className="mt-1.5 text-xs leading-relaxed text-gray-400">{lead.message}</p>
                         )}
@@ -1727,8 +2983,8 @@ export default function DashboardPage() {
                 ))}
 
                 {!profile?.is_premium && leads.length > 3 && (
-                  <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.05] p-4 text-center">
-                    <p className="mb-1 text-sm font-semibold text-yellow-400">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center">
+                    <p className="mb-1 text-sm font-semibold text-amber-700">
                       +{leads.length - FREE_LEADS_VISIBLE} скрытых заявок
                     </p>
                     <p className="mb-3 text-xs text-gray-500">
@@ -1750,7 +3006,7 @@ export default function DashboardPage() {
         {/* ─── Payment Tab ─── */}
         {tab === 'payment' && (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5 text-center">
+            <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/50 to-indigo-950/30 p-5 text-center">
               {profile?.is_premium ? (
                 <>
                   <div className="mb-2 text-3xl">⚡</div>
@@ -1767,13 +3023,31 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <div className="mb-2 text-3xl">🔒</div>
-                  <p className="mb-1 text-base font-bold text-white">Бесплатный тариф</p>
+                  <p className="mb-1 text-base font-bold text-gray-900">Бесплатный тариф</p>
                   <p className="text-xs text-gray-400">{FREE_LINK_LIMIT} кнопки · с водяным знаком</p>
                 </>
               )}
             </div>
             {!profile?.is_premium && (
-              <PlanPicker username={profile?.username ?? ''} phone={profile?.phone} />
+              <>
+                {/* Telegram connection nudge — show if not connected */}
+                {!profile?.telegram_chat_id && (
+                  <div className="rounded-2xl border border-[#2AABEE]/25 bg-[#2AABEE]/[0.06] p-4 flex gap-3 items-start">
+                    <div className="mt-0.5 flex-shrink-0 text-xl">💬</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#2AABEE] mb-0.5">Привяжите Telegram для быстрой оплаты</p>
+                      <p className="text-xs text-gray-400 mb-3">После оплаты отправьте скриншот чека боту — Premium активируется автоматически. Также получайте уведомления и сброс пароля.</p>
+                      <a
+                        href="/go/tg?u=Tapnikzbot"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#2AABEE]/20 px-3 py-1.5 text-xs font-semibold text-[#2AABEE] hover:bg-[#2AABEE]/30 transition-colors"
+                      >
+                        Открыть @Tapnikzbot →
+                      </a>
+                    </div>
+                  </div>
+                )}
+                <PlanPicker username={profile?.username ?? ''} phone={profile?.phone} />
+              </>
             )}
 
             {/* Referral section — visible to all users */}
@@ -1791,26 +3065,27 @@ export default function DashboardPage() {
           onClick={() => setHelpType(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#111122] p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
+            className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-base font-bold text-white">
+              <p className="text-base font-bold text-gray-900">
                 {helpType === 'kaspi' && '🛒 Как найти ссылку на Kaspi магазин?'}
                 {helpType === 'kaspi_pay' && '💸 Как найти ссылку Kaspi Pay?'}
+                {helpType === 'kaspi_qr' && '📱 Kaspi Pay QR-код — как настроить?'}
                 {helpType === 'kaspi_shop' && '🏪 Как найти ссылку на товар Kaspi?'}
                 {helpType === 'twogis' && '📍 Как найти ссылку в 2ГИС?'}
               </p>
               <button
                 onClick={() => setHelpType(null)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-gray-400 transition-colors hover:text-white"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:text-gray-900"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {(helpType === 'kaspi' || helpType === 'kaspi_shop') && (
-              <ol className="space-y-3 text-sm text-gray-300">
+              <ol className="space-y-3 text-sm text-gray-600">
                 {[
                   'Откройте приложение Kaspi.kz или сайт kaspi.kz/shop',
                   helpType === 'kaspi' ? 'Перейдите в «Мой магазин»' : 'Найдите нужный товар',
@@ -1818,31 +3093,40 @@ export default function DashboardPage() {
                   `Скопируйте ссылку вида ${helpType === 'kaspi' ? 'kaspi.kz/shop/info/...' : 'kaspi.kz/shop/p/...'} — вставьте сюда`,
                 ].map((step, i) => (
                   <li key={i} className="flex gap-3">
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-red-600/40 text-xs font-bold text-red-300">{i + 1}</span>
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">{i + 1}</span>
                     {step}
                   </li>
                 ))}
               </ol>
             )}
 
-            {helpType === 'kaspi_pay' && (
-              <ol className="space-y-3 text-sm text-gray-300">
-                {[
-                  'Откройте приложение Kaspi.kz',
-                  'Раздел «Платежи» → «Мой QR-код»',
-                  'Нажмите «Поделиться» и скопируйте ссылку',
-                  'Ссылка вида pay.kaspi.kz/pay/... — вставьте сюда',
-                ].map((step, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-red-600/40 text-xs font-bold text-red-300">{i + 1}</span>
-                    {step}
-                  </li>
-                ))}
-              </ol>
+            {(helpType === 'kaspi_pay' || helpType === 'kaspi_qr') && (
+              <>
+                <ol className="space-y-3 text-sm text-gray-600">
+                  {[
+                    'Откройте приложение Kaspi.kz',
+                    'Раздел «Платежи» → «Мой QR-код»',
+                    'Нажмите «Поделиться» и скопируйте ссылку',
+                    'Ссылка вида pay.kaspi.kz/pay/... — вставьте сюда',
+                  ].map((step, i) => (
+                    <li key={i} className="flex gap-3">
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">{i + 1}</span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+                {helpType === 'kaspi_qr' && (
+                  <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs text-orange-700">
+                    <b>📱 QR-блок</b> — отображает сканируемый QR-код прямо на вашей странице.<br />
+                    Клиент наводит камеру Kaspi.kz — и сразу попадает на экран оплаты.
+                    На Android также работает кнопка «Открыть в Kaspi» через прямой диплинк.
+                  </div>
+                )}
+              </>
             )}
 
             {helpType === 'twogis' && (
-              <ol className="space-y-3 text-sm text-gray-300">
+              <ol className="space-y-3 text-sm text-gray-600">
                 {[
                   'Откройте 2гис.кз или приложение 2ГИС',
                   'Найдите вашу организацию на карте',
@@ -1859,14 +3143,25 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setHelpType(null)}
-              className="mt-5 w-full rounded-xl bg-white/[0.07] py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              className="mt-5 w-full rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-200"
             >
               Понятно
             </button>
           </div>
         </div>
       )}
+
     </main>
+
+    {profile?.username && accessToken && (
+      <OnboardingWizard
+        username={profile.username}
+        accessToken={accessToken}
+        linksCount={links.length}
+        onComplete={() => { if (user) loadData(user.id) }}
+      />
+    )}
+    </>
   )
 }
 
@@ -1886,8 +3181,8 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
   const [invoiceSending, setInvoiceSending] = useState(false)
   const [invoiceMsg, setInvoiceMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
-  const KASPI_PAY = 'https://pay.kaspi.kz/pay/fugemta0'
-  const HALYK_PHONE = '+77755696531'
+  const KASPI_PAY = KASPI_PAY_URL
+  const HALYK_PHONE = SUPPORT_PHONE
   const REF_CODE = `TAP-${username}`
   const waText = `Оплатил Premium ${REF_CODE} ${plan === 'annual' ? 'годовая' : 'месячная'}`
   const WA_SUPPORT = `https://wa.me/77755696531?text=${encodeURIComponent(waText)}`
@@ -1903,9 +3198,10 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
     setNotifying(true)
     setMsg(null)
     try {
+      const { data: { session: s } } = await getSupabase().auth.getSession()
       const res = await fetch('/api/notify-admin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(s?.access_token ? { 'Authorization': `Bearer ${s.access_token}` } : {}) },
         body: JSON.stringify({ type: 'payment_request', username, plan, phone }),
       })
       if (!res.ok) throw new Error()
@@ -1929,9 +3225,10 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
     setInvoiceSending(true)
     setInvoiceMsg(null)
     try {
+      const { data: { session: sInv } } = await getSupabase().auth.getSession()
       const res = await fetch('/api/notify-admin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(sInv?.access_token ? { 'Authorization': `Bearer ${sInv.access_token}` } : {}) },
         body: JSON.stringify({
           type: 'invoice_request',
           username,
@@ -1956,7 +3253,7 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
     <div className="space-y-4">
       {/* Features */}
       <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
-        <p className="mb-3 text-sm font-semibold text-violet-300">⚡ Premium</p>
+        <p className="mb-3 text-sm font-semibold text-violet-700">⚡ Premium</p>
         <ul className="space-y-2">
           {[
             'Безлимитное число кнопок',
@@ -1967,7 +3264,7 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
             'QR-код для печати на визитках',
             'Смена адреса tapni.kz/ник',
           ].map((f) => (
-            <li key={f} className="flex items-center gap-2 text-xs text-gray-300">
+            <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
               <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
               {f}
             </li>
@@ -1983,10 +3280,10 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
           className={`rounded-xl border p-3 text-center transition-all duration-200 ${
             plan === 'monthly'
               ? 'border-violet-500 bg-violet-500/10 ring-2 ring-violet-500/30'
-              : 'border-white/10 hover:border-white/20'
+              : 'border-gray-200 hover:border-gray-300'
           }`}
         >
-          <p className="text-base font-extrabold text-white">1 000 ₸</p>
+          <p className="text-base font-extrabold text-gray-900">1 000 ₸</p>
           <p className="text-[11px] text-gray-400">в месяц</p>
         </button>
         <button
@@ -1995,28 +3292,28 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
           className={`relative rounded-xl border p-3 text-center transition-all duration-200 ${
             plan === 'annual'
               ? 'border-yellow-500 bg-yellow-500/10 ring-2 ring-yellow-500/30'
-              : 'border-white/10 hover:border-white/20'
+              : 'border-gray-200 hover:border-gray-300'
           }`}
         >
           <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
             <span className="rounded-full bg-yellow-500 px-2 py-0.5 text-[10px] font-bold text-black">ВЫГОДНЕЕ</span>
           </div>
-          <p className="text-base font-extrabold text-white">10 000 ₸</p>
+          <p className="text-base font-extrabold text-gray-900">10 000 ₸</p>
           <p className="text-[11px] text-gray-400">в год · −2 000 ₸</p>
         </button>
       </div>
 
       {/* Reference code */}
       <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.08] p-3">
-        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-400">Код платежа (укажите при переводе)</p>
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">Код платежа (укажите при переводе)</p>
         <div className="flex items-center gap-2">
-          <code className="flex-1 rounded-lg bg-black/30 px-3 py-2 font-mono text-sm font-bold tracking-wider text-white">
+          <code className="flex-1 rounded-lg bg-gray-100 px-3 py-2 font-mono text-sm font-bold tracking-wider text-gray-900">
             {REF_CODE}
           </code>
           <button
             type="button"
             onClick={copyRef}
-            className="flex-shrink-0 rounded-lg bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-400 transition-colors hover:bg-amber-500/30"
+            className="flex-shrink-0 rounded-lg bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-200"
           >
             {refCopied ? '✓' : 'Копировать'}
           </button>
@@ -2024,8 +3321,8 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
       </div>
 
       {/* Kaspi Pay */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
-        <p className="mb-3 text-sm font-semibold text-white">💳 Оплата через Kaspi</p>
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <p className="mb-3 text-sm font-semibold text-gray-900">💳 Оплата через Kaspi</p>
         <a
           href={KASPI_PAY}
           target="_blank"
@@ -2038,26 +3335,26 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
           Оплатить {price} ₸ через Kaspi Pay
         </a>
         <p className="mt-2 text-center text-[11px] text-gray-500">
-          После оплаты укажите код <span className="font-mono font-bold text-amber-400">{REF_CODE}</span> в WhatsApp
+          После оплаты укажите код <span className="font-mono font-bold text-amber-700">{REF_CODE}</span> в WhatsApp
         </p>
       </div>
 
       {/* Halyk Bank */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
-        <p className="mb-3 text-sm font-semibold text-white">🏦 Перевод через Halyk Bank</p>
-        <div className="mb-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <p className="mb-3 text-sm font-semibold text-gray-900">🏦 Перевод через Halyk Bank</p>
+        <div className="mb-3 rounded-xl border border-gray-200 bg-gray-100 px-4 py-3">
           <p className="mb-0.5 text-[11px] text-gray-500">Номер для перевода</p>
-          <p className="text-lg font-extrabold tracking-widest text-white">{HALYK_PHONE}</p>
+          <p className="text-lg font-extrabold tracking-widest text-gray-900">{HALYK_PHONE}</p>
           <p className="mt-0.5 text-[11px] text-gray-500">Получатель: Голденбит Казахстан</p>
         </div>
         <div className="mb-3 grid grid-cols-2 gap-2 text-center">
-          <div className="rounded-lg bg-white/[0.04] px-3 py-2">
+          <div className="rounded-lg bg-white px-3 py-2">
             <p className="text-xs text-gray-400">Сумма</p>
-            <p className="text-sm font-bold text-white">{price} ₸</p>
+            <p className="text-sm font-bold text-gray-900">{price} ₸</p>
           </div>
-          <div className="rounded-lg bg-white/[0.04] px-3 py-2">
+          <div className="rounded-lg bg-white px-3 py-2">
             <p className="text-xs text-gray-400">Комментарий</p>
-            <p className="font-mono text-sm font-bold text-amber-400">{REF_CODE}</p>
+            <p className="font-mono text-sm font-bold text-amber-700">{REF_CODE}</p>
           </div>
         </div>
         <a
@@ -2071,17 +3368,32 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
         </a>
       </div>
 
-      {/* Notify admin after payment */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
-        <p className="mb-1 text-sm font-semibold text-white">✅ Уже оплатили?</p>
+      {/* Telegram auto-activation — PRIMARY CTA */}
+      <div className="rounded-2xl border border-[#2AABEE]/30 bg-[#2AABEE]/[0.07] p-4">
+        <p className="mb-1 text-sm font-bold text-[#2AABEE]">⚡ Автоматическая активация через Telegram</p>
         <p className="mb-3 text-xs text-gray-400">
-          Нажмите кнопку — активируем Premium за 15 минут ({days} дней доступа)
+          Самый быстрый способ. Отправьте скриншот чека боту — Premium активируется автоматически за 10 секунд.
+        </p>
+        <a
+          href={`/go/tg?u=Tapnikzbot&start=receipt_${username}`}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2AABEE] py-3 text-sm font-bold text-white transition-all hover:bg-[#1a9bde] active:scale-[0.98]"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+          Отправить чек в Telegram бот
+        </a>
+      </div>
+
+      {/* Notify admin after payment */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <p className="mb-1 text-sm font-semibold text-gray-900">✅ Уже оплатили? (ручная активация)</p>
+        <p className="mb-3 text-xs text-gray-400">
+          Уведомим администратора — активируем Premium за 15 минут ({days} дней доступа)
         </p>
         {msg && (
           <div className={`mb-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs ${
             msg.type === 'ok'
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-              : 'border-red-500/30 bg-red-500/10 text-red-300'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+              : 'border-red-500/30 bg-red-500/10 text-red-600'
           }`}>
             {msg.type === 'ok'
               ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
@@ -2122,7 +3434,7 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
               value={invoiceForm.company}
               onChange={(e) => setInvoiceForm((p) => ({ ...p, company: e.target.value }))}
               placeholder="Название компании (ТОО / АО)"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-500/60"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-500/60"
             />
             <input
               type="text"
@@ -2130,13 +3442,13 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
               value={invoiceForm.bin}
               onChange={(e) => setInvoiceForm((p) => ({ ...p, bin: e.target.value.replace(/\D/g, '').slice(0, 12) }))}
               placeholder="БИН компании (12 цифр)"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-500/60"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-500/60"
             />
             {invoiceMsg && (
               <div className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs ${
                 invoiceMsg.type === 'ok'
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                  : 'border-red-500/30 bg-red-500/10 text-red-300'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+                  : 'border-red-500/30 bg-red-500/10 text-red-600'
               }`}>
                 {invoiceMsg.type === 'ok'
                   ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
@@ -2162,7 +3474,7 @@ function PlanPicker({ username, phone }: { username: string; phone?: string | nu
 
 function ReferralCard({ username }: { username: string }) {
   const [copied, setCopied] = useState(false)
-  const referralUrl = `https://tapni.kz/auth?ref=${username}`
+  const referralUrl = `https://tapni.kz/auth?ref=${username}&utm_source=referral&utm_medium=bot`
 
   function copy() {
     navigator.clipboard.writeText(referralUrl).then(() => {
@@ -2173,24 +3485,25 @@ function ReferralCard({ username }: { username: string }) {
 
   return (
     <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.05] p-4">
-      <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-violet-300">
+      <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-violet-700">
         <Users className="h-4 w-4" />
-        Реферальная программа
+        Программа менеджеров
       </p>
-      <p className="mb-3 text-xs text-gray-400">
-        Пригласите друга — оба получите <b className="text-white">+7 дней Premium</b> бесплатно!
+      <p className="mb-3 text-xs text-gray-500">
+        Рекомендуйте tapni.kz и получайте <b className="text-gray-900">20% комиссии</b> с первой оплаты каждого клиента.
       </p>
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5">
-        <span className="flex-1 truncate text-xs font-mono text-gray-300">{referralUrl}</span>
+      <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+        <span className="flex-1 truncate text-xs font-mono text-gray-600">{referralUrl}</span>
         <button
           onClick={copy}
-          className="flex-shrink-0 rounded-lg bg-violet-600/30 px-2.5 py-1 text-[11px] font-semibold text-violet-300 transition-colors hover:bg-violet-600/50"
+          className="flex-shrink-0 rounded-lg bg-violet-600/30 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-600/50"
         >
           {copied ? '✓ Скопировано' : 'Копировать'}
         </button>
       </div>
       <p className="mt-2 text-[11px] text-gray-600">
-        Бонус начисляется через 7 дней после регистрации друга
+        Комиссия начисляется один раз — за первую оплату привлечённого клиента.{' '}
+        <a href="/partners" className="text-violet-600 hover:underline font-medium">Подробнее →</a>
       </p>
     </div>
   )

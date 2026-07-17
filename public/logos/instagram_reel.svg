@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <defs>
+    <radialGradient id="ig-reel" cx="30%" cy="107%" r="150%">
+      <stop offset="0%" stop-color="#fdf497"/>
+      <stop offset="20%" stop-color="#fd5949"/>
+      <stop offset="60%" stop-color="#d6249f"/>
+      <stop offset="90%" stop-color="#285AEB"/>
+    </radialGradient>
+  </defs>
+  <rect width="24" height="24" rx="5" fill="url(#ig-reel)"/>
+  <!-- Film strip frame -->
+  <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="white" stroke-width="1.4"/>
+  <!-- Top film holes -->
+  <rect x="5" y="4" width="2" height="2.5" rx="0.5" fill="white"/>
+  <rect x="9" y="4" width="2" height="2.5" rx="0.5" fill="white"/>
+  <rect x="13" y="4" width="2" height="2.5" rx="0.5" fill="white"/>
+  <rect x="17" y="4" width="2" height="2.5" rx="0.5" fill="white"/>
+  <!-- Play triangle -->
+  <path d="M10 9.5l5 2.8-5 2.8V9.5z" fill="white"/>
+</svg>

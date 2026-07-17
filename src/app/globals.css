@@ -1,15 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #FAFAF8;
   --foreground: #171717;
+  --clr-violet: #7C3AED;
+  --clr-amber:  #F59E0B;
+  --clr-amber-dk: #B45309;
+  --clr-surface: #FAFAF8;
+  --clr-dark:  #0D0B1A;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-nunito), system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,8 +23,106 @@
   }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-nunito), system-ui, -apple-system, sans-serif;
+}
+
+/* Focus ring for accessibility */
+*:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Entrance animations ── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes btn-appear {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes btn-stagger {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Connection line draw-in ── */
+@keyframes draw-path {
+  from { stroke-dashoffset: var(--path-len, 300); }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* ── Ambient float for hero decorations ── */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* ── Amber pulse glow ── */
+@keyframes amber-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
+  50%       { box-shadow: 0 0 20px 4px rgba(245, 158, 11, 0.15); }
+}
+
+/* ── Marquee ── */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@layer utilities {
+  .animate-fade-up {
+    animation: fade-up 0.45s ease-out both;
+  }
+  .animate-fade-in {
+    animation: fade-in 0.35s ease-out both;
+  }
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+  .animate-btn-appear {
+    animation: btn-appear 0.2s ease-out both;
+  }
+  .animate-btn-stagger {
+    animation: btn-stagger 0.28s ease-out both;
+    animation-delay: calc(0.03s + var(--i, 0) * 0.045s);
+  }
+  .animate-draw-path {
+    stroke-dashoffset: var(--path-len, 300);
+    animation: draw-path 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .animate-float-slow {
+    animation: float-slow 4s ease-in-out infinite;
+  }
+  .animate-amber-glow {
+    animation: amber-glow 2.5s ease-in-out infinite;
+  }
+  .animation-delay-75  { animation-delay: 75ms; }
+  .animation-delay-150 { animation-delay: 150ms; }
+  .animation-delay-250 { animation-delay: 250ms; }
+  .animation-delay-350 { animation-delay: 350ms; }
+  .animation-delay-450 { animation-delay: 450ms; }
+  .animation-delay-600 { animation-delay: 600ms; }
+  .animation-delay-800 { animation-delay: 800ms; }
+  .animation-delay-1000 { animation-delay: 1000ms; }
+  /* Dot-grid pattern for profile light theme */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, #D1D5DB 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
 }
