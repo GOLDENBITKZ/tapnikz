@@ -7,11 +7,11 @@ const HOME = 'https://tapni.kz'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { username: string } }
+  { params }: { params: Promise<{ username: string }> }
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = getSupabaseAdmin() as any
-  const username = params.username
+  const { username } = await params
 
   // Resolve profile → ediny_qr link
   const { data: profile } = await db

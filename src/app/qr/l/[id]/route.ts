@@ -59,9 +59,9 @@ setTimeout(function(){window.location=intent;},200);
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params
+  const { id } = await params
 
   // Validate UUID format to prevent DB abuse
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return Response.redirect(HOME, 302)
