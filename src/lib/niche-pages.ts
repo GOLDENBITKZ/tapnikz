@@ -21,10 +21,14 @@ export const NICHE_PAGES: NichePage[] = [
     slug: 'kaspi-prodavets',
     title: 'Для продавцов Kaspi',
     metaTitle: 'Мобильная визитка для продавцов Kaspi — tapni.kz',
-    metaDescription: 'Создайте страницу с Kaspi магазин, Kaspi Pay и WhatsApp для вашего Kaspi-магазина. Одна ссылка в шапке — клиенты сразу видят ваш магазин и товары.',
+    metaDescription: 'Создайте страницу с Kaspi магазин, Kaspi Pay и WhatsApp для вашего Kaspi-магазина. Одна ссылка в шапке профиля Instagram или TikTok — клиенты сразу попадают в ваш магазин.',
     h1: 'Мобильная визитка для продавца Kaspi',
-    subtitle: 'Одна ссылка с Kaspi магазин, Kaspi Pay, WhatsApp и 2ГИС. Вставьте в описание вашего Kaspi-магазина — клиенты сразу найдут всё нужное.',
-    keywords: ['ссылка для kaspi магазина', 'визитка продавца kaspi', 'taplink для kaspi', 'kaspi продавец страница'],
+    subtitle: 'Продаёте на Kaspi? Ведёте Instagram или TikTok? Одна ссылка в bio с кнопкой прямо в ваш Kaspi магазин, Kaspi Pay и WhatsApp — покупатели из соцсетей попадают прямо к вашим товарам.',
+    keywords: [
+      'ссылка для kaspi магазина', 'визитка продавца kaspi', 'taplink для kaspi', 'kaspi продавец страница',
+      'kaspi магазин instagram', 'kaspi продавец instagram', 'kaspi продавец tiktok',
+      'kaspi продавец соцсети', 'ссылка kaspi магазин instagram bio', 'kaspi shop ссылка соцсети',
+    ],
     audience: 'Продавцы Kaspi',
     buttons: [
       { icon: '🛒', label: 'Kaspi магазин' },
@@ -348,6 +352,48 @@ export const NICHE_PAGES: NichePage[] = [
       { icon: '✈️', label: 'Telegram' },
     ],
     localBusiness: { city: 'Тараз', regionCode: 'KZ-ZHA', lat: 42.90072, lon: 71.36427 },
+  },
+  // ─── Kaspi + соцсети ───
+  {
+    slug: 'kaspi-magazin',
+    title: 'Ссылка на Kaspi магазин',
+    metaTitle: 'Ссылка на Kaspi магазин в Instagram и TikTok — tapni.kz',
+    metaDescription: 'Поставьте ссылку на ваш Kaspi магазин в bio Instagram или TikTok. tapni.kz — страница с кнопкой прямо в Kaspi магазин, Kaspi Pay и WhatsApp. Бесплатно.',
+    h1: 'Ссылка на Kaspi магазин для Instagram и TikTok',
+    subtitle: 'Instagram и TikTok дают один слот для ссылки в bio. tapni.kz упаковывает туда кнопку прямо в ваш Kaspi магазин, Kaspi Pay для прямых оплат, WhatsApp для вопросов и 2ГИС для пункта выдачи — всё в одном адресе.',
+    keywords: [
+      'ссылка kaspi магазин instagram', 'kaspi магазин bio', 'kaspi shop ссылка в инстаграм',
+      'как поставить kaspi магазин в instagram', 'ссылка на kaspi магазин', 'kaspi.kz магазин ссылка bio',
+      'kaspi магазин tiktok ссылка', 'kaspi магазин соцсети ссылка',
+    ],
+    audience: 'Продавцы Kaspi магазина',
+    buttons: [
+      { icon: '🛒', label: 'Мой Kaspi магазин' },
+      { icon: '💳', label: 'Kaspi Pay' },
+      { icon: '💬', label: 'WhatsApp — вопрос' },
+      { icon: '📍', label: '2ГИС — пункт выдачи' },
+    ],
+  },
+  {
+    slug: 'prodazhi-kaspi',
+    title: 'Продвижение Kaspi магазина через соцсети',
+    metaTitle: 'Как привлечь покупателей в Kaspi магазин через Instagram и TikTok',
+    metaDescription: 'Продвигайте Kaspi магазин через Instagram и TikTok: одна ссылка в bio ведёт прямо к вашим товарам. Привлекайте покупателей из соцсетей в Kaspi без рекламы.',
+    h1: 'Как привлечь покупателей в Kaspi магазин через соцсети',
+    subtitle: 'Большинство Kaspi-продавцов теряют покупателей: ведут Instagram и TikTok, но не дают удобную ссылку на магазин. tapni.kz — страница с кнопкой «Мой Kaspi магазин», Kaspi Pay и WhatsApp. Поставьте в bio — покупатели из соцсетей идут прямо к вашим товарам.',
+    keywords: [
+      'как привлечь покупателей kaspi', 'kaspi магазин продвижение instagram', 'kaspi магазин tiktok',
+      'kaspi продавец соцсети', 'продажи kaspi через instagram', 'продажи kaspi через tiktok',
+      'привлечь клиентов kaspi', 'kaspi shop instagram продвижение', 'kaspi продавец соц сети',
+      'продавать на kaspi через instagram', 'kaspi магазин продажи соцсети',
+    ],
+    audience: 'Продавцы Kaspi.kz',
+    buttons: [
+      { icon: '🛒', label: 'Kaspi магазин' },
+      { icon: '💳', label: 'Kaspi Pay' },
+      { icon: '💬', label: 'WhatsApp — вопрос' },
+      { icon: '🎵', label: 'TikTok' },
+    ],
   },
   // ─── Страницы под косвенный трафик ───
   {
