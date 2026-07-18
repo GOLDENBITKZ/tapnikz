@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 }
 
 const EFFECTIVE = '01 июля 2025 года'
-const COMPANY = 'ИП «tapni.kz»'
-const EMAIL = 'support@tapni.kz'
+const COMPANY = 'ИП GOLDENBIT'
+const EMAIL = 'goldenbit.kz@yandex.kz'
 
 export default function PrivacyPage() {
   return (
