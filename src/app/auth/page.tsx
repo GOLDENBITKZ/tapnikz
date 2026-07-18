@@ -462,7 +462,10 @@ function AuthPageInner() {
                 <SubmitButton loading={loading} label="Создать аккаунт" />
 
                 <p className="text-center text-[10px] leading-relaxed text-gray-400">
-                  Регистрируясь, вы соглашаетесь с условиями использования
+                  Регистрируясь, вы соглашаетесь с{' '}
+                  <a href="/terms" className="underline hover:text-gray-600">условиями использования</a>
+                  {' '}и{' '}
+                  <a href="/privacy" className="underline hover:text-gray-600">политикой конфиденциальности</a>
                 </p>
               </form>
             )}
