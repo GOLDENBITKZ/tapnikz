@@ -26,7 +26,7 @@ export function NicheLanding({ niche }: { niche: NichePage }) {
   return (
     <main className="min-h-screen bg-[#08080f] text-white">
       {localBizLD && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(localBizLD) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(localBizLD).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f') }} />
       )}
 
       {/* Ambient bg */}
