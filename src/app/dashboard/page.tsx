@@ -902,9 +902,11 @@ export default function DashboardPage() {
         if (productPhotoFile) {
           setProductPhotoUploading(true)
           const blob = await compressToWebP(productPhotoFile, 600, 50 * 1024)
+          const prodMime = blob.type || 'image/webp'
+          const prodExt = prodMime === 'image/png' ? 'png' : prodMime === 'image/jpeg' ? 'jpg' : 'webp'
           const ts = Date.now()
-          storagePath = `products/${profile.username}/${ts}.webp`
-          const { error: upErr } = await getSupabase().storage.from('avatars').upload(storagePath, blob, { contentType: 'image/webp', upsert: true })
+          storagePath = `${user.id}/products/${ts}.${prodExt}`
+          const { error: upErr } = await getSupabase().storage.from('avatars').upload(storagePath, blob, { contentType: prodMime, upsert: true })
           setProductPhotoUploading(false)
           if (upErr) { setLinkError('Не удалось загрузить фото'); return }
           const { data: { publicUrl } } = getSupabase().storage.from('avatars').getPublicUrl(storagePath)
@@ -1293,10 +1295,14 @@ export default function DashboardPage() {
     setAvatarUploading(true)
     try {
       const webpBlob = await compressToWebP(file, 200, 20 * 1024)
-      const path = `${user.id}/avatar.webp`
+      // Use actual blob MIME type — some browsers fall back to image/png even when
+      // WebP encoding is requested; declaring the wrong content-type causes Supabase 400
+      const mimeType = webpBlob.type || 'image/webp'
+      const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/jpeg' ? 'jpg' : 'webp'
+      const path = `${user.id}/avatar.${ext}`
       const { error: upErr } = await getSupabase()
         .storage.from('avatars')
-        .upload(path, webpBlob, { upsert: true, contentType: 'image/webp' })
+        .upload(path, webpBlob, { upsert: true, contentType: mimeType })
       if (upErr) throw upErr
 
       const { data: { publicUrl } } = getSupabase()
@@ -1306,7 +1312,8 @@ export default function DashboardPage() {
       const cacheBusted = `${publicUrl}?t=${Date.now()}`
       await getSupabase().from('profiles').update({ avatar_url: cacheBusted }).eq('id', user.id)
       setProfile((p) => p ? { ...p, avatar_url: cacheBusted } : p)
-    } catch {
+    } catch (err) {
+      console.error('[uploadAvatar]', err)
       setAvatarError('Ошибка загрузки. Попробуйте снова.')
     } finally {
       setAvatarUploading(false)
@@ -1345,10 +1352,12 @@ export default function DashboardPage() {
     setLoading(true)
     try {
       const webpBlob = await compressToWebP(file, 1200, 500 * 1024)
-      const path = `${user.id}/banner_${Date.now()}.webp`
+      const bannerMime = webpBlob.type || 'image/webp'
+      const bannerExt = bannerMime === 'image/png' ? 'png' : bannerMime === 'image/jpeg' ? 'jpg' : 'webp'
+      const path = `${user.id}/banner_${Date.now()}.${bannerExt}`
       const { error: upErr } = await getSupabase()
         .storage.from('avatars')
-        .upload(path, webpBlob, { upsert: false, contentType: 'image/webp' })
+        .upload(path, webpBlob, { upsert: false, contentType: bannerMime })
       if (upErr) throw upErr
       const { data: { publicUrl } } = getSupabase()
         .storage.from('avatars')
