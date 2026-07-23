@@ -32,15 +32,7 @@ export async function activatePremium({
   const adminDb = getSupabaseAdmin() as any
   const days = plan === 'annual' ? 365 : 30
 
-  // Idempotency: skip if this payment was already confirmed
-  const { data: existingPay } = await adminDb
-    .from('payments')
-    .select('status')
-    .eq('id', pendingPaymentId)
-    .maybeSingle()
-  if (existingPay?.status === 'confirmed') return { success: true }
-
-  // Read current profile to extend subscription from existing expiry (not from now)
+  // Read current profile (needed to extend subscription from existing expiry)
   const { data: currentProfile, error: fetchErr } = await adminDb
     .from('profiles')
     .select('subscription_expires_at, telegram_chat_id')
@@ -56,17 +48,19 @@ export async function activatePremium({
   const expires = new Date(base.getTime() + days * 86400000).toISOString()
   const expiryDate = new Date(expires).toLocaleDateString('ru-KZ')
 
-  // 1. Confirm the pending payments row FIRST (atomicity: if profile update fails, payment stays pending)
-  const { error: payErr } = await adminDb.from('payments').update({
+  // Atomic idempotency: update WHERE status='pending' — returns nothing if already confirmed.
+  // This eliminates the TOCTOU window: two concurrent calls both try this update;
+  // only the first succeeds (row changes status), the second finds no matching row.
+  const { data: claimedPay, error: payErr } = await adminDb.from('payments').update({
     status: 'confirmed',
     auto_confirmed_at: new Date().toISOString(),
     provider,
     ...(note ? { notes: note } : {}),
-  }).eq('id', pendingPaymentId)
+  }).eq('id', pendingPaymentId).eq('status', 'pending').select('id').maybeSingle()
 
-  if (payErr) {
-    return { success: false, error: payErr.message }
-  }
+  if (payErr) return { success: false, error: payErr.message }
+  // Another invocation already confirmed this payment — idempotent success
+  if (!claimedPay) return { success: true }
 
   // 2. Update profiles
   const { data: profData, error: profErr } = await adminDb

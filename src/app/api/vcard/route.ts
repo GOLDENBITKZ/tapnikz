@@ -33,6 +33,7 @@ export async function GET(request: Request) {
     return new Response('too many requests', { status: 429 })
   }
 
+  try {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profile } = await (getSupabaseAdmin() as any)
     .from('profiles')
@@ -80,4 +81,8 @@ export async function GET(request: Request) {
       'X-Robots-Tag': 'noindex',
     },
   })
+  } catch (err) {
+    console.error('[vcard] error', err)
+    return new Response('internal error', { status: 500 })
+  }
 }

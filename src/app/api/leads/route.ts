@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   const rateKey = `${username}:${cleanPhone}`
   if (!checkRate(rateKey)) return Response.json({ error: 'too_many_requests' }, { status: 429 })
 
+  try {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminDb = getSupabaseAdmin() as any
   const { data: prof } = await adminDb
@@ -107,4 +108,8 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ ok: true })
+  } catch (err) {
+    console.error('[leads] error', err)
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
 }

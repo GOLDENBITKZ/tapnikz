@@ -29,12 +29,15 @@ export function MilestoneBlock({ linkId, title, initial, themeCard, themeText, t
 
   const pct = data.goal > 0 ? Math.min(100, Math.round((data.current / data.goal) * 100)) : 0
 
-  // Countdown — tick every second
+  // Countdown — tick every second. timeLeft intentionally excluded from deps:
+  // the functional updater form (t => t - 1) never reads the closure variable,
+  // so including it would cancel+restart the interval on every tick.
   useEffect(() => {
     if (data.unlocked || data.expired || timeLeft <= 0) return
     const interval = setInterval(() => setTimeLeft((t) => Math.max(0, t - 1)), 1000)
     return () => clearInterval(interval)
-  }, [data.unlocked, data.expired, timeLeft])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.unlocked, data.expired])
 
   // Poll API every 20s for live view_count updates
   const refresh = useCallback(async () => {

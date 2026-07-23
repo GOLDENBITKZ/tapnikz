@@ -103,8 +103,9 @@ export async function GET(request: Request) {
       }
     } catch { /* malformed URL — fall through to web fallback */ }
 
-    const appJson = JSON.stringify(appScheme)
-    const fallbackJson = JSON.stringify(fallbackUrl)
+    const esc = (s: string) => JSON.stringify(s).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f')
+    const appJson = esc(appScheme)
+    const fallbackJson = esc(fallbackUrl)
     const html = `<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Telegram</title>
@@ -167,8 +168,9 @@ if(app){
       }
     } catch { /* malformed URL — fall through to web redirect */ }
 
-    const webUrlJson = JSON.stringify(targetUrl)
-    const appUrlJson = JSON.stringify(appScheme)
+    const escI = (s: string) => JSON.stringify(s).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f')
+    const webUrlJson = escI(targetUrl)
+    const appUrlJson = escI(appScheme)
     const html = `<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Instagram</title>

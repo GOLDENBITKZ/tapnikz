@@ -32,8 +32,9 @@ function buildAndroidIntent(androidUrl: string, fallback: string): string {
 // Lightweight bridge page for in-app browsers (Instagram/TikTok WebView)
 // JS tries intent:// scheme; button shown as fallback
 function bridgePage(intentUrl: string, webUrl: string, label: string): Response {
-  const intentJson = JSON.stringify(intentUrl)
-  const webJson = JSON.stringify(webUrl)
+  const escJson = (s: string) => JSON.stringify(s).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f')
+  const intentJson = escJson(intentUrl)
+  const webJson = escJson(webUrl)
   const labelEsc = label.replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const html = `<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

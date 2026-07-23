@@ -67,6 +67,10 @@ export async function POST(request: Request) {
   let text: string
 
   if ('type' in body && body.type === 'new_user') {
+    // Rate-limit new_user pings before hitting the DB
+    if (!checkRate(username)) {
+      return Response.json({ ok: true })
+    }
     // Verify by DB: profile must exist and have been created within the last 5 minutes.
     // JWT-based auth is unreliable here — after auth.signUp() the session may not be
     // immediately available if Supabase email confirmation is enabled.

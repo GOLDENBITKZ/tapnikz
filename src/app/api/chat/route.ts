@@ -94,10 +94,10 @@ export async function POST(request: Request) {
   }
 
   if (!checkGlobal()) {
-    return Response.json({ rateLimited: true, reason: 'global' })
+    return Response.json({ rateLimited: true, reason: 'global' }, { status: 429 })
   }
   if (!checkUser(ip)) {
-    return Response.json({ rateLimited: true, reason: 'user' })
+    return Response.json({ rateLimited: true, reason: 'user' }, { status: 429 })
   }
 
   const apiKey = process.env.GROQ_API_KEY

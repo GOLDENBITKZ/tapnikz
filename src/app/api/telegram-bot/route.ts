@@ -203,7 +203,9 @@ export async function POST(request: Request) {
   //   setWebhook url=... secret_token=TELEGRAM_WEBHOOK_SECRET
   if (!secret || incoming !== secret) return new Response('Forbidden', { status: 403 })
 
-  const update = await request.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let update: Record<string, any>
+  try { update = await request.json() } catch { return Response.json({ ok: true }) }
 
   // ── Callback query ────────────────────────────────────────────
   if (update?.callback_query) {
@@ -227,6 +229,22 @@ export async function POST(request: Request) {
       await managerClientsHandler(chatId)
     } else if (data === 'payout_request') {
       await managerPayoutRequestHandler(chatId)
+    } else if (data.startsWith('manager_approve:') && chatId === adminChatId()) {
+      const uname = (data.split(':')[1] ?? '').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40)
+      if (uname) {
+        const db = getSupabaseAdmin() as any
+        const { data: mgrProf } = await db.from('profiles').select('telegram_chat_id').eq('username', uname).maybeSingle()
+        await db.from('profiles').update({ is_manager: true, manager_since: new Date().toISOString() }).eq('username', uname)
+        await sendTelegram(chatId, `✅ @${uname} назначен менеджером`)
+        if (mgrProf?.telegram_chat_id) {
+          await tgPost('sendMessage', {
+            chat_id: mgrProf.telegram_chat_id,
+            text: `🎉 <b>Вы назначены менеджером tapni.kz!</b>\n\nВы зарабатываете <b>20%</b> с каждого привлечённого Premium-клиента.\n\nКабинет менеджера: <a href="https://tapni.kz/manager">tapni.kz/manager</a>`,
+            parse_mode: 'HTML',
+            reply_markup: MANAGER_KEYBOARD,
+          })
+        }
+      }
     } else if (data.startsWith('quick_activate:') && chatId === adminChatId()) {
       const [, uname, daysStr] = data.split(':')
       const safeUname = (uname ?? '').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40)
@@ -240,14 +258,17 @@ export async function POST(request: Request) {
       if (!uname) return Response.json({ ok: true })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const adminDb = (getSupabaseAdmin() as any)
-      const { data: profData, error } = await adminDb
+      // Fetch first to know if was_premium (avoid duplicate cancel notification)
+      const { data: beforeProf } = await adminDb.from('profiles').select('is_premium, business_name, telegram_chat_id').eq('username', uname).maybeSingle()
+      if (!beforeProf) { await sendTelegram(chatId, `❌ Не найден: ${uname}`); return Response.json({ ok: true }) }
+      const wasPremium = beforeProf.is_premium
+      const { error } = await adminDb
         .from('profiles')
         .update({ is_premium: false, subscription_expires_at: null, updated_at: new Date().toISOString() })
         .eq('username', uname)
-        .select('business_name, telegram_chat_id')
-        .maybeSingle()
-      if (error || !profData) {
-        await sendTelegram(chatId, `❌ Не найден: ${uname}`)
+      const profData = beforeProf
+      if (error) {
+        await sendTelegram(chatId, `❌ Ошибка: ${uname}`)
       } else {
         // Cancel pending payments for this user
         await adminDb.from('payments')
@@ -256,7 +277,7 @@ export async function POST(request: Request) {
           .eq('status', 'pending')
           .catch(() => {})
         await sendTelegram(chatId, `✅ Premium отменён для <b>${esc(profData.business_name)}</b> (@${uname})`)
-        if (profData.telegram_chat_id) {
+        if (profData.telegram_chat_id && wasPremium) {
           await tgPost('sendMessage', {
             chat_id: profData.telegram_chat_id,
             text:
@@ -2018,7 +2039,10 @@ async function handleReceiptPhotoById(chatId: string, fileId: string) {
   }
 
   const amountOk = validation.amount !== null && Math.abs(validation.amount - expectedAmount) <= expectedAmount * 0.05
-  const autoApprove = validation.isReceipt && amountOk && validation.confidence === 'high' && !isDuplicate
+  // Verify receipt is for OUR merchant when KASPI_MERCHANT_ID is configured
+  const merchantId = process.env.KASPI_MERCHANT_ID
+  const recipientOk = !merchantId || !validation.recipient || validation.recipient.toLowerCase().includes(merchantId.toLowerCase())
+  const autoApprove = validation.isReceipt && amountOk && validation.confidence === 'high' && !isDuplicate && recipientOk && validation.transactionId !== null
 
   // Save receipt_url and validation data
   if (pending.paymentId) {

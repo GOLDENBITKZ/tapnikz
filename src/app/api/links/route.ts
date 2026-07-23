@@ -9,8 +9,11 @@ async function getAuthProfile(request: Request) {
   const adminDb = getSupabaseAdmin() as any
   const { data: { user }, error } = await adminDb.auth.getUser(token)
   if (error || !user) return null
-  const { data: prof } = await adminDb.from('profiles').select('id, is_premium').eq('id', user.id).maybeSingle()
-  return prof ? { prof, adminDb } : null
+  const { data: prof } = await adminDb.from('profiles').select('id, is_premium, subscription_expires_at').eq('id', user.id).maybeSingle()
+  if (!prof) return null
+  // Treat as free if subscription has expired (cron runs daily so guard here too)
+  const effectivePremium = prof.is_premium && (!prof.subscription_expires_at || new Date(prof.subscription_expires_at) > new Date())
+  return { prof: { ...prof, is_premium: effectivePremium }, adminDb }
 }
 
 // POST /api/links — add a single link (enforces free tier limit)
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   // Premium-only link types — enforce server-side (UI check is bypassable)
-  const PREMIUM_ONLY = new Set(['product', 'smart_qr'])
+  const PREMIUM_ONLY = new Set(['product', 'smart_qr', 'countdown', 'pricelist', 'image', 'video', 'faq'])
   if (PREMIUM_ONLY.has(iconType) && !prof.is_premium) {
     return Response.json({ error: 'premium_required' }, { status: 403 })
   }

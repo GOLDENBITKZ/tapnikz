@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   if (!auth) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   const { prof, adminDb } = auth
 
+  try {
   const [{ data: clients }, { data: commissions }] = await Promise.all([
     adminDb
       .from('profiles')
@@ -60,4 +61,8 @@ export async function GET(request: Request) {
     clients: clientList,
     commissions: commList,
   })
+  } catch (err) {
+    console.error('[manager] error', err)
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
 }

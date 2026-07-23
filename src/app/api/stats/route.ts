@@ -14,6 +14,7 @@ export async function GET(request: Request) {
 
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
+  try {
   const [profilesRes, clicksRes, leadsRes] = await Promise.all([
     db.from('profiles').select('*', { count: 'exact', head: true }),
     db.from('click_events').select('*', { count: 'exact', head: true }).gte('created_at', weekAgo),
@@ -30,4 +31,8 @@ export async function GET(request: Request) {
       headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' },
     }
   )
+  } catch (err) {
+    console.error('[stats] db error', err)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
 }

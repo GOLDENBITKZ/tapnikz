@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = getSupabaseAdmin() as any
 
+  try {
   const { data: link } = await db
     .from('links')
     .select('url, profile_id, title')
@@ -66,4 +67,8 @@ export async function GET(request: Request) {
   return Response.json(result, {
     headers: { 'Cache-Control': 'no-store' },
   })
+  } catch (err) {
+    console.error('[milestone] error', err)
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
 }

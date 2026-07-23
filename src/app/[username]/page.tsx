@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 
 // Cache profile pages for 60s on the edge — reduces Supabase roundtrips for popular pages
 export const revalidate = 60
@@ -348,7 +349,7 @@ export default async function ProfilePage({ params }: Props) {
   const adminDb = getSupabaseAdmin() as any
   const { profile, links } = await getData(username)
 
-  if (!profile) return <NotFoundPage username={username} />
+  if (!profile) notFound()
 
   // Fire-and-forget: don't block page render waiting for view counter update
   adminDb.rpc('increment_profile_view', { p_username: username }).then(() => {}, () => {})

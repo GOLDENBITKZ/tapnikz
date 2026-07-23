@@ -1022,10 +1022,11 @@ export default function DashboardPage() {
   }
 
   async function deleteLink(id: string) {
+    if (!user) return
     setDeletingId(id)
     try {
       const link = links.find((l) => l.id === id)
-      const { error } = await getSupabase().from('links').delete().eq('id', id).eq('profile_id', user!.id)
+      const { error } = await getSupabase().from('links').delete().eq('id', id).eq('profile_id', user.id)
       if (error) throw error
       setLinks((prev) => prev.filter((l) => l.id !== id))
       // Clean up storage files for product and image types
@@ -1182,8 +1183,12 @@ export default function DashboardPage() {
 
       const fromISO = editVisibleFrom ? new Date(editVisibleFrom).toISOString() : null
       const untilISO = editVisibleUntil ? new Date(editVisibleUntil).toISOString() : null
-      const { error: saveErr } = await getSupabase().from('links').update({ title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO }).eq('id', link.id).eq('profile_id', user!.id)
-      if (saveErr) { setLinkError('Не удалось сохранить — попробуйте ещё раз'); return }
+      const saveRes = await fetch(`/api/links/${link.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO }),
+      })
+      if (!saveRes.ok) { setLinkError('Не удалось сохранить — попробуйте ещё раз'); return }
       setLinks((prev) => prev.map((l) => l.id === link.id ? { ...l, title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO } : l))
       setEditingId(null)
     } finally {
@@ -1192,16 +1197,17 @@ export default function DashboardPage() {
   }
 
   async function toggleFeatured(link: LinkRow) {
+    if (!user) return
     const sb = getSupabase()
     const snapshot = links
     if (link.is_featured) {
       setLinks((prev) => prev.map((l) => l.id === link.id ? { ...l, is_featured: false } : l))
-      const { error } = await sb.from('links').update({ is_featured: false }).eq('id', link.id).eq('profile_id', user!.id)
+      const { error } = await sb.from('links').update({ is_featured: false }).eq('id', link.id).eq('profile_id', user.id)
       if (error) setLinks(snapshot)
     } else {
       setLinks((prev) => prev.map((l) => ({ ...l, is_featured: l.id === link.id })))
-      const { error: e1 } = await sb.from('links').update({ is_featured: false }).eq('profile_id', user!.id)
-      const { error: e2 } = await sb.from('links').update({ is_featured: true }).eq('id', link.id).eq('profile_id', user!.id)
+      const { error: e1 } = await sb.from('links').update({ is_featured: false }).eq('profile_id', user.id)
+      const { error: e2 } = await sb.from('links').update({ is_featured: true }).eq('id', link.id).eq('profile_id', user.id)
       if (e1 || e2) setLinks(snapshot)
     }
   }
@@ -1260,8 +1266,8 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify(tpl.links),
       })
-      if (res.ok) {
-        await loadData(user!.id)
+      if (res.ok && user) {
+        await loadData(user.id)
         setTemplateApplied(true)
       }
     } catch { /* ignore */ } finally {

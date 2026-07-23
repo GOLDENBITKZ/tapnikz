@@ -54,8 +54,12 @@ export async function POST(request: Request) {
     sort_order: i,
   }))
 
-  const { error } = await adminDb.from('links').insert(rows)
-  if (error) return Response.json({ error: 'Internal error' }, { status: 500 })
-
-  return Response.json({ ok: true, count: rows.length })
+  try {
+    const { error } = await adminDb.from('links').insert(rows)
+    if (error) return Response.json({ error: 'Internal error' }, { status: 500 })
+    return Response.json({ ok: true, count: rows.length })
+  } catch (err) {
+    console.error('[links/batch] insert error', err)
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
 }
