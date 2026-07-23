@@ -91,6 +91,17 @@ export default async function DiscoverPage() {
                       className="h-10 w-10 flex-shrink-0 rounded-full object-cover ring-1 ring-white/10"
                       width={40}
                       height={40}
+                      onError={(e) => {
+                        const el = e.currentTarget
+                        el.style.display = 'none'
+                        const parent = el.parentElement
+                        if (parent && !parent.querySelector('.avatar-fallback')) {
+                          const fb = document.createElement('div')
+                          fb.className = 'avatar-fallback h-10 w-10 flex-shrink-0 rounded-full bg-violet-700 flex items-center justify-center text-white text-sm font-bold'
+                          fb.textContent = (p.business_name || '?').charAt(0).toUpperCase()
+                          parent.appendChild(fb)
+                        }
+                      }}
                     />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-white group-hover:text-violet-300 transition-colors">{p.business_name}</p>

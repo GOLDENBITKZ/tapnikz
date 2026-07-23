@@ -852,6 +852,7 @@ export default async function ProfilePage({ params }: Props) {
                         height={40}
                         className="h-full w-full object-contain"
                         aria-hidden
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                       />
                     </div>
                     <span className="flex-1 text-left text-sm font-bold leading-tight">

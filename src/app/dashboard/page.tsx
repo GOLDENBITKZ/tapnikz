@@ -1566,7 +1566,7 @@ export default function DashboardPage() {
                 <div className="relative flex-shrink-0">
                   <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/10">
                     {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="avatar" className="h-full w-full object-contain" />
+                      <img src={profile.avatar_url} alt="avatar" className="h-full w-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
                     ) : (
                       <>
                         <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-indigo-600" />
