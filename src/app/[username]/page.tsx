@@ -28,6 +28,7 @@ import { ImageExpandBlock } from '@/components/image-expand-block'
 import { KaspiQrBlock } from '@/components/kaspi-qr-block'
 import { EdinyyQrBlock } from '@/components/ediny-qr-block'
 import { SmartQrBlock } from '@/components/smart-qr-block'
+import { LinkLogo } from '@/components/link-logo'
 import Link from 'next/link'
 import { MapPin, Zap, ArrowLeft, ShoppingCart, ClipboardList, UserPlus } from 'lucide-react'
 
@@ -845,15 +846,7 @@ export default async function ProfilePage({ params }: Props) {
                     }`}
                   >
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl overflow-hidden">
-                      <img
-                        src={logoSrc}
-                        alt=""
-                        width={40}
-                        height={40}
-                        className="h-full w-full object-contain"
-                        aria-hidden
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                      />
+                      <LinkLogo src={logoSrc} className="h-full w-full object-contain" />
                     </div>
                     <span className="flex-1 text-left text-sm font-bold leading-tight">
                       {link.title}

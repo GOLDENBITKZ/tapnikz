@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { DiscoverAvatar } from '@/components/discover-avatar'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,24 +86,7 @@ export default async function DiscoverPage() {
                   className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 transition-all hover:border-violet-500/30 hover:bg-white/[0.06]"
                 >
                   <div className="mb-3 flex items-center gap-2.5">
-                    <img
-                      src={p.avatar_url!}
-                      alt={p.business_name}
-                      className="h-10 w-10 flex-shrink-0 rounded-full object-cover ring-1 ring-white/10"
-                      width={40}
-                      height={40}
-                      onError={(e) => {
-                        const el = e.currentTarget
-                        el.style.display = 'none'
-                        const parent = el.parentElement
-                        if (parent && !parent.querySelector('.avatar-fallback')) {
-                          const fb = document.createElement('div')
-                          fb.className = 'avatar-fallback h-10 w-10 flex-shrink-0 rounded-full bg-violet-700 flex items-center justify-center text-white text-sm font-bold'
-                          fb.textContent = (p.business_name || '?').charAt(0).toUpperCase()
-                          parent.appendChild(fb)
-                        }
-                      }}
-                    />
+                    <DiscoverAvatar src={p.avatar_url!} name={p.business_name} />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-white group-hover:text-violet-300 transition-colors">{p.business_name}</p>
                       <p className="truncate text-[10px] text-gray-600">tapni.kz/{p.username}</p>
