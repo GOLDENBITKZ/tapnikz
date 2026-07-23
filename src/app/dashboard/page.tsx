@@ -138,6 +138,18 @@ const SMART_INPUTS: Partial<Record<IconType, { prefix: string; placeholder: stri
   phone:     { prefix: '+7', placeholder: '701 234 5678' },
 }
 
+// Reads first 12 bytes to detect actual image format regardless of blob.type.
+// blob.type is browser-reported and can be wrong (e.g. YaBrowser reports 'image/webp'
+// but encodes PNG bytes), which causes Supabase storage to return 400.
+async function detectBlobMime(blob: Blob): Promise<string> {
+  const buf = new Uint8Array(await blob.slice(0, 12).arrayBuffer())
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return 'image/png'
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'image/jpeg'
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp'
+  return blob.type || 'image/jpeg'
+}
+
 async function compressToWebP(file: File, maxPx: number, maxBytes: number): Promise<Blob> {
   const img = document.createElement('img')
   const objectUrl = URL.createObjectURL(file)
@@ -902,7 +914,7 @@ export default function DashboardPage() {
         if (productPhotoFile) {
           setProductPhotoUploading(true)
           const blob = await compressToWebP(productPhotoFile, 600, 50 * 1024)
-          const prodMime = blob.type || 'image/webp'
+          const prodMime = await detectBlobMime(blob)
           const prodExt = prodMime === 'image/png' ? 'png' : prodMime === 'image/jpeg' ? 'jpg' : 'webp'
           const ts = Date.now()
           storagePath = `${user.id}/products/${ts}.${prodExt}`
@@ -1295,9 +1307,9 @@ export default function DashboardPage() {
     setAvatarUploading(true)
     try {
       const webpBlob = await compressToWebP(file, 200, 20 * 1024)
-      // Use actual blob MIME type — some browsers fall back to image/png even when
-      // WebP encoding is requested; declaring the wrong content-type causes Supabase 400
-      const mimeType = webpBlob.type || 'image/webp'
+      // Use magic-byte detection — blob.type is browser-reported and unreliable
+      // (YaBrowser reports 'image/webp' but writes PNG bytes → Supabase 400)
+      const mimeType = await detectBlobMime(webpBlob)
       const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/jpeg' ? 'jpg' : 'webp'
       const path = `${user.id}/avatar.${ext}`
       const { error: upErr } = await getSupabase()
@@ -1352,7 +1364,7 @@ export default function DashboardPage() {
     setLoading(true)
     try {
       const webpBlob = await compressToWebP(file, 1200, 500 * 1024)
-      const bannerMime = webpBlob.type || 'image/webp'
+      const bannerMime = await detectBlobMime(webpBlob)
       const bannerExt = bannerMime === 'image/png' ? 'png' : bannerMime === 'image/jpeg' ? 'jpg' : 'webp'
       const path = `${user.id}/banner_${Date.now()}.${bannerExt}`
       const { error: upErr } = await getSupabase()
