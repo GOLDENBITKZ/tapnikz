@@ -905,14 +905,24 @@ export default function DashboardPage() {
         let storagePath = ''
         if (productPhotoFile) {
           setProductPhotoUploading(true)
-          const blob = await compressToWebP(productPhotoFile, 600, 50 * 1024)
-          const ts = Date.now()
-          storagePath = `${user.id}/products/${ts}.jpg`
-          const { error: upErr } = await getSupabase().storage.from('avatars').upload(storagePath, blob, { contentType: 'image/jpeg', upsert: true })
-          setProductPhotoUploading(false)
-          if (upErr) { setLinkError('Не удалось загрузить фото'); return }
-          const { data: { publicUrl } } = getSupabase().storage.from('avatars').getPublicUrl(storagePath)
-          photoPublicUrl = publicUrl
+          try {
+            const blob = await compressToWebP(productPhotoFile, 600, 50 * 1024)
+            const form = new FormData()
+            form.append('file', blob, 'photo.jpg')
+            form.append('type', 'product')
+            const res = await fetch('/api/upload-image', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${accessToken}` },
+              body: form,
+            })
+            const json = await res.json()
+            if (!res.ok) throw new Error(json.error ?? 'upload failed')
+            photoPublicUrl = json.url
+            storagePath = json.path
+          } finally {
+            setProductPhotoUploading(false)
+          }
+          if (!photoPublicUrl) { setLinkError('Не удалось загрузить фото'); return }
         }
         const normalLink = productLinkUrl.startsWith('http') ? productLinkUrl : `https://${productLinkUrl}`
         const urlJson = JSON.stringify({
@@ -1296,18 +1306,18 @@ export default function DashboardPage() {
     setAvatarError('')
     setAvatarUploading(true)
     try {
-      const webpBlob = await compressToWebP(file, 200, 20 * 1024)
-      const path = `${user.id}/avatar.jpg`
-      const { error: upErr } = await getSupabase()
-        .storage.from('avatars')
-        .upload(path, webpBlob, { upsert: true, contentType: 'image/jpeg' })
-      if (upErr) throw upErr
-
-      const { data: { publicUrl } } = getSupabase()
-        .storage.from('avatars')
-        .getPublicUrl(path)
-
-      const cacheBusted = `${publicUrl}?t=${Date.now()}`
+      const blob = await compressToWebP(file, 200, 20 * 1024)
+      const form = new FormData()
+      form.append('file', blob, 'avatar.jpg')
+      form.append('type', 'avatar')
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form,
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'upload failed')
+      const cacheBusted = `${json.url}?t=${Date.now()}`
       await getSupabase().from('profiles').update({ avatar_url: cacheBusted }).eq('id', user.id)
       setProfile((p) => p ? { ...p, avatar_url: cacheBusted } : p)
     } catch (err) {
@@ -1350,17 +1360,19 @@ export default function DashboardPage() {
     onError('')
     setLoading(true)
     try {
-      const webpBlob = await compressToWebP(file, 1200, 500 * 1024)
-      const path = `${user.id}/banner_${Date.now()}.jpg`
-      const { error: upErr } = await getSupabase()
-        .storage.from('avatars')
-        .upload(path, webpBlob, { upsert: false, contentType: 'image/jpeg' })
-      if (upErr) throw upErr
-      const { data: { publicUrl } } = getSupabase()
-        .storage.from('avatars')
-        .getPublicUrl(path)
-      onSuccess(publicUrl)
-      onPath?.(path)
+      const blob = await compressToWebP(file, 1200, 500 * 1024)
+      const form = new FormData()
+      form.append('file', blob, 'banner.jpg')
+      form.append('type', 'banner')
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form,
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'upload failed')
+      onSuccess(json.url)
+      onPath?.(json.path)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       onError(`Ошибка загрузки: ${msg}`)
