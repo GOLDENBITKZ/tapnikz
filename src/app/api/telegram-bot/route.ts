@@ -887,7 +887,7 @@ export async function POST(request: Request) {
           await db.from('links').delete().eq('profile_id', prof.id)
           await db.from('payments').delete().eq('username', prof.username)
           await db.from('sales_commissions').delete().or(`manager_username.eq.${prof.username},client_username.eq.${prof.username}`)
-          await db.from('leads').delete().eq('profile_id', prof.id)
+          await db.from('lead_submissions').delete().eq('profile_id', prof.id)
           await db.from('profiles').delete().eq('id', prof.id)
           try { await db.auth.admin.deleteUser(prof.id) } catch { /* user may not exist in auth */ }
 
