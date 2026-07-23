@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   if ((existing ?? 0) > 0) return Response.json({ error: 'profile already has links' }, { status: 409 })
 
   const VALID_ICON_TYPES = new Set([
-    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr','ediny_qr','smart_qr',
+    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr','smart_qr',
     'twogis','website','phone','email','kolesa','krisha','vk','facebook','link',
     'text_block','product','lead_form','android','ios','menu','paypal',
     'instagram_dm','instagram_reel','follow_gate','milestone','instagram_keyword',

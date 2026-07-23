@@ -17,7 +17,7 @@ function checkGenerateRate(ip: string): boolean {
 const VALID_THEMES = ['dark', 'light', 'gradient', 'blogger', 'business', 'seller'] as const
 const VALID_ICONS = [
   'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube',
-  'kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'ediny_qr', 'smart_qr', 'twogis', 'website',
+  'kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'smart_qr', 'twogis', 'website',
   'phone', 'email', 'kolesa', 'krisha', 'vk', 'facebook',
   'link', 'android', 'ios', 'paypal',
 ] as const
@@ -47,13 +47,13 @@ function buildSystemPrompt(source: string, goal: string): string {
 
 КАЗАХСТАНСКИЙ КОНТЕКСТ:
 - Главный мессенджер: WhatsApp
-- Главный маркетплейс: Kaspi (kaspi_shop, kaspi_pay, kaspi_qr, ediny_qr)
+- Главный маркетплейс: Kaspi (kaspi_shop, kaspi_pay, kaspi_qr)
 - Главная карта: 2ГИС (twogis)
 - Для пекарен/цветочных/салонов → тема light, акцент на WhatsApp + адрес
 - Для IT/авто/ночных заведений → тема dark
 - Для Kaspi-продавцов → тема seller + kaspi_shop обязательно
 
-ДОСТУПНЫЕ icon_type: whatsapp, telegram, instagram, tiktok, youtube, kaspi, kaspi_pay, kaspi_shop, kaspi_qr, ediny_qr, twogis, website, phone, email, kolesa, krisha, vk, facebook, link, android, ios, paypal
+ДОСТУПНЫЕ icon_type: whatsapp, telegram, instagram, tiktok, youtube, kaspi, kaspi_pay, kaspi_shop, kaspi_qr, twogis, website, phone, email, kolesa, krisha, vk, facebook, link, android, ios, paypal
 
 ДОСТУПНЫЕ theme: dark, light, gradient, blogger, business, seller
 

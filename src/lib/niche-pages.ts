@@ -395,47 +395,6 @@ export const NICHE_PAGES: NichePage[] = [
       { icon: '🎵', label: 'TikTok' },
     ],
   },
-  // ─── Единый QR ───
-  {
-    slug: 'ediny-qr',
-    title: 'Единый QR — оплата для всех банков Казахстана',
-    metaTitle: 'Единый QR от Kaspi — принимайте оплату от Halyk, BCC, Freedom | tapni.kz',
-    metaDescription: 'Единый QR (с 19 июля 2026) — ваш QR-код Kaspi принимает оплату от клиентов любого банка: Halyk, BCC, Freedom, Altyn. Разместите QR на странице tapni.kz и принимайте оплату от каждого.',
-    h1: 'Единый QR — принимайте оплату от любого банка',
-    subtitle: 'С 19 июля 2026 года Kaspi запустил Единый QR. Один QR-код Kaspi теперь принимает оплату от клиентов Halyk Bank, BCC, Freedom Bank, Altyn Bank и других банков Казахстана. Разместите QR на tapni.kz — клиент платит с любого телефона.',
-    keywords: [
-      'единый qr казахстан', 'едины qr kaspi', 'единый qr оплата', 'единый qr все банки',
-      'kaspi qr halyk', 'единый межбанковский qr', 'МСМП qr казахстан',
-      'принять оплату любым банком казахстан', 'qr оплата все банки kz', 'единый qr 2026',
-    ],
-    audience: 'Предприниматели и продавцы Казахстана',
-    buttons: [
-      { icon: '🏦', label: 'Оплата — любой банк (Единый QR)' },
-      { icon: '💬', label: 'WhatsApp — вопрос' },
-      { icon: '🛒', label: 'Kaspi магазин' },
-      { icon: '📍', label: '2ГИС — адрес' },
-    ],
-  },
-  {
-    slug: 'ediny-qr-kaspi',
-    title: 'Как разместить Единый QR Kaspi на сайте или странице',
-    metaTitle: 'Единый QR Kaspi на странице — как принимать оплату от всех банков | tapni.kz',
-    metaDescription: 'Разместите Единый QR Kaspi на своей странице tapni.kz. Клиенты Halyk, BCC, Freedom, Altyn сканируют и платят мгновенно. Настройка за 2 минуты, бесплатно.',
-    h1: 'Единый QR Kaspi на вашей странице tapni.kz',
-    subtitle: 'Скопируйте ссылку pay.kaspi.kz из приложения Kaspi → вставьте в tapni.kz как «Единый QR». На странице появится сканируемый QR-код, кнопка «Открыть в Kaspi» и возможность сохранить QR в галерею. Принимайте оплату от всех банков Казахстана без терминала.',
-    keywords: [
-      'единый qr kaspi разместить', 'kaspi qr ссылка страница', 'как добавить qr kaspi на сайт',
-      'единый qr kaspi oплата halyk', 'kaspi qr bio instagram', 'kaspi qr ссылка whatsapp',
-      'как принять оплату через qr казахстан', 'единый qr kaspi настройка',
-    ],
-    audience: 'Продавцы и фрилансеры Казахстана',
-    buttons: [
-      { icon: '🏦', label: 'Единый QR — оплата' },
-      { icon: '💳', label: 'Kaspi Pay' },
-      { icon: '💬', label: 'WhatsApp' },
-      { icon: '🛒', label: 'Kaspi магазин' },
-    ],
-  },
   // ─── Страницы под косвенный трафик ───
   {
     slug: 'kak-privlech-klientov',

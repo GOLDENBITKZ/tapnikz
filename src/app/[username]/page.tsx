@@ -26,7 +26,7 @@ import { FaqBlock } from '@/components/faq-block'
 import { PricelistBlock } from '@/components/pricelist-block'
 import { ImageExpandBlock } from '@/components/image-expand-block'
 import { KaspiQrBlock } from '@/components/kaspi-qr-block'
-import { EdinyyQrBlock } from '@/components/ediny-qr-block'
+
 import { SmartQrBlock } from '@/components/smart-qr-block'
 import { LinkLogo } from '@/components/link-logo'
 import Link from 'next/link'
@@ -795,20 +795,6 @@ export default async function ProfilePage({ params }: Props) {
                 )
               }
 
-              if (link.icon_type === 'ediny_qr') {
-                if (!link.url.startsWith('https://')) return null
-                return (
-                  <div key={link.id} style={staggerStyle} className={`animate-btn-stagger${link.is_featured ? ' ring-2 ring-yellow-400/50 rounded-2xl' : ''}`}>
-                    <EdinyyQrBlock
-                      linkId={link.id}
-                      url={link.url}
-                      title={link.title || 'Оплата — любой банк'}
-                      username={profile.username}
-                      themeText={t.text}
-                    />
-                  </div>
-                )
-              }
 
               if (link.icon_type === 'smart_qr') {
                 let sqData: { ios?: string; android?: string; web?: string; label?: string } = {}

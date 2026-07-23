@@ -1934,7 +1934,7 @@ async function getPendingReceipt(chatId: string) {
     const { data: prof } = await adminDb
       .from('profiles').select('username').eq('telegram_chat_id', chatId).maybeSingle()
     if (prof?.username) {
-      const thirtyMinAgo = new Date(Date.now() - 30 * 60_000).toISOString()
+      const thirtyMinAgo = new Date(Date.now() - 120 * 60_000).toISOString()
       const { data: pmtRow } = await adminDb
         .from('payments').select('id, plan, days')
         .eq('username', prof.username).eq('status', 'pending')

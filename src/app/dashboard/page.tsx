@@ -25,7 +25,7 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'telegram',   label: '✈️ Telegram',         placeholder: 'https://t.me/username' },
   { value: 'kaspi_pay',  label: '💸 Kaspi Pay',        placeholder: 'https://pay.kaspi.kz/pay/...' },
   { value: 'kaspi_qr',   label: '📱 Kaspi Pay QR-код', placeholder: 'https://pay.kaspi.kz/pay/...' },
-  { value: 'ediny_qr',   label: '🏦 Единый QR — все банки', placeholder: 'https://pay.kaspi.kz/pay/...' },
+
   { value: 'smart_qr',   label: '📲 Smart QR — iOS / Android / Web ⚡', placeholder: '' },
   { value: 'kaspi',      label: '🛒 Kaspi магазин',    placeholder: 'https://kaspi.kz/shop/info/...' },
   { value: 'kaspi_shop', label: '🏪 Kaspi товар',      placeholder: 'https://kaspi.kz/shop/p/...' },
@@ -86,7 +86,6 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
     case 'kaspi_pay':
     case 'kaspi_shop':
     case 'kaspi_qr':  return { dot: 'bg-[#E50000]', ring: 'border-l-[#E50000]' }
-    case 'ediny_qr':  return { dot: 'bg-[#1A56DB]', ring: 'border-l-[#1A56DB]' }
     case 'smart_qr':  return { dot: 'bg-violet-500', ring: 'border-l-violet-500' }
     case 'twogis':     return { dot: 'bg-[#1DB256]', ring: 'border-l-[#1DB256]' }
     case 'kolesa':     return { dot: 'bg-[#FF6600]', ring: 'border-l-orange-500' }
@@ -1294,7 +1293,7 @@ export default function DashboardPage() {
   const qrFallbackRef = useRef<HTMLDivElement>(null)
   const qrDownloadRef = useRef<HTMLDivElement>(null)      // 600px with user/brand logo (may taint if user avatar is cross-origin)
   const qrDownloadBrandRef = useRef<HTMLDivElement>(null) // 600px with brand logo only (always clean)
-  const [helpType, setHelpType] = useState<'kaspi' | 'kaspi_pay' | 'kaspi_shop' | 'kaspi_qr' | 'ediny_qr' | 'smart_qr' | 'twogis' | null>(null)
+  const [helpType, setHelpType] = useState<'kaspi' | 'kaspi_pay' | 'kaspi_shop' | 'kaspi_qr' | 'smart_qr' | 'twogis' | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
 
@@ -1385,7 +1384,7 @@ export default function DashboardPage() {
   const atLimit = !profile?.is_premium && links.length >= FREE_LINK_LIMIT
   const profileUrl = profile ? `https://tapni.kz/${profile.username}` : ''
   const isTextType = linkForm.icon_type === 'text_block'
-  const showHelp = ['kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'ediny_qr', 'smart_qr', 'twogis'].includes(linkForm.icon_type)
+  const showHelp = ['kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'smart_qr', 'twogis'].includes(linkForm.icon_type)
 
   function downloadQr() {
     const filename = `tapni-qr-${profile?.username ?? 'code'}.png`
@@ -3210,7 +3209,7 @@ export default function DashboardPage() {
                 {helpType === 'kaspi' && '🛒 Как найти ссылку на Kaspi магазин?'}
                 {helpType === 'kaspi_pay' && '💸 Как найти ссылку Kaspi Pay?'}
                 {helpType === 'kaspi_qr'  && '📱 Kaspi Pay QR-код — как настроить?'}
-                {helpType === 'ediny_qr'  && '🏦 Единый QR — принимайте оплату от всех банков'}
+
                 {helpType === 'smart_qr'  && '📲 Smart QR — один код для iOS, Android и Web'}
                 {helpType === 'kaspi_shop' && '🏪 Как найти ссылку на товар Kaspi?'}
                 {helpType === 'twogis' && '📍 Как найти ссылку в 2ГИС?'}
@@ -3264,27 +3263,6 @@ export default function DashboardPage() {
               </>
             )}
 
-            {helpType === 'ediny_qr' && (
-              <>
-                <ol className="space-y-3 text-sm text-gray-600">
-                  {[
-                    'Откройте приложение Kaspi.kz',
-                    'Раздел «Платежи» → «Мой QR-код»',
-                    'Нажмите «Поделиться» и скопируйте ссылку',
-                    'Ссылка вида pay.kaspi.kz/pay/... — вставьте сюда',
-                  ].map((step, i) => (
-                    <li key={i} className="flex gap-3">
-                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">{i + 1}</span>
-                      {step}
-                    </li>
-                  ))}
-                </ol>
-                <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700 space-y-1.5">
-                  <p><b>🏦 Единый QR (с 19 июля 2026)</b> — ваш QR-код Kaspi теперь принимает оплату от клиентов <b>любого банка</b> Казахстана: Halyk, BCC, Freedom, Altyn и других.</p>
-                  <p>На странице отображается QR-код + кнопка «Открыть в Kaspi» для мобильных. Клиенты других банков могут сохранить QR и открыть его из галереи в своём банковском приложении.</p>
-                </div>
-              </>
-            )}
 
             {helpType === 'smart_qr' && (
               <>
