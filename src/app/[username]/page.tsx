@@ -59,6 +59,86 @@ function getVideoEmbedUrl(url: string): string | null {
 
 type Props = { params: Promise<{ username: string }> }
 
+// Brand-specific SEO data for popular KZ profiles
+const KNOWN_BRANDS: Record<string, {
+  title: string
+  desc: string
+  keywords: string
+  sameAs: string
+  type: string
+}> = {
+  'egov.kz': {
+    title: 'eGov.kz — телефон 1414, WhatsApp, контакты портала электронного правительства',
+    desc: 'Официальные контакты eGov.kz — портал электронного правительства Казахстана. Единый контакт-центр: 1414 (бесплатно с мобильного). Справки, госуслуги онлайн.',
+    keywords: 'egov.kz, электронное правительство Казахстан, 1414, госуслуги, справки онлайн, eGov контакты, телефон egov',
+    sameAs: 'https://egov.kz',
+    type: 'GovernmentOrganization',
+  },
+  'kolesa.kz': {
+    title: 'Kolesa.kz — телефон, WhatsApp, контакты автопортала Казахстана',
+    desc: 'Официальные контакты Kolesa.kz — автомобильный портал №1 в Казахстане. Продажа и покупка авто, запчастей. Служба поддержки Kolesa.kz.',
+    keywords: 'kolesa.kz контакты, телефон колеса, kolesa служба поддержки, автопортал Казахстан, купить авто Казахстан',
+    sameAs: 'https://kolesa.kz',
+    type: 'Organization',
+  },
+  'krisha.kz': {
+    title: 'Krisha.kz — телефон, WhatsApp, контакты платформы недвижимости',
+    desc: 'Официальные контакты Krisha.kz — платформа №1 для покупки, продажи и аренды недвижимости в Казахстане. Служба поддержки Krisha.kz.',
+    keywords: 'krisha.kz контакты, телефон криша, недвижимость Казахстан, аренда квартир, купить квартиру Казахстан',
+    sameAs: 'https://krisha.kz',
+    type: 'Organization',
+  },
+  'halyk.kz': {
+    title: 'Halyk Bank (Народный Банк) — телефон, WhatsApp, контакты',
+    desc: 'Официальные контакты Halyk Bank — крупнейший банк Казахстана. Телефон колл-центра, WhatsApp, адреса отделений. Народный Банк Казахстана.',
+    keywords: 'Halyk Bank контакты, Народный Банк телефон, халык банк горячая линия, банк Казахстан, halyk.kz',
+    sameAs: 'https://halyk.kz',
+    type: 'BankOrCreditUnion',
+  },
+  'kurs.kz': {
+    title: 'Kurs.kz — курсы валют, контакты обменных пунктов Казахстана',
+    desc: 'Kurs.kz — актуальные курсы валют в обменных пунктах Казахстана. Доллар, евро, рубль. Лучший курс обмена валюты онлайн.',
+    keywords: 'kurs.kz, курс доллара Казахстан, обменный пункт, курс евро, курс рубля, валюта Алматы',
+    sameAs: 'https://kurs.kz',
+    type: 'FinancialService',
+  },
+  'azan.kz': {
+    title: 'Azan.kz — контакты, WhatsApp Центральной мечети Алматы',
+    desc: 'Официальные контакты Azan.kz — исламский портал и Центральная мечеть Алматы. Время намаза, расписание, контакты имамов.',
+    keywords: 'azan.kz, Центральная мечеть Алматы, время намаза, исламский портал Казахстан, мечеть контакты',
+    sameAs: 'https://azan.kz',
+    type: 'ReligiousOrganization',
+  },
+  '24.kz': {
+    title: '24KZ — телефон, контакты первого информационного телеканала Казахстана',
+    desc: 'Официальные контакты 24KZ — первый национальный круглосуточный информационный телеканал Казахстана. Новости, редакция, реклама.',
+    keywords: '24kz, 24.kz контакты, телеканал 24 Казахстан, новости Казахстан онлайн, телефон редакции',
+    sameAs: 'https://24.kz',
+    type: 'TelevisionStation',
+  },
+  'billimclass.kz': {
+    title: 'BilimClass.kz — контакты, техподдержка образовательной платформы',
+    desc: 'Официальные контакты BilimClass.kz — цифровая образовательная платформа для школ Казахстана. Техническая поддержка, вопросы учителям.',
+    keywords: 'bilimclass.kz, BilimLand контакты, образовательная платформа Казахстан, электронный учебник, школа онлайн',
+    sameAs: 'https://bilimclass.kz',
+    type: 'EducationalOrganization',
+  },
+  'kundelik': {
+    title: 'Kündelik.kz — контакты, техподдержка электронного дневника',
+    desc: 'Официальные контакты Kündelik.kz — единая цифровая образовательная система и электронный дневник для школ Казахстана. Техподдержка.',
+    keywords: 'kundelik.kz, электронный дневник Казахстан, portal.kundelik.kz, школьный журнал онлайн, тех поддержка',
+    sameAs: 'https://portal.kundelik.kz',
+    type: 'EducationalOrganization',
+  },
+  'newtimes.kz': {
+    title: 'NewTimes.kz — контакты, WhatsApp редакции новостного агентства',
+    desc: 'Официальные контакты NewTimes.kz — популярное казахстанское информационное агентство. Политика, экономика, происшествия, спорт.',
+    keywords: 'newtimes.kz, новости Казахстан, информационное агентство, СМИ Казахстан, редакция контакты',
+    sameAs: 'https://newtimes.kz',
+    type: 'NewsMediaOrganization',
+  },
+}
+
 const getData = cache(async (username: string) => {
   // Use admin client — public profile reads must not expose raw Supabase REST API to anon
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,6 +167,42 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!profile) return {
     title: `tapni.kz/${username} — страница не найдена`,
     robots: { index: false, follow: false },
+  }
+
+  // Brand-specific SEO overrides for known popular KZ profiles
+  const brand = KNOWN_BRANDS[username.toLowerCase()]
+  if (brand) {
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': brand.type,
+      name: profile.business_name,
+      url: `https://tapni.kz/${username}`,
+      sameAs: [brand.sameAs],
+      description: brand.desc,
+      ...(profile.phone ? { telephone: `+${profile.phone}` } : {}),
+      ...(profile.address ? { address: { '@type': 'PostalAddress', addressLocality: profile.address, addressCountry: 'KZ' } } : {}),
+      ...(profile.avatar_url ? { logo: { '@type': 'ImageObject', url: profile.avatar_url } } : {}),
+    }
+    return {
+      title: { absolute: brand.title },
+      description: brand.desc,
+      keywords: brand.keywords,
+      openGraph: {
+        title: brand.title,
+        description: brand.desc,
+        url: `https://tapni.kz/${username}`,
+        siteName: 'tapni.kz',
+        type: 'profile',
+        images: profile.avatar_url
+          ? [{ url: profile.avatar_url, width: 400, height: 400, alt: profile.business_name }]
+          : [{ url: 'https://tapni.kz/brand-logo.jpeg', width: 1024, height: 1024, alt: 'tapni.kz' }],
+      },
+      twitter: { card: 'summary_large_image', site: '@tapnikz' },
+      alternates: { canonical: `https://tapni.kz/${username}` },
+      other: {
+        'application/ld+json': JSON.stringify(jsonLd).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f'),
+      },
+    }
   }
 
   // Build rich description: bio + address + detected service hints
@@ -391,6 +507,23 @@ export default async function ProfilePage({ params }: Props) {
   return (
     <main className={`relative min-h-screen ${t.bg} overflow-hidden`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f') }} />
+      {KNOWN_BRANDS[username] && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': KNOWN_BRANDS[username].type,
+              name: profile.business_name,
+              url: `https://tapni.kz/${username}`,
+              sameAs: [KNOWN_BRANDS[username].sameAs],
+              description: KNOWN_BRANDS[username].desc,
+              ...(profile.phone ? { telephone: `+${profile.phone}` } : {}),
+              ...(profile.avatar_url ? { logo: { '@type': 'ImageObject', url: profile.avatar_url } } : {}),
+            }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\//g, '\\u002f'),
+          }}
+        />
+      )}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className={`absolute -top-32 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full blur-[120px] ${t.glow1}`} />
         <div className={`absolute bottom-0 right-0 h-[300px] w-[300px] rounded-full blur-[80px] ${t.glow2}`} />

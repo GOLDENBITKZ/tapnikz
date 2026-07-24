@@ -16,7 +16,7 @@ export function ProfileAvatar({ avatarUrl, letter, size = 96, className = '' }: 
   const fontSize = Math.round(s * 0.38)
 
   const containerStyle = { width: s, height: s }
-  const baseClass = `relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-xl shadow-black/25 ring-[3px] ring-white/15 ${className}`
+  const baseClass = `relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-xl shadow-black/25 ring-[3px] ring-white/15 ${className}`
 
   if (!avatarUrl || failed) {
     return (

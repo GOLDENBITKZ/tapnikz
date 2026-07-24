@@ -239,6 +239,7 @@ function AuthPageInner() {
       const token = authData.session?.access_token
       fetch('/api/notify-admin', {
         method: 'POST',
+        keepalive: true,  // survives page unload/redirect
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),

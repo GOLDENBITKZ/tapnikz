@@ -142,6 +142,7 @@ const ADMIN_HELP = `<b>tapni.kz Admin Panel</b>
 
 <b>Сообщения</b>
 /message <i>username текст</i> — отправить сообщение пользователю
+/setphone <i>username +7XXXXXXXXXX</i> — изменить номер телефона
 /reset <i>username</i> — сбросить пароль (или /reset +77001234567)
 /delete <i>username</i> — удалить аккаунт (двухшаговое подтверждение)
 
@@ -824,6 +825,45 @@ export async function POST(request: Request) {
         const lines = (data as { username: string; phone: string | null; subscription_expires_at: string | null }[])
           .map((p) => `🔴 <b>${p.username}</b> +${p.phone ?? '?'} — истёк ${new Date(p.subscription_expires_at!).toLocaleDateString('ru-KZ')}`)
         await reply(`🔴 <b>Истёкшие (7 дней):</b>\n\n${lines.join('\n')}`)
+
+      } else if (cmd === '/setphone') {
+        const uname = parts[1]?.toLowerCase()
+        const newPhone = parts[2]?.replace(/\D/g, '')
+        if (!uname || !newPhone || newPhone.length < 10) {
+          await reply('Использование: /setphone username +77001234567\nПример: /setphone demo +77001234567')
+          return Response.json({ ok: true })
+        }
+        const db = getSupabaseAdmin() as any
+        const { data: prof, error: findErr } = await db
+          .from('profiles')
+          .select('id, business_name, phone, telegram_chat_id')
+          .eq('username', uname)
+          .maybeSingle()
+        if (findErr || !prof) {
+          await reply(`❌ Пользователь <b>${uname}</b> не найден`)
+          return Response.json({ ok: true })
+        }
+        const oldPhone = prof.phone ?? '?'
+        const { error: updErr } = await db
+          .from('profiles')
+          .update({ phone: newPhone, updated_at: new Date().toISOString() })
+          .eq('id', prof.id)
+        if (updErr) {
+          await reply(`❌ Ошибка: <code>${esc(updErr.message ?? updErr.code)}</code>`)
+        } else {
+          await reply(
+            `✅ <b>Номер изменён</b>\n\n` +
+            `👤 ${esc(prof.business_name)} (@${uname})\n` +
+            `📱 +${oldPhone} → +${newPhone}`
+          )
+          if (prof.telegram_chat_id) {
+            await tgPost('sendMessage', {
+              chat_id: prof.telegram_chat_id,
+              text: `ℹ️ Ваш номер телефона в аккаунте tapni.kz был изменён администратором.\n\nНовый номер: +${newPhone}`,
+              parse_mode: 'HTML',
+            })
+          }
+        }
 
       } else if (cmd === '/reset') {
         // /reset username  OR  /reset +77001234567

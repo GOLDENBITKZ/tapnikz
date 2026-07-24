@@ -170,6 +170,19 @@ const FEATURES = [
   { icon: '⚡', title: 'Готово за 60 секунд', desc: 'Без кода, дизайнера и домена. Регистрация по номеру телефона — и страница готова.' },
 ]
 
+const POPULAR_SITES = [
+  { username: 'egov.kz',        name: 'eGov.kz',        label: 'Госуслуги',      avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/db7a12bb-080e-4b23-b9e8-5f078d3f32c9/avatar.jpg?t=1784806304666' },
+  { username: 'kolesa.kz',      name: 'Kolesa.kz',      label: 'Авто',           avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/de25ab02-8382-441c-8318-c21c849f5e68/avatar.jpg?t=1784812311320' },
+  { username: 'krisha.kz',      name: 'Krisha.kz',      label: 'Недвижимость',   avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/23bc3e7c-5c02-48a6-8f2e-ec86999dabfd/avatar.jpg?t=1784910963900' },
+  { username: 'halyk.kz',       name: 'Halyk Bank',     label: 'Банк',           avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/916371aa-1f8a-4790-a7b1-181bd048c922/avatar.jpg?t=1784913683069' },
+  { username: 'kurs.kz',        name: 'Kurs.kz',        label: 'Финансы',        avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/bfcfa5da-385e-42db-9c11-36c807506cf4/avatar.jpg?t=1784912180259' },
+  { username: '24.kz',          name: '24KZ',           label: 'ТВ-канал',       avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/67899605-5466-433e-b5ac-ab8dd5be99e6/avatar.jpg?t=1784915104120' },
+  { username: 'azan.kz',        name: 'Azan.kz',        label: 'Мечеть Алматы', avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/0cba79d8-bcef-4f1a-9a1c-803390de21e1/avatar.jpg?t=1784914148850' },
+  { username: 'billimclass.kz', name: 'BilimClass',     label: 'Образование',    avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/8e707818-da5a-464f-8b3c-7c3ee29edafc/avatar.jpg?t=1784918147191' },
+  { username: 'kundelik',       name: 'Kündelik.kz',   label: 'Эл. дневник',   avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/55e0af8c-f1b8-4740-8037-c62ee38937c5/avatar.jpg?t=1784918776302' },
+  { username: 'newtimes.kz',    name: 'NewTimes.kz',   label: 'Новости',        avatar: 'https://ahsfumqlrpikkeriyngv.supabase.co/storage/v1/object/public/avatars/e3a7a27b-464e-44e1-8c33-4e0e952a8bf1/avatar.jpg?t=1784920554967' },
+]
+
 async function getLiveStats() {
   try {
     const db = getSupabaseAdmin()
@@ -249,6 +262,39 @@ export default async function LandingPage() {
               <span key={i} className={`inline-flex flex-shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${p.color}`}>
                 {p.label}
               </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Popular KZ websites ── */}
+      <section className="relative px-5 py-10" aria-label="Популярные сайты Казахстана">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-6 text-center">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Они уже с нами</p>
+            <h2 className="text-lg font-extrabold text-gray-900">Популярные сайты Казахстана выбрали tapni.kz</h2>
+            <p className="mt-1 text-sm text-gray-500">Цифровые визитки для крупнейших казахстанских брендов</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+            {POPULAR_SITES.map((site) => (
+              <Link
+                key={site.username}
+                href={`/${site.username}`}
+                className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-4 shadow-sm transition-all hover:border-violet-300 hover:shadow-md active:scale-[0.97]"
+              >
+                <img
+                  src={site.avatar}
+                  alt={site.name}
+                  className="h-14 w-14 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-violet-200 transition-all"
+                  loading="lazy"
+                  width={56}
+                  height={56}
+                />
+                <div className="text-center">
+                  <p className="text-[12px] font-bold text-gray-900 leading-tight">{site.name}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{site.label}</p>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
