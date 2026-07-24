@@ -574,7 +574,7 @@ export default async function LandingPage() {
                 ))}
               </div>
               <div>
-                <p className="mb-1 text-lg font-extrabold text-gray-900">tapni.kz/tapnikz</p>
+                <p className="mb-1 text-lg font-extrabold text-gray-900">tapni.kz/egov.kz</p>
                 <p className="text-sm text-gray-600 leading-relaxed">
                   Одна ссылка — все контакты. Клиент сразу выбирает куда написать или как добраться.
                 </p>

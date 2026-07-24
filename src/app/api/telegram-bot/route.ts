@@ -1468,6 +1468,42 @@ async function adminActivateHandler(adminChatIdVal: string, username: string, da
           admin_tg_id: adminChatIdVal,
           provider: 'admin_confirmed',
         }).eq('id', pendingPmt.id)
+
+        // Create manager commission when confirming a REAL pending payment
+        // (not for free promo inserts — those have no prior pending row)
+        try {
+          const { data: clientRow } = await adminDb.from('profiles').select('referred_by, is_promo').eq('username', username).maybeSingle()
+          if (clientRow?.referred_by && !clientRow.is_promo && clientRow.referred_by !== username) {
+            const { data: mgr } = await adminDb.from('profiles').select('is_manager, telegram_chat_id').eq('username', clientRow.referred_by).eq('is_manager', true).maybeSingle()
+            if (mgr) {
+              const { data: existingComm } = await adminDb.from('sales_commissions').select('id').eq('payment_id', pendingPmt.id).maybeSingle()
+              const { data: prevComm } = await adminDb.from('sales_commissions').select('id').eq('manager_username', clientRow.referred_by).eq('client_username', username).neq('status', 'cancelled').limit(1).maybeSingle()
+              if (!existingComm && !prevComm) {
+                const commAmt = Math.round(amount * 0.20)
+                await adminDb.from('sales_commissions').insert({
+                  manager_username: clientRow.referred_by,
+                  client_username: username,
+                  payment_id: pendingPmt.id,
+                  plan,
+                  sale_amount: amount,
+                  commission_amount: commAmt,
+                })
+                if (mgr.telegram_chat_id) {
+                  await tgPost('sendMessage', {
+                    chat_id: mgr.telegram_chat_id,
+                    text:
+                      `💰 <b>Новая комиссия!</b>\n\n` +
+                      `Клиент <b>@${username}</b> оплатил ${plan === 'annual' ? 'годовой' : 'месячный'} Premium.\n` +
+                      `Ваша комиссия: <b>${commAmt.toLocaleString('ru-KZ')} ₸</b> — ожидает выплаты.\n\n` +
+                      `Кабинет: ${SITE_URL}/manager`,
+                    parse_mode: 'HTML',
+                  })
+                }
+              }
+            }
+          }
+        } catch { /* non-fatal — sales_commissions may not exist yet */ }
+
       } else {
         await adminDb.from('payments').insert({
           username,
