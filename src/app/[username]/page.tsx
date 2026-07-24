@@ -221,7 +221,7 @@ function getButtonStyle(type: IconType): BtnStyle | null {
     case 'instagram':  return { cls: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-90', iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(253,29,29,0.40)' }
     case 'tiktok':     return { cls: 'bg-gradient-to-br from-[#010101] to-[#1a1a2e] border border-[#69C9D0]/30 hover:opacity-90', iconBg: 'bg-[#69C9D0]/20', shadow: '0 4px 20px rgba(105,201,208,0.30)' }
     case 'youtube':    return { cls: 'bg-[#FF0000] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,0,0,0.45)' }
-    case 'vk':         return { cls: 'bg-[#0077FF] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,119,255,0.45)' }
+    case 'vk':         return { cls: 'bg-[#4C75A3] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(76,117,163,0.45)' }
     case 'facebook':   return { cls: 'bg-[#1877F2] hover:opacity-90',                                          iconBg: 'bg-white/25', shadow: '0 6px 24px rgba(24,119,242,0.45)' }
     // Kaspi family — same brand hue but visually distinct treatment
     case 'kaspi':      return { cls: 'bg-[#F14635] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(241,70,53,0.50)' }
