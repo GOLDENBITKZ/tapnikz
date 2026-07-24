@@ -134,7 +134,7 @@ const SMART_INPUTS: Partial<Record<IconType, { prefix: string; placeholder: stri
   youtube:   { prefix: 'youtube.com/@', placeholder: 'channel' },
   vk:        { prefix: 'vk.com/', placeholder: 'nickname' },
   facebook:  { prefix: 'facebook.com/', placeholder: 'page-name' },
-  phone:     { prefix: '+7', placeholder: '701 234 5678' },
+  phone:     { prefix: '+7', placeholder: '701 234 5678 · 111 · 8800' },
 }
 
 // Compress image to JPEG — universally supported in all browsers including YaBrowser.
@@ -590,7 +590,11 @@ export default function DashboardPage() {
     }
     if (type === 'phone') {
       const digits = u.replace(/\D/g, '')
-      return `tel:+${digits.length === 10 ? '7' + digits : digits}`
+      if (!digits) return ''
+      if (digits.length <= 7) return `tel:${digits}`
+      if (digits.length === 11 && digits.startsWith('8')) return `tel:+7${digits.slice(1)}`
+      if (digits.length === 10) return `tel:+7${digits}`
+      return `tel:+${digits}`
     }
     if (type === 'email') {
       if (u.startsWith('mailto:')) return u
@@ -1106,11 +1110,16 @@ export default function DashboardPage() {
       // Simple link: strip protocol/prefix for smart-input types
       const si = SMART_INPUTS[t]
       if (si) {
-        const stripped = link.url
-          .replace(/^https?:\/\//, '')
-          .replace(si.prefix, '')
-          .replace(/^@/, '')
-        setEditUrl(stripped)
+        if (t === 'phone') {
+          const digits = link.url.replace(/\D/g, '')
+          setEditUrl(digits.length === 11 && digits.startsWith('7') ? digits.slice(1) : digits)
+        } else {
+          const stripped = link.url
+            .replace(/^https?:\/\//, '')
+            .replace(si.prefix, '')
+            .replace(/^@/, '')
+          setEditUrl(stripped)
+        }
       } else {
         setEditUrl(link.url)
       }
@@ -2581,7 +2590,9 @@ export default function DashboardPage() {
                   ) : SMART_INPUTS[linkForm.icon_type] ? (
                     <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60 transition-colors">
                       <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 py-3 text-xs font-mono text-gray-500 select-none whitespace-nowrap">
-                        {SMART_INPUTS[linkForm.icon_type]!.prefix}
+                        {linkForm.icon_type === 'phone'
+                          ? (linkForm.url.replace(/\D/g, '').length > 0 && linkForm.url.replace(/\D/g, '').length <= 7 ? '☎' : '+7')
+                          : SMART_INPUTS[linkForm.icon_type]!.prefix}
                       </span>
                       <input
                         type="text"
@@ -2926,7 +2937,11 @@ export default function DashboardPage() {
                             {!isJsonType && (
                               si ? (
                                 <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 focus-within:border-violet-500/60">
-                                  <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-xs font-mono text-gray-500 whitespace-nowrap">{si.prefix}</span>
+                                  <span className="flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-xs font-mono text-gray-500 whitespace-nowrap">
+                                    {t === 'phone'
+                                      ? (editUrl.replace(/\D/g, '').length > 0 && editUrl.replace(/\D/g, '').length <= 7 ? '☎' : '+7')
+                                      : si.prefix}
+                                  </span>
                                   <input type="text" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder={si.placeholder} className="flex-1 bg-transparent px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none" />
                                 </div>
                               ) : (
