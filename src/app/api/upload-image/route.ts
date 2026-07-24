@@ -3,6 +3,24 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
 
+// Per-user rate limit: max 20 uploads per hour (prevents storage spam)
+const uploadRateMap = new Map<string, { count: number; resetAt: number }>()
+function checkUploadRate(userId: string): boolean {
+  const now = Date.now()
+  const entry = uploadRateMap.get(userId)
+  if (!entry || now > entry.resetAt) {
+    // Prune map if it grows too large (>500 entries = unlikely normal usage)
+    if (uploadRateMap.size > 500) {
+      for (const [k, v] of uploadRateMap) { if (now > v.resetAt) uploadRateMap.delete(k) }
+    }
+    uploadRateMap.set(userId, { count: 1, resetAt: now + 3_600_000 })
+    return true
+  }
+  if (entry.count >= 20) return false
+  entry.count++
+  return true
+}
+
 function detectImageType(bytes: Uint8Array): 'jpeg' | 'png' | 'webp' | null {
   if (bytes[0] === 0xFF && bytes[1] === 0xD8) return 'jpeg'
   if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'png'
@@ -21,6 +39,10 @@ export async function POST(request: NextRequest) {
     const admin = getSupabaseAdmin() as any
     const { data: { user }, error: authErr } = await admin.auth.getUser(token)
     if (!user || authErr) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    if (!checkUploadRate(user.id)) {
+      return NextResponse.json({ error: 'Слишком много загрузок. Попробуйте через час.' }, { status: 429 })
+    }
 
     let form: FormData
     try { form = await request.formData() } catch {

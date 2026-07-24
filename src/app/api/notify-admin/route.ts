@@ -12,6 +12,10 @@ function checkRate(username: string): boolean {
   const now = Date.now()
   const entry = rateMap.get(username)
   if (!entry || now > entry.resetAt) {
+    // Prune expired entries when map grows large to prevent memory leak
+    if (rateMap.size > 200) {
+      for (const [k, v] of rateMap) { if (now > v.resetAt) rateMap.delete(k) }
+    }
     rateMap.set(username, { count: 1, resetAt: now + 3600_000 })
     return true
   }

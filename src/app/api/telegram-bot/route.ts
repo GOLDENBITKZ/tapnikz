@@ -7,6 +7,23 @@ import Groq from 'groq-sdk'
 // Cleared after photo received or after 10 minutes
 const receiptPending = new Map<string, { username: string; plan: 'monthly' | 'annual'; days: number; paymentId: string | null; ts: number }>()
 
+// Rate limit receipt photo submissions: max 5 per chatId per hour (protects Groq Vision quota)
+const receiptRateMap = new Map<string, { count: number; resetAt: number }>()
+function checkReceiptRate(chatId: string): boolean {
+  const now = Date.now()
+  const entry = receiptRateMap.get(chatId)
+  if (!entry || now > entry.resetAt) {
+    if (receiptRateMap.size > 500) {
+      for (const [k, v] of receiptRateMap) { if (now > v.resetAt) receiptRateMap.delete(k) }
+    }
+    receiptRateMap.set(chatId, { count: 1, resetAt: now + 3_600_000 })
+    return true
+  }
+  if (entry.count >= 5) return false
+  entry.count++
+  return true
+}
+
 // Escape user-controlled strings before embedding in Telegram HTML messages
 function esc(s: unknown): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1946,25 +1963,28 @@ async function validateReceiptWithGroq(imageBase64: string): Promise<{
 
   try {
     const groq = new Groq({ apiKey })
-    const completion = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [{
-        role: 'user',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        content: [
-          {
-            type: 'text',
-            text: 'Это квитанция об оплате (Kaspi, Халык Банк или другой банк Казахстана)? Извлеки данные и ответь ТОЛЬКО в JSON без пояснений:\n{"is_receipt":true/false,"amount":число_тенге_или_null,"transaction_id":"строка_или_null","recipient":"строка_или_null","confidence":"high/low"}\nConfidence=high если сумма и ID транзакции чётко видны. Если это не чек — {"is_receipt":false,"amount":null,"transaction_id":null,"recipient":null,"confidence":"low"}',
-          } as any,
-          {
-            type: 'image_url',
-            image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
-          } as any,
-        ],
-      }],
-      max_tokens: 150,
-      temperature: 0.1,
-    })
+    const completion = await Promise.race([
+      groq.chat.completions.create({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [{
+          role: 'user',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          content: [
+            {
+              type: 'text',
+              text: 'Это квитанция об оплате (Kaspi, Халык Банк или другой банк Казахстана)? Извлеки данные и ответь ТОЛЬКО в JSON без пояснений:\n{"is_receipt":true/false,"amount":число_тенге_или_null,"transaction_id":"строка_или_null","recipient":"строка_или_null","confidence":"high/low"}\nConfidence=high если сумма и ID транзакции чётко видны. Если это не чек — {"is_receipt":false,"amount":null,"transaction_id":null,"recipient":null,"confidence":"low"}',
+            } as any,
+            {
+              type: 'image_url',
+              image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
+            } as any,
+          ],
+        }],
+        max_tokens: 150,
+        temperature: 0.1,
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('groq_timeout')), 15_000)),
+    ])
 
     const text = completion.choices[0]?.message?.content ?? ''
     const jsonMatch = text.match(/\{[\s\S]*\}/)
@@ -2025,6 +2045,15 @@ async function handleReceiptPhoto(
 }
 
 async function handleReceiptPhotoById(chatId: string, fileId: string) {
+  if (!checkReceiptRate(chatId)) {
+    await tgPost('sendMessage', {
+      chat_id: chatId,
+      text: '⏳ Слишком много чеков. Попробуйте через час.',
+      parse_mode: 'HTML',
+    })
+    return
+  }
+
   const pending = await getPendingReceipt(chatId)
 
   if (!pending) {
