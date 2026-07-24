@@ -67,7 +67,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
           onClick={closeModal}
         >
           <div
-            className={`w-full max-w-sm rounded-3xl border border-white/[0.08] ${themeBg} p-6 shadow-2xl`}
+            className={`w-full max-w-sm rounded-3xl border ${themeCard.split(' ').find(c => c.startsWith('border-')) ?? 'border-white/[0.08]'} ${themeBg} p-6 shadow-2xl`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-center justify-between">
@@ -78,7 +78,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
               <button
                 onClick={closeModal}
                 aria-label="Закрыть"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-gray-400 transition-colors hover:text-white"
+                className={`flex h-8 w-8 items-center justify-center rounded-full bg-black/10 ${themeText} transition-opacity hover:opacity-70`}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -110,8 +110,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Алибек"
                     autoComplete="name"
-                    className={`w-full rounded-xl border border-white/10 ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
-                    style={{ background: 'rgba(255,255,255,0.05)' }}
+                    className={`w-full rounded-xl border ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
                   />
                 </div>
 
@@ -126,8 +125,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
                     placeholder="+7 700 123 4567"
                     autoComplete="tel"
                     inputMode="tel"
-                    className={`w-full rounded-xl border border-white/10 ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
-                    style={{ background: 'rgba(255,255,255,0.05)' }}
+                    className={`w-full rounded-xl border ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
                   />
                 </div>
 
@@ -142,8 +140,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
                     placeholder="info@example.com"
                     autoComplete="email"
                     inputMode="email"
-                    className={`w-full rounded-xl border border-white/10 ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
-                    style={{ background: 'rgba(255,255,255,0.05)' }}
+                    className={`w-full rounded-xl border ${themeCard} px-3 py-3 text-base ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
                   />
                 </div>
 
@@ -156,8 +153,7 @@ export function LeadFormButton({ linkId, title, username, themeCard, themeText, 
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Укажите удобное время или дополнительные детали..."
                     rows={2}
-                    className={`w-full resize-none rounded-xl border border-white/10 ${themeCard} px-3 py-3 text-sm ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
-                    style={{ background: 'rgba(255,255,255,0.05)' }}
+                    className={`w-full resize-none rounded-xl border ${themeCard} px-3 py-3 text-sm ${themeText} placeholder-gray-500 outline-none transition-colors focus:border-violet-500/60`}
                   />
                 </div>
 

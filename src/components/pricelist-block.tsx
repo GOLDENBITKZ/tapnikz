@@ -9,11 +9,12 @@ interface Props {
   linkId: string
   title: string
   items: PriceItem[]
+  themeCard: string
   themeText: string
   themeSubtext: string
 }
 
-export function PricelistBlock({ linkId, title, items, themeText, themeSubtext }: Props) {
+export function PricelistBlock({ linkId, title, items, themeCard, themeText, themeSubtext }: Props) {
   const [open, setOpen] = useState(false)
 
   function handleToggle() {
@@ -39,11 +40,11 @@ export function PricelistBlock({ linkId, title, items, themeText, themeSubtext }
       </button>
 
       {open && (
-        <div className="overflow-hidden rounded-b-2xl border border-t-0 border-white/10 bg-white/[0.04]">
+        <div className={`overflow-hidden rounded-b-2xl border border-t-0 ${themeCard}`}>
           {items.map((item, i) => (
             <div
               key={i}
-              className={`flex items-baseline justify-between gap-3 px-5 py-3 ${i < items.length - 1 ? 'border-b border-white/[0.06]' : ''}`}
+              className={`flex items-baseline justify-between gap-3 px-5 py-3 ${i < items.length - 1 ? `border-b ${themeCard.includes('border-gray-') ? 'border-gray-100' : 'border-white/[0.06]'}` : ''}`}
             >
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium ${themeText}`}>{item.name}</p>

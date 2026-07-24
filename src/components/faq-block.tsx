@@ -9,11 +9,12 @@ interface Props {
   linkId: string
   title: string
   items: FaqItem[]
+  themeCard: string
   themeText: string
   themeSubtext: string
 }
 
-export function FaqBlock({ linkId, title, items, themeText, themeSubtext }: Props) {
+export function FaqBlock({ linkId, title, items, themeCard, themeText, themeSubtext }: Props) {
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState<number | null>(null)
 
@@ -41,9 +42,9 @@ export function FaqBlock({ linkId, title, items, themeText, themeSubtext }: Prop
       </button>
 
       {open && (
-        <div className="overflow-hidden rounded-b-2xl border border-t-0 border-white/10 bg-white/[0.04]">
+        <div className={`overflow-hidden rounded-b-2xl border border-t-0 ${themeCard}`}>
           {items.map((item, i) => (
-            <div key={i} className={i < items.length - 1 ? 'border-b border-white/[0.06]' : ''}>
+            <div key={i} className={i < items.length - 1 ? `border-b ${themeCard.includes('border-gray-') ? 'border-gray-100' : 'border-white/[0.06]'}` : ''}>
               <button
                 type="button"
                 onClick={() => setActiveIdx(activeIdx === i ? null : i)}

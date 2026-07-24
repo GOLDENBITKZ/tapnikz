@@ -11,7 +11,9 @@ interface Props {
 }
 
 function getRemaining(target: string) {
-  const diff = new Date(target).getTime() - Date.now()
+  const ts = new Date(target).getTime()
+  if (isNaN(ts)) return null
+  const diff = ts - Date.now()
   if (diff <= 0) return null
   const d = Math.floor(diff / 86400000)
   const h = Math.floor((diff % 86400000) / 3600000)

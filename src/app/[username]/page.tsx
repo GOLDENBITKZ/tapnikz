@@ -433,7 +433,7 @@ export default async function ProfilePage({ params }: Props) {
               <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
                 status.isOpen
                   ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-500/20'
-                  : 'bg-white/[0.06] text-gray-400 ring-1 ring-white/10'
+                  : 'bg-black/[0.06] text-gray-500 ring-1 ring-black/[0.1]'
               }`}>
                 <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
                 {status.label}
@@ -514,7 +514,7 @@ export default async function ProfilePage({ params }: Props) {
                         <div className="mb-3 flex items-start justify-between gap-2">
                           <p className={`font-bold text-sm leading-tight ${t.text}`}>{link.title}</p>
                           {pd.price && (
-                            <span className="flex-shrink-0 rounded-lg bg-violet-600/20 px-2.5 py-1 text-xs font-bold text-violet-300">
+                            <span className={`flex-shrink-0 rounded-lg bg-violet-600/20 px-2.5 py-1 text-xs font-bold ${t.card.includes('border-gray-') ? 'text-violet-700' : 'text-violet-300'}`}>
                               {pd.price}
                             </span>
                           )}
@@ -696,6 +696,7 @@ export default async function ProfilePage({ params }: Props) {
                       linkId={link.id}
                       title={pd.title || link.title || 'Прайс-лист'}
                       items={items}
+                      themeCard={t.card}
                       themeText={t.text}
                       themeSubtext={t.subtext}
                     />
@@ -718,6 +719,8 @@ export default async function ProfilePage({ params }: Props) {
                         linkId={link.id}
                         hasLink={!!img.link}
                         linkHref={img.link ? `/api/click?id=${link.id}` : undefined}
+                        themeCard={t.card}
+                        themeText={t.text}
                       />
                     </div>
                   )
@@ -775,6 +778,7 @@ export default async function ProfilePage({ params }: Props) {
                       linkId={link.id}
                       title={fd.title || link.title || ''}
                       items={items}
+                      themeCard={t.card}
                       themeText={t.text}
                       themeSubtext={t.subtext}
                     />
@@ -790,6 +794,7 @@ export default async function ProfilePage({ params }: Props) {
                       linkId={link.id}
                       url={link.url}
                       title={link.title || 'Оплата через Kaspi Pay'}
+                      themeCard={t.card}
                       themeText={t.text}
                     />
                   </div>
@@ -807,6 +812,7 @@ export default async function ProfilePage({ params }: Props) {
                       linkId={link.id}
                       data={sqData}
                       title={link.title || sqData.label || 'Открыть приложение'}
+                      themeCard={t.card}
                       themeText={t.text}
                     />
                   </div>

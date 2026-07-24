@@ -131,7 +131,7 @@ export function MilestoneBlock({ linkId, title, initial, themeCard, themeText, t
               <p className={`mt-0.5 text-xs ${themeSubtext} opacity-60`}>{data.reward_label}</p>
             )}
           </div>
-          <span className={`flex-shrink-0 rounded-lg bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-300`}>
+          <span className={`flex-shrink-0 rounded-lg bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold ${themeCard.includes('border-gray-') ? 'text-violet-700' : 'text-violet-300'}`}>
             {pct}%
           </span>
         </div>
@@ -150,7 +150,7 @@ export function MilestoneBlock({ linkId, title, initial, themeCard, themeText, t
             <span className={`text-[11px] ${themeSubtext} opacity-40`}>просмотров</span>
           </div>
 
-          <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="h-3 w-full overflow-hidden rounded-full bg-gray-500/20">
             <div
               className="h-full rounded-full bg-gradient-to-r from-violet-500 via-pink-500 to-orange-400 transition-all duration-700 ease-out"
               style={{ width: `${Math.max(4, pct)}%` }}
@@ -166,7 +166,7 @@ export function MilestoneBlock({ linkId, title, initial, themeCard, themeText, t
           </div>
           <button
             onClick={handleShare}
-            className="flex-shrink-0 rounded-lg bg-violet-500/20 px-3 py-1.5 text-[11px] font-bold text-violet-300 transition-colors hover:bg-violet-500/30 active:scale-[0.97]"
+            className={`flex-shrink-0 rounded-lg bg-violet-500/20 px-3 py-1.5 text-[11px] font-bold ${themeCard.includes('border-gray-') ? 'text-violet-700' : 'text-violet-300'} transition-colors hover:bg-violet-500/30 active:scale-[0.97]`}
           >
             {shared ? '✓ Скопировано!' : 'Переслать 📤'}
           </button>

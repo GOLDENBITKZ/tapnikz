@@ -14,7 +14,7 @@ interface Props {
   themeBg: string
 }
 
-export function FollowGateButton({ title, igHandle, contentUrl, themeCard, themeText, themeSubtext, themeBg }: Props) {
+export function FollowGateButton({ linkId, title, igHandle, contentUrl, themeCard, themeText, themeSubtext, themeBg }: Props) {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<1 | 2>(1)
   const [goClicked, setGoClicked] = useState(false)
@@ -34,6 +34,7 @@ export function FollowGateButton({ title, igHandle, contentUrl, themeCard, theme
   }
 
   function handleGetContent() {
+    if (!contentUrl) { closeModal(); return }
     const url = contentUrl.startsWith('http') ? contentUrl : `https://${contentUrl}`
     window.open(url, '_blank')
     closeModal()
@@ -42,7 +43,7 @@ export function FollowGateButton({ title, igHandle, contentUrl, themeCard, theme
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => { fetch(`/api/click?id=${linkId}`).catch(() => {}); setOpen(true) }}
         className="group flex w-full items-center gap-4 rounded-2xl border border-violet-500/30 bg-violet-600/15 px-5 py-4 text-violet-300 transition-all duration-150 active:scale-[0.98] hover:scale-[1.01] hover:bg-violet-600/25"
         style={{ boxShadow: '0 6px 24px rgba(124,58,237,0.25)' }}
       >
@@ -61,7 +62,7 @@ export function FollowGateButton({ title, igHandle, contentUrl, themeCard, theme
           onClick={closeModal}
         >
           <div
-            className={`w-full max-w-sm rounded-3xl border border-white/[0.08] ${themeBg} p-6 shadow-2xl`}
+            className={`w-full max-w-sm rounded-3xl border ${themeCard.split(' ').find(c => c.startsWith('border-')) ?? 'border-white/[0.08]'} ${themeBg} p-6 shadow-2xl`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-center justify-between">
@@ -74,7 +75,7 @@ export function FollowGateButton({ title, igHandle, contentUrl, themeCard, theme
               <button
                 onClick={closeModal}
                 aria-label="Закрыть"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-gray-400 transition-colors hover:text-white"
+                className={`flex h-8 w-8 items-center justify-center rounded-full bg-black/10 ${themeText} transition-opacity hover:opacity-70`}
               >
                 <X className="h-4 w-4" />
               </button>

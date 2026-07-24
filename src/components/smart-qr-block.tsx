@@ -10,10 +10,11 @@ type Props = {
   linkId: string
   data: SmartQrData
   title: string
+  themeCard: string
   themeText?: string
 }
 
-export function SmartQrBlock({ linkId, data, title, themeText }: Props) {
+export function SmartQrBlock({ linkId, data, title, themeCard, themeText }: Props) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const qrContainerRef = useRef<HTMLDivElement>(null)
@@ -81,7 +82,7 @@ export function SmartQrBlock({ linkId, data, title, themeText }: Props) {
       </button>
 
       {open && (
-        <div className="flex flex-col items-center gap-4 rounded-b-2xl border border-t-0 border-white/10 bg-white/[0.04] px-6 py-6">
+        <div className={`flex flex-col items-center gap-4 rounded-b-2xl border border-t-0 ${themeCard} px-6 py-6`}>
           <div ref={qrContainerRef} className="rounded-2xl bg-white p-4 shadow-[0_4px_24px_rgba(124,58,237,0.18)]">
             <QRCodeCanvas
               value={qrUrl}
@@ -93,7 +94,7 @@ export function SmartQrBlock({ linkId, data, title, themeText }: Props) {
             />
           </div>
 
-          <p className={`text-center text-xs opacity-55 ${themeText ?? 'text-white'}`}>
+          <p className={`text-center text-xs opacity-55 ${themeText ?? ''}`}>
             Сканируйте, чтобы открыть на вашем устройстве
           </p>
 
@@ -110,7 +111,7 @@ export function SmartQrBlock({ linkId, data, title, themeText }: Props) {
             <button
               type="button"
               onClick={handleDownloadQr}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.06] py-2.5 text-xs font-semibold text-white/75 transition-colors hover:bg-white/[0.1] active:opacity-70"
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border ${themeCard} py-2.5 text-xs font-semibold ${themeText ?? ''} opacity-70 transition-opacity hover:opacity-90 active:opacity-50`}
             >
               <Download className="h-3.5 w-3.5 flex-shrink-0" />
               Сохранить QR
@@ -118,7 +119,7 @@ export function SmartQrBlock({ linkId, data, title, themeText }: Props) {
             <button
               type="button"
               onClick={handleCopy}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.06] py-2.5 text-xs font-semibold text-white/75 transition-colors hover:bg-white/[0.1] active:opacity-70"
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border ${themeCard} py-2.5 text-xs font-semibold ${themeText ?? ''} opacity-70 transition-opacity hover:opacity-90 active:opacity-50`}
             >
               {copied ? <Check className="h-3.5 w-3.5 flex-shrink-0 text-green-400" /> : <Copy className="h-3.5 w-3.5 flex-shrink-0" />}
               {copied ? 'Скопировано!' : 'Скопировать'}

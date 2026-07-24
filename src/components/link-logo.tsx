@@ -1,6 +1,11 @@
 'use client'
 
+import { useState } from 'react'
+import { Link as LinkIcon } from 'lucide-react'
+
 export function LinkLogo({ src, className }: { src: string; className?: string }) {
+  const [errored, setErrored] = useState(false)
+  if (errored) return <LinkIcon className={className} aria-hidden />
   return (
     <img
       src={src}
@@ -9,7 +14,7 @@ export function LinkLogo({ src, className }: { src: string; className?: string }
       height={40}
       className={className}
       aria-hidden
-      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+      onError={() => setErrored(true)}
     />
   )
 }

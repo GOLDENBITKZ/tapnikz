@@ -9,9 +9,11 @@ interface Props {
   linkId: string
   hasLink: boolean
   linkHref?: string
+  themeCard: string
+  themeText: string
 }
 
-export function ImageExpandBlock({ src, alt, title, hasLink, linkHref }: Props) {
+export function ImageExpandBlock({ src, alt, title, linkId, hasLink, linkHref, themeCard, themeText }: Props) {
   const [open, setOpen] = useState(false)
 
   const imgEl = (
@@ -26,18 +28,21 @@ export function ImageExpandBlock({ src, alt, title, hasLink, linkHref }: Props) 
   return (
     <div>
       <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 rounded-2xl border border-white/[0.12] bg-white/[0.07] px-3 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] hover:bg-white/[0.12]"
+        onClick={() => {
+          if (!open) fetch(`/api/click?id=${linkId}`).catch(() => {})
+          setOpen((o) => !o)
+        }}
+        className={`flex w-full items-center gap-3 rounded-2xl border ${themeCard} px-3 py-3 text-sm font-semibold ${themeText} transition-all active:scale-[0.98] hover:opacity-90`}
       >
         {/* thumbnail */}
-        <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-xl border border-white/10">
+        <div className={`h-11 w-11 flex-shrink-0 overflow-hidden rounded-xl border ${themeCard}`}>
           <img src={src} alt="" className="h-full w-full object-cover" aria-hidden />
         </div>
         {/* title */}
         <span className="flex-1 text-left">{title || 'Показать изображение'}</span>
         {/* chevron */}
         <ChevronDown
-          className="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200"
+          className="h-4 w-4 flex-shrink-0 opacity-40 transition-transform duration-200"
           style={{ transform: open ? 'rotate(180deg)' : 'none' }}
         />
       </button>

@@ -8,10 +8,11 @@ type Props = {
   linkId: string
   url: string
   title: string
+  themeCard: string
   themeText?: string
 }
 
-export function KaspiQrBlock({ linkId, url, title, themeText }: Props) {
+export function KaspiQrBlock({ linkId, url, title, themeCard, themeText }: Props) {
   const [open, setOpen] = useState(false)
 
   function handleToggle() {
@@ -55,7 +56,7 @@ export function KaspiQrBlock({ linkId, url, title, themeText }: Props) {
       </button>
 
       {open && (
-        <div className="flex flex-col items-center gap-4 rounded-b-2xl border border-t-0 border-white/10 bg-white/[0.04] px-6 py-6">
+        <div className={`flex flex-col items-center gap-4 rounded-b-2xl border border-t-0 ${themeCard} px-6 py-6`}>
           <div className="rounded-2xl bg-white p-4 shadow-[0_4px_24px_rgba(255,140,0,0.15)]">
             <QRCodeCanvas
               value={url}
@@ -67,7 +68,7 @@ export function KaspiQrBlock({ linkId, url, title, themeText }: Props) {
             />
           </div>
 
-          <p className={`text-center text-xs opacity-60 ${themeText ?? 'text-white'}`}>
+          <p className={`text-center text-xs opacity-60 ${themeText ?? ''}`}>
             Наведите камеру Kaspi.kz для оплаты
           </p>
 
