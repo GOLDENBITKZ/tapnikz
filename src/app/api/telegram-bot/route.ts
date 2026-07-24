@@ -436,7 +436,7 @@ export async function POST(request: Request) {
         const query = parts[1] ?? ''
         if (!query) { await reply('Использование: /find username или /find +77001234567'); return Response.json({ ok: true }) }
         const phone = query.replace(/^\+/, '')
-        const isPhone = /^\d{10,11}$/.test(phone)
+        const isPhone = /^\d{11}$/.test(phone)
         const db = getSupabaseAdmin() as any
         const PROF_COLS = 'id,business_name,username,phone,address,bio,is_premium,is_promo,is_manager,referred_by,subscription_expires_at,subscription_plan,avatar_url,telegram_chat_id,created_at'
         const { data } = isPhone
@@ -848,6 +848,10 @@ export async function POST(request: Request) {
           .from('profiles')
           .update({ phone: newPhone, updated_at: new Date().toISOString() })
           .eq('id', prof.id)
+        // Also update the Supabase Auth email so /reset still works after phone change
+        if (!updErr) {
+          await db.auth.admin.updateUserById(prof.id, { email: `${newPhone}@users.tapni.kz` }).catch(() => {})
+        }
         if (updErr) {
           await reply(`❌ Ошибка: <code>${esc(updErr.message ?? updErr.code)}</code>`)
         } else {
@@ -943,7 +947,7 @@ export async function POST(request: Request) {
           const linkIds = await db.from('links').select('id').eq('profile_id', prof.id)
           if (linkIds.data?.length) {
             const ids = (linkIds.data as { id: string }[]).map(l => l.id)
-            await db.from('link_clicks').delete().in('link_id', ids)
+            await db.from('click_events').delete().in('link_id', ids)
           }
           await db.from('links').delete().eq('profile_id', prof.id)
           await db.from('payments').delete().eq('username', prof.username)

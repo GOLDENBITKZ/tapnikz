@@ -314,7 +314,7 @@ export default function DashboardPage() {
       if (!day.enabled) { wh[key] = null; continue }
       const toMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
       const validSlots = day.slots
-        .filter((s) => /^\d{2}:\d{2}$/.test(s.start) && /^\d{2}:\d{2}$/.test(s.end) && toMinutes(s.start) < toMinutes(s.end))
+        .filter((s) => /^\d{2}:\d{2}$/.test(s.start) && /^\d{2}:\d{2}$/.test(s.end) && s.start !== s.end)
         .map((s) => ({ name: s.name.trim(), time: `${s.start}-${s.end}` }))
       wh[key] = validSlots.length > 0 ? validSlots : null
     }
