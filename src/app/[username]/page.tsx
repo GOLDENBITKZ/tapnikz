@@ -239,7 +239,9 @@ function getButtonStyle(type: IconType): BtnStyle | null {
     case 'ios':        return { cls: 'bg-gradient-to-br from-[#1C7CF9] to-[#0A5DC7] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(28,124,249,0.45)' }
     case 'menu':       return { cls: 'bg-gradient-to-br from-[#FF8C00] to-[#FF5200] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,140,0,0.45)' }
     case 'paypal':     return { cls: 'bg-gradient-to-br from-[#009cde] to-[#003087] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,48,135,0.50)' }
-    case 'instagram_dm': return { cls: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-90', iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(253,29,29,0.40)' }
+    case 'instagram_dm':   return { cls: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-90', iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(253,29,29,0.40)' }
+    case 'instagram_reel': return { cls: 'bg-gradient-to-br from-[#fdf497] via-[#d6249f] to-[#285AEB] hover:opacity-90',                            iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(214,36,159,0.40)' }
+    case 'link':           return { cls: 'bg-[#4F46E5] hover:opacity-90',                                                               iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(79,70,229,0.45)' }
     default: return null
   }
 }
