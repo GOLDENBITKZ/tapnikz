@@ -10,7 +10,7 @@ export const revalidate = 3600
 const TG_BOT = '/go/tg?u=Tapnikzbot'
 const WA_SUPPORT = 'https://wa.me/77755696531'
 const IG_TAPNI = 'https://instagram.com/tapni.kz'
-const DEMO_PROFILE = 'https://tapni.kz/tapnikz'
+const DEMO_PROFILE = 'https://tapni.kz/egov.kz'
 
 const JSON_LD = {
   '@context': 'https://schema.org',
