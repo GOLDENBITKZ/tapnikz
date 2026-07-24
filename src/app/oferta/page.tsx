@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 const EFFECTIVE = '24 июля 2026 года'
 const COMPANY = 'ИП GOLDENBIT'
-const IIN = '[ИИН/БИН]'
+const IIN = '840111300028'
 const ADDR = 'Республика Казахстан'
 const EMAIL = 'goldenbit.kz@yandex.kz'
 const SITE = 'tapni.kz'
