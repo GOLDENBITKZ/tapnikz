@@ -432,9 +432,12 @@ export default function PayPage() {
           )}
         </div>
 
-        <p className="text-center">
+        <p className="text-center space-x-4">
           <Link href="/" className="text-xs text-gray-400 transition-colors hover:text-gray-700">
             ← На главную
+          </Link>
+          <Link href="/oferta" className="text-xs text-gray-400 transition-colors hover:text-gray-700">
+            Договор оферты
           </Link>
         </p>
       </div>

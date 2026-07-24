@@ -618,6 +618,7 @@ export default async function LandingPage() {
               <a href={WA_SUPPORT} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-green-700">WhatsApp</a>
               <a href={DEMO_PROFILE} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-violet-600">Пример</a>
               <Link href="/auth" className="transition-colors hover:text-gray-900">Войти</Link>
+              <Link href="/oferta" className="transition-colors hover:text-gray-900">Оферта</Link>
               <Link href="/terms" className="transition-colors hover:text-gray-900">Условия</Link>
               <Link href="/privacy" className="transition-colors hover:text-gray-900">Конфиденциальность</Link>
             </nav>
