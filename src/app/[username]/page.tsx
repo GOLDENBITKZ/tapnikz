@@ -215,30 +215,30 @@ type BtnStyle = { cls: string; iconBg: string; shadow?: string }
 function getButtonStyle(type: IconType): BtnStyle | null {
   switch (type) {
     // Messengers — greens & blues
-    case 'whatsapp':   return { cls: 'bg-[#25D366] hover:bg-[#20bd5a]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(37,211,102,0.45)' }
-    case 'telegram':   return { cls: 'bg-[#2AABEE] hover:bg-[#1d9cd9]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(42,171,238,0.45)' }
+    case 'whatsapp':   return { cls: 'bg-[#25D366] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(37,211,102,0.45)' }
+    case 'telegram':   return { cls: 'bg-[#2AABEE] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(42,171,238,0.45)' }
     // Socials — distinct palettes
     case 'instagram':  return { cls: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-90', iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(253,29,29,0.40)' }
     case 'tiktok':     return { cls: 'bg-gradient-to-br from-[#010101] to-[#1a1a2e] border border-[#69C9D0]/30 hover:opacity-90', iconBg: 'bg-[#69C9D0]/20', shadow: '0 4px 20px rgba(105,201,208,0.30)' }
-    case 'youtube':    return { cls: 'bg-[#FF0000] hover:bg-[#e50000]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,0,0,0.45)' }
-    case 'vk':         return { cls: 'bg-[#0077FF] hover:bg-[#006de6]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,119,255,0.45)' }
-    case 'facebook':   return { cls: 'bg-[#1877F2] hover:bg-[#1468d9]',                                        iconBg: 'bg-white/25', shadow: '0 6px 24px rgba(24,119,242,0.45)' }
+    case 'youtube':    return { cls: 'bg-[#FF0000] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,0,0,0.45)' }
+    case 'vk':         return { cls: 'bg-[#0077FF] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,119,255,0.45)' }
+    case 'facebook':   return { cls: 'bg-[#1877F2] hover:opacity-90',                                          iconBg: 'bg-white/25', shadow: '0 6px 24px rgba(24,119,242,0.45)' }
     // Kaspi family — same brand hue but visually distinct treatment
-    case 'kaspi':      return { cls: 'bg-[#F14635] hover:bg-[#d93b2b]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(241,70,53,0.50)' }
+    case 'kaspi':      return { cls: 'bg-[#F14635] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(241,70,53,0.50)' }
     case 'kaspi_pay':  return { cls: 'bg-gradient-to-br from-[#FF8C00] to-[#F14635] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,140,0,0.50)' }
     case 'kaspi_shop': return { cls: 'bg-gradient-to-br from-[#c0392b] to-[#922b21] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(192,57,43,0.50)' }
     // KZ services
     case 'twogis':     return { cls: 'bg-gradient-to-br from-[#00AA4F] to-[#007a38] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,170,79,0.45)' }
-    case 'kolesa':     return { cls: 'bg-[#FF6600] hover:bg-[#e55c00]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,102,0,0.45)' }
-    case 'krisha':     return { cls: 'bg-[#0076CC] hover:bg-[#0069b8]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,118,204,0.45)' }
+    case 'kolesa':     return { cls: 'bg-[#FF6600] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,102,0,0.45)' }
+    case 'krisha':     return { cls: 'bg-[#0076CC] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,118,204,0.45)' }
     // Generic
-    case 'website':    return { cls: 'bg-[#7C3AED] hover:bg-[#6d28d9]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(124,58,237,0.45)' }
-    case 'phone':      return { cls: 'bg-[#059669] hover:bg-[#047857]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(5,150,105,0.45)' }
-    case 'email':      return { cls: 'bg-[#DB2777] hover:bg-[#be185d]',                                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(219,39,119,0.45)' }
-    case 'android':  return { cls: 'bg-gradient-to-br from-[#3DDC84] to-[#009b55] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(61,220,132,0.45)' }
-    case 'ios':      return { cls: 'bg-gradient-to-br from-[#1C7CF9] to-[#0A5DC7] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(28,124,249,0.45)' }
-    case 'menu':     return { cls: 'bg-gradient-to-br from-[#FF8C00] to-[#FF5200] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,140,0,0.45)' }
-    case 'paypal':       return { cls: 'bg-gradient-to-br from-[#009cde] to-[#003087] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,48,135,0.50)' }
+    case 'website':    return { cls: 'bg-[#7C3AED] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(124,58,237,0.45)' }
+    case 'phone':      return { cls: 'bg-[#059669] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(5,150,105,0.45)' }
+    case 'email':      return { cls: 'bg-[#DB2777] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(219,39,119,0.45)' }
+    case 'android':    return { cls: 'bg-gradient-to-br from-[#3DDC84] to-[#009b55] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(61,220,132,0.45)' }
+    case 'ios':        return { cls: 'bg-gradient-to-br from-[#1C7CF9] to-[#0A5DC7] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(28,124,249,0.45)' }
+    case 'menu':       return { cls: 'bg-gradient-to-br from-[#FF8C00] to-[#FF5200] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,140,0,0.45)' }
+    case 'paypal':     return { cls: 'bg-gradient-to-br from-[#009cde] to-[#003087] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,48,135,0.50)' }
     case 'instagram_dm': return { cls: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-90', iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(253,29,29,0.40)' }
     default: return null
   }
@@ -828,8 +828,10 @@ export default async function ProfilePage({ params }: Props) {
                     iconType={link.icon_type}
                     needsDeepLink={needsDeepLink}
                     style={style?.shadow ? { boxShadow: style.shadow } : undefined}
-                    className={`group flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-white transition-transform duration-75 active:scale-[0.97] hover:scale-[1.015] hover:-translate-y-px ${
-                      style ? style.cls : `bg-white/[0.08] border border-white/10 hover:bg-white/[0.14] ${t.text}`
+                    className={`group flex w-full items-center gap-4 rounded-2xl px-5 py-4 transition-transform duration-75 active:scale-[0.97] hover:scale-[1.015] hover:-translate-y-px ${
+                      style
+                        ? `${style.cls} text-white`
+                        : `${t.card} ${t.text} hover:opacity-90`
                     }`}
                   >
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl overflow-hidden">
