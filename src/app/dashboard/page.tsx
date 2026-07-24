@@ -619,7 +619,9 @@ export default function DashboardPage() {
     }
     if (type === 'youtube') {
       if (u.startsWith('http')) return u
-      return `https://youtube.com/@${u.replace(/^@/, '')}`
+      // Strip any youtube.com/www.youtube.com prefix user may have pasted without https://
+      const clean = u.replace(/^(www\.)?youtube\.com\/@?/, '').replace(/^@/, '').trim()
+      return clean ? `https://youtube.com/@${clean}` : ''
     }
     if (type === 'vk') {
       if (u.startsWith('http')) return u
@@ -1113,6 +1115,11 @@ export default function DashboardPage() {
         if (t === 'phone') {
           const digits = link.url.replace(/\D/g, '')
           setEditUrl(digits.length === 11 && digits.startsWith('7') ? digits.slice(1) : digits)
+        } else if (t === 'youtube') {
+          const clean = link.url
+            .replace(/^https?:\/\/(www\.)?youtube\.com\/@?/, '')
+            .replace(/^@/, '')
+          setEditUrl(clean)
         } else {
           const stripped = link.url
             .replace(/^https?:\/\//, '')
