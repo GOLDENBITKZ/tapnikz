@@ -619,9 +619,14 @@ export default function DashboardPage() {
     }
     if (type === 'youtube') {
       if (u.startsWith('http')) return u
+      // Handle partial paths: channel/UCxxx, c/name, user/name
+      if (/^(channel|c|user)\//.test(u)) return `https://youtube.com/${u}`
       // Strip any youtube.com/www.youtube.com prefix user may have pasted without https://
-      const clean = u.replace(/^(www\.)?youtube\.com\/@?/, '').replace(/^@/, '').trim()
-      return clean ? `https://youtube.com/@${clean}` : ''
+      const clean = u.replace(/^(www\.)?youtube\.com\/(channel\/)?@?/, '').replace(/^@/, '').trim()
+      if (!clean) return ''
+      // YouTube Channel ID format: UC + 22 alphanumeric/dash chars
+      if (/^UC[\w-]{22}$/.test(clean)) return `https://youtube.com/channel/${clean}`
+      return `https://youtube.com/@${clean}`
     }
     if (type === 'vk') {
       if (u.startsWith('http')) return u
@@ -1117,7 +1122,7 @@ export default function DashboardPage() {
           setEditUrl(digits.length === 11 && digits.startsWith('7') ? digits.slice(1) : digits)
         } else if (t === 'youtube') {
           const clean = link.url
-            .replace(/^https?:\/\/(www\.)?youtube\.com\/@?/, '')
+            .replace(/^https?:\/\/(www\.)?youtube\.com\/(channel\/)?@?/, '')
             .replace(/^@/, '')
           setEditUrl(clean)
         } else {
