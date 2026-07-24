@@ -7,6 +7,9 @@ function checkRate(phone: string): boolean {
   const now = Date.now()
   const entry = rateMap.get(phone)
   if (!entry || now > entry.resetAt) {
+    if (rateMap.size > 500) {
+      for (const [k, v] of rateMap) { if (now > v.resetAt) rateMap.delete(k) }
+    }
     rateMap.set(phone, { count: 1, resetAt: now + 3_600_000 })
     return true
   }

@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 // Cache profile pages for 60s on the edge — reduces Supabase roundtrips for popular pages
 export const revalidate = 60
 import { makeVcardToken } from '@/lib/vcard-token'
-import { type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours } from '@/lib/supabase'
+import { type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours, FREE_LINK_LIMIT } from '@/lib/supabase'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   WhatsAppIcon, TelegramIcon, InstagramIcon, TikTokIcon, YouTubeIcon,
@@ -601,11 +601,15 @@ export default async function ProfilePage({ params }: Props) {
 
         {(() => {
           const now = new Date()
-          const visibleLinks = links.filter((l) => {
+          const effectivePremium = profile.is_premium &&
+            (!profile.subscription_expires_at || new Date(profile.subscription_expires_at) > now)
+          const allVisible = links.filter((l) => {
             if (l.visible_from && new Date(l.visible_from) > now) return false
             if (l.visible_until && new Date(l.visible_until) < now) return false
             return true
           })
+          // Free users: show only first FREE_LINK_LIMIT links (consistent with API write cap)
+          const visibleLinks = effectivePremium ? allVisible : allVisible.slice(0, FREE_LINK_LIMIT)
           return visibleLinks.length === 0 ? (
           <div className={`rounded-2xl border ${t.card} py-10 text-center animate-fade-up animation-delay-250`}>
             <p className={`text-sm ${t.subtext}`}>Кнопки ещё не добавлены</p>
@@ -1005,16 +1009,18 @@ export default async function ProfilePage({ params }: Props) {
         <InstagramDmPrompt igHandle={igPromptHandle} ownerName={profile.business_name} />
       )}
 
-      {/* Attribution pill */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center pb-5">
-        <Link
-          href={`/?utm_source=profile&utm_medium=footer&utm_campaign=${profile.is_premium ? 'premium' : 'free'}&utm_content=${profile.username}`}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-3.5 py-1.5 text-[11px] text-gray-400 backdrop-blur-md transition-colors hover:border-violet-500/40 hover:text-gray-200"
-        >
-          <Zap className="h-3 w-3 text-violet-400" />
-          Сделано на <span className="font-bold text-white">tapni.kz</span>
-        </Link>
-      </div>
+      {/* Attribution pill — hidden for Premium users (paid feature) */}
+      {(!profile.is_premium || (profile.subscription_expires_at && new Date(profile.subscription_expires_at) <= new Date())) && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center pb-5">
+          <Link
+            href={`/?utm_source=profile&utm_medium=footer&utm_campaign=free&utm_content=${profile.username}`}
+            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-3.5 py-1.5 text-[11px] text-gray-400 backdrop-blur-md transition-colors hover:border-violet-500/40 hover:text-gray-200"
+          >
+            <Zap className="h-3 w-3 text-violet-400" />
+            Сделано на <span className="font-bold text-white">tapni.kz</span>
+          </Link>
+        </div>
+      )}
     </main>
   )
 }
