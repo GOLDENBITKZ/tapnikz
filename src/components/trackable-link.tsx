@@ -7,7 +7,7 @@ import { useRef } from 'react'
 const NATIVE_APP_ICONS = new Set([
   'whatsapp', 'telegram', 'kaspi_pay', 'kaspi_shop', 'kaspi',
   'tiktok', 'phone', 'email', 'twogis', 'youtube',
-  'vk', 'facebook', 'android', 'ios',
+  'vk', 'facebook', 'twitter', 'android', 'ios',
 ])
 
 type Props = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {

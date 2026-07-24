@@ -18,7 +18,7 @@ const VALID_THEMES = ['dark', 'light', 'gradient', 'blogger', 'business', 'selle
 const VALID_ICONS = [
   'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube',
   'kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'smart_qr', 'twogis', 'website',
-  'phone', 'email', 'kolesa', 'krisha', 'vk', 'facebook',
+  'phone', 'email', 'kolesa', 'krisha', 'vk', 'facebook', 'twitter',
   'link', 'android', 'ios', 'paypal',
 ] as const
 
@@ -53,7 +53,7 @@ function buildSystemPrompt(source: string, goal: string): string {
 - Для IT/авто/ночных заведений → тема dark
 - Для Kaspi-продавцов → тема seller + kaspi_shop обязательно
 
-ДОСТУПНЫЕ icon_type: whatsapp, telegram, instagram, tiktok, youtube, kaspi, kaspi_pay, kaspi_shop, kaspi_qr, twogis, website, phone, email, kolesa, krisha, vk, facebook, link, android, ios, paypal
+ДОСТУПНЫЕ icon_type: whatsapp, telegram, instagram, tiktok, youtube, kaspi, kaspi_pay, kaspi_shop, kaspi_qr, twogis, website, phone, email, kolesa, krisha, vk, facebook, twitter, link, android, ios, paypal
 
 ДОСТУПНЫЕ theme: dark, light, gradient, blogger, business, seller
 

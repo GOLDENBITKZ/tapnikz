@@ -33,6 +33,7 @@ export type IconType =
   | 'krisha'
   | 'vk'
   | 'facebook'
+  | 'twitter'
   | 'link'
   | 'text_block'
   | 'product'
@@ -55,7 +56,7 @@ export type IconType =
 export type TimeSlot = { name: string; time: string }
 
 export type WorkingHours = {
-  mode?: 'simple' | 'schedule'
+  mode?: 'simple' | 'schedule' | 'always_open'
   mon?: string | TimeSlot[] | null
   tue?: string | TimeSlot[] | null
   wed?: string | TimeSlot[] | null

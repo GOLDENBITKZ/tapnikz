@@ -45,6 +45,7 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'krisha',     label: '🏠 Krisha.kz',        placeholder: 'https://krisha.kz/a/show/...' },
   { value: 'vk',         label: '💙 ВКонтакте',         placeholder: 'https://vk.com/username' },
   { value: 'facebook',   label: '📘 Facebook',          placeholder: 'https://facebook.com/username' },
+  { value: 'twitter',    label: '𝕏 X (Twitter)',         placeholder: 'https://x.com/username' },
   { value: 'android',    label: '🤖 Google Play',       placeholder: 'https://play.google.com/store/apps/details?id=...' },
   { value: 'ios',        label: '🍎 App Store',         placeholder: 'https://apps.apple.com/app/...' },
   { value: 'menu',       label: '🍽 Меню',              placeholder: 'https://example.com/menu' },
@@ -95,6 +96,7 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
     case 'email':      return { dot: 'bg-violet-500', ring: 'border-l-violet-500' }
     case 'vk':         return { dot: 'bg-blue-600', ring: 'border-l-blue-600' }
     case 'facebook':   return { dot: 'bg-[#1877F2]', ring: 'border-l-[#1877F2]' }
+    case 'twitter':    return { dot: 'bg-black', ring: 'border-l-black' }
     case 'android':    return { dot: 'bg-[#3DDC84]', ring: 'border-l-[#3DDC84]' }
     case 'ios':        return { dot: 'bg-[#007AFF]', ring: 'border-l-[#007AFF]' }
     case 'menu':       return { dot: 'bg-[#FF8C00]', ring: 'border-l-[#FF8C00]' }
@@ -134,6 +136,7 @@ const SMART_INPUTS: Partial<Record<IconType, { prefix: string; placeholder: stri
   youtube:   { prefix: 'youtube.com/@', placeholder: 'channel' },
   vk:        { prefix: 'vk.com/', placeholder: 'nickname' },
   facebook:  { prefix: 'facebook.com/', placeholder: 'page-name' },
+  twitter:   { prefix: 'x.com/', placeholder: 'username' },
   phone:     { prefix: '+7', placeholder: '701 234 5678 · 111 · 8800' },
 }
 
@@ -237,6 +240,7 @@ export default function DashboardPage() {
   }
 
   const [whMode, setWhMode] = useState<'simple' | 'schedule'>('simple')
+  const [whIs247, setWhIs247] = useState(false)
   const [extSchedule, setExtSchedule] = useState<ExtScheduleForm>(makeDefaultExt)
 
   function updateSlot(dayKey: WhKey, idx: number, field: keyof SlotDraft, value: string) {
@@ -295,6 +299,7 @@ export default function DashboardPage() {
   }
 
   function buildWorkingHours(): Record<string, unknown> {
+    if (whIs247) return { mode: 'always_open' }
     if (whMode === 'simple') {
       const wh: Record<string, string | null> = {}
       for (const { key } of WH_DAYS) {
@@ -441,6 +446,9 @@ export default function DashboardPage() {
       // Initialize working hours form from profile
       const wh = (prof as Profile).working_hours
       if (wh) {
+        if (wh.mode === 'always_open') {
+          setWhIs247(true)
+        }
         const isSchedule = wh.mode === 'schedule' || WH_DAYS.some(({ key }) => Array.isArray(wh[key]))
         if (isSchedule) {
           setWhMode('schedule')
@@ -635,6 +643,12 @@ export default function DashboardPage() {
     if (type === 'facebook') {
       if (u.startsWith('http')) return u
       return `https://facebook.com/${u}`
+    }
+    if (type === 'twitter') {
+      if (u.startsWith('http')) return u
+      const clean = u.replace(/^(www\.)?(twitter|x)\.com\//, '').replace(/^@/, '').trim()
+      if (!clean) return ''
+      return `https://x.com/${clean}`
     }
     // 2GIS: when copied from the app, the text may be "Название заведения https://2gis.kz/..."
     // Extract the URL part if the pasted text contains an http URL
@@ -1737,7 +1751,19 @@ export default function DashboardPage() {
                 Режим работы
               </p>
 
+              {/* 24/7 toggle */}
+              <label className="mb-3 flex cursor-pointer items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={whIs247}
+                  onChange={(e) => setWhIs247(e.target.checked)}
+                  className="h-4 w-4 rounded accent-emerald-500"
+                />
+                <span className="text-sm font-semibold text-emerald-700">Круглосуточно (24/7)</span>
+              </label>
+
               {/* Mode toggle */}
+              {!whIs247 && (
               <div className="mb-4 flex gap-1 rounded-xl border border-gray-200 bg-white p-1">
                 <button
                   type="button"
@@ -1758,9 +1784,10 @@ export default function DashboardPage() {
                   Расписание
                 </button>
               </div>
+              )}
 
               {/* Simple mode */}
-              {whMode === 'simple' && (
+              {!whIs247 && whMode === 'simple' && (
                 <>
                   <div className="space-y-2">
                     {WH_DAYS.map(({ key, label }) => (
@@ -1783,7 +1810,7 @@ export default function DashboardPage() {
               )}
 
               {/* Schedule mode — multiple slots per day with names */}
-              {whMode === 'schedule' && (
+              {!whIs247 && whMode === 'schedule' && (
                 <div className="space-y-2">
                   {WH_DAYS.map(({ key, label }) => {
                     const day = extSchedule[key]

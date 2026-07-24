@@ -9,7 +9,7 @@ import { type Profile, type Link as LinkRow, type Theme, type IconType, type Wor
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   WhatsAppIcon, TelegramIcon, InstagramIcon, TikTokIcon, YouTubeIcon,
-  FacebookIcon, VKIcon, KaspiIcon, KaspiPayIcon, KaspiShopIcon,
+  FacebookIcon, VKIcon, TwitterXIcon, KaspiIcon, KaspiPayIcon, KaspiShopIcon,
   TwoGisIcon, KolesaIcon, KrishaIcon,
   GlobeIcon, PhoneIcon, MailIcon, LinkIcon, TextBlockIcon,
   AndroidIcon, AppleIcon, MenuIcon,
@@ -223,6 +223,7 @@ function getButtonStyle(type: IconType): BtnStyle | null {
     case 'youtube':    return { cls: 'bg-[#FF0000] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,0,0,0.45)' }
     case 'vk':         return { cls: 'bg-[#4C75A3] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(76,117,163,0.45)' }
     case 'facebook':   return { cls: 'bg-[#1877F2] hover:opacity-90',                                          iconBg: 'bg-white/25', shadow: '0 6px 24px rgba(24,119,242,0.45)' }
+    case 'twitter':    return { cls: 'bg-black hover:opacity-90 border border-white/10',                        iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(0,0,0,0.5)' }
     // Kaspi family — same brand hue but visually distinct treatment
     case 'kaspi':      return { cls: 'bg-[#F14635] hover:opacity-90',                                          iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(241,70,53,0.50)' }
     case 'kaspi_pay':  return { cls: 'bg-gradient-to-br from-[#FF8C00] to-[#F14635] hover:opacity-90',         iconBg: 'bg-white/20', shadow: '0 6px 24px rgba(255,140,0,0.50)' }
@@ -264,6 +265,7 @@ function BrandIcon({ type, className }: { type: IconType; className?: string }) 
     case 'email':      return <MailIcon className={className} />
     case 'vk':         return <VKIcon className={className} />
     case 'facebook':   return <FacebookIcon className={className} />
+    case 'twitter':    return <TwitterXIcon className={className} />
     case 'text_block': return <TextBlockIcon className={className} />
     case 'product':    return <ShoppingCart className={className} />
     case 'lead_form':  return <ClipboardList className={className} />
@@ -282,6 +284,7 @@ function BrandIcon({ type, className }: { type: IconType; className?: string }) 
 
 function getOpenStatus(workingHours: WorkingHours | null): { isOpen: boolean; label: string } | null {
   if (!workingHours) return null
+  if (workingHours.mode === 'always_open') return { isOpen: true, label: 'Круглосуточно 24/7' }
   // Kazakhstan is UTC+5 year-round (no DST)
   const kzNow = new Date(Date.now() + 5 * 3600_000)
   const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
