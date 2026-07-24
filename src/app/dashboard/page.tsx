@@ -1034,6 +1034,10 @@ export default function DashboardPage() {
           setLinkError(`Лимит ${FREE_LINK_LIMIT} кнопки на бесплатном плане.`)
           return
         }
+        if (body.error === 'premium_required') {
+          setLinkError('Этот тип доступен только на Premium.')
+          return
+        }
         setLinkError('Не удалось добавить')
         return
       }
@@ -2129,7 +2133,15 @@ export default function DashboardPage() {
                       className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-violet-500/60"
                     >
                       {ICON_OPTIONS
-                        .filter((o) => (o.value !== 'product' && o.value !== 'smart_qr') || profile?.is_premium)
+                        .filter((o) => (
+                          o.value !== 'product' &&
+                          o.value !== 'smart_qr' &&
+                          o.value !== 'countdown' &&
+                          o.value !== 'pricelist' &&
+                          o.value !== 'image' &&
+                          o.value !== 'video' &&
+                          o.value !== 'faq'
+                        ) || !!profile?.is_premium)
                         .map((o) => (
                           <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
