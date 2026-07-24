@@ -21,6 +21,9 @@ function checkUser(ip: string): boolean {
   const now = Date.now()
   const entry = userMap.get(ip)
   if (!entry || now > entry.resetAt) {
+    if (userMap.size > 1000) {
+      for (const [k, v] of userMap) { if (now > v.resetAt) userMap.delete(k) }
+    }
     userMap.set(ip, { count: 1, resetAt: now + 3_600_000 })
     return true
   }
@@ -33,32 +36,33 @@ const SYSTEM = (page: string) => `Ты — точный помощник tapni.k
 
 TAPNI.KZ — цифровые визитки для бизнеса Казахстана (Алматы, Астана, Шымкент и весь Казахстан).
 
-ТИПЫ КНОПОК (24+):
-Соцсети: WhatsApp, Telegram, Instagram, TikTok, YouTube, Facebook, VK, X(Twitter)
-Бизнес КЗ: Kaspi Pay (ссылка оплаты), Kaspi Магазин, Kaspi Товар, 2ГИС навигация, Kolesa.kz, Krisha.kz
-Контакты: Телефон, Email, Сайт, Вайбер, WhatsApp-сообщение
-Контент: Скачать PDF, Форма заявки (имя+телефон+email), Изображение/баннер, Видео, FAQ аккордеон, Обратный отсчёт, Прайс-лист, Блок текста
+ТИПЫ КНОПОК:
+Соцсети: WhatsApp, Telegram, Instagram, TikTok, YouTube, Facebook, ВКонтакте, X (Twitter)
+Казахстан: Kaspi Pay (приём оплаты), Kaspi Магазин (страница магазина), Kaspi Товар (карточка товара), Kaspi Pay QR-код, 2ГИС навигация, Kolesa.kz, Krisha.kz
+Контакты: Телефон, Email, Сайт, Android (Google Play), iOS (App Store), PayPal
+Контент (только Premium): Форма заявки, Изображение/баннер, Видео (YouTube/TikTok), FAQ аккордеон, Обратный отсчёт, Прайс-лист, Карточка товара, Smart QR (маршрутизация iOS/Android/Web), Текст/Описание
+Instagram-маркетинг: Instagram DM, Reels/Пост, «Подпишись и получи» (follow gate), DM-триггер по ключ. слову, Вирусный вызов (счётчик просмотров)
+Другое: Ссылка, Меню
 
-ПРОФИЛЬ: имя бизнеса, описание, адрес, рабочие часы, аватар, 6 тем (Тёмная, Светлая, Градиент, Блогер, Бизнес, Продавец)
+ПРОФИЛЬ: имя бизнеса, описание (bio), адрес, рабочие часы, аватар, 6 тем (Тёмная, Светлая, Градиент, Блогер, Бизнес, Продавец)
 
-АНАЛИТИКА: просмотры профиля, клики по каждой кнопке, CTR (только в Premium)
+АНАЛИТИКА: просмотры профиля + клики по каждой кнопке + история за 7 дней (Premium)
 
 ТАРИФЫ:
 Бесплатно: 3 кнопки, водяной знак "Сделано на tapni.kz", базовые типы
-Premium месяц: 1 000 ₸/мес — безлимит кнопок, все типы, QR-код, аналитика, смена ника, без водяного знака
+Premium месяц: 1 000 ₸/мес — безлимит кнопок, все типы кнопок, QR-код, аналитика, смена ника, без водяного знака
 Premium год: 10 000 ₸/год (экономия 2 000 ₸)
-Оплата: Kaspi Pay или Халык Банк → отправить скриншот чека в Telegram бот (@Tapnikzbot) → Premium активируется автоматически
+Оплата: Kaspi Pay или Halyk Bank → отправить скриншот чека в Telegram бот (@Tapnikzbot) → Premium активируется автоматически
 
 TELEGRAM БОТ @Tapnikzbot:
 - Привязать: написать /start боту — получите уведомления
 - Уведомления: за 7 дней и 3 дня до конца подписки
 - Сброс пароля: приходит ссылка прямо в Telegram
 - Оплата: отправить скриншот чека → автоматическая активация Premium
-- Просмотр статистики заявок
 
 ПОДДЕРЖКА: WhatsApp +77755696531, Instagram @tapni.kz, Telegram @Tapnikzbot
 
-Страница пользователя сейчас: "${page}"`
+Страница сейчас: "${page}"`
 
 export async function POST(request: Request) {
   const ip =
@@ -109,12 +113,15 @@ export async function POST(request: Request) {
     const groq = new Groq({ apiKey })
     // Keep last 6 messages to limit tokens
     const trimmed = messages.slice(-6)
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      messages: [{ role: 'system', content: SYSTEM(page) }, ...trimmed],
-      max_tokens: 200,
-      temperature: 0.4,
-    })
+    const completion = await Promise.race([
+      groq.chat.completions.create({
+        model: 'llama-3.1-8b-instant',
+        messages: [{ role: 'system', content: SYSTEM(page) }, ...trimmed],
+        max_tokens: 200,
+        temperature: 0.4,
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('chat_timeout')), 12_000)),
+    ])
     const reply = completion.choices[0]?.message?.content ?? ''
     return Response.json({ reply })
   } catch (err) {

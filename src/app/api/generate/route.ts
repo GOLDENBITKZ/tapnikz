@@ -6,6 +6,9 @@ function checkGenerateRate(ip: string): boolean {
   const now = Date.now()
   const entry = generateRateMap.get(ip)
   if (!entry || now > entry.resetAt) {
+    if (generateRateMap.size > 500) {
+      for (const [k, v] of generateRateMap) { if (now > v.resetAt) generateRateMap.delete(k) }
+    }
     generateRateMap.set(ip, { count: 1, resetAt: now + 3_600_000 })
     return true
   }
@@ -89,11 +92,14 @@ export async function POST(req: NextRequest) {
     const groqKey = process.env.GROQ_API_KEY
     if (!groqKey) return NextResponse.json({ error: 'no_key' }, { status: 500 })
 
+    const controller = new AbortController()
+    const abortTimer = setTimeout(() => controller.abort(), 15_000)
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+      signal: controller.signal,
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         temperature: 0.5,
         max_tokens: 600,
         response_format: { type: 'json_object' },
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest) {
           { role: 'user',   content: `Описание бизнеса: ${prompt.slice(0, 400)}` },
         ],
       }),
-    })
+    }).finally(() => clearTimeout(abortTimer))
 
     if (!groqRes.ok) {
       console.error('[generate] GROQ', groqRes.status)

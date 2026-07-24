@@ -47,12 +47,12 @@ const BIZ_BUTTONS: Record<BizType, ButtonConfig[]> = {
     {
       icon_type: 'kaspi_pay', emoji: '💸', label: 'Kaspi Pay',
       inputLabel: 'Ссылка для оплаты', placeholder: 'https://pay.kaspi.kz/pay/...', hint: 'Kaspi.kz → Платежи → Мой QR-код → Поделиться',
-      buildUrl: (v) => v,
+      buildUrl: (v) => v.startsWith('http') ? v : `https://${v}`,
     },
     {
       icon_type: 'twogis', emoji: '📍', label: '2ГИС — маршрут',
       inputLabel: 'Ссылка на 2ГИС', placeholder: 'https://2gis.kz/...', hint: 'Найдите точку в 2ГИС → Поделиться',
-      buildUrl: (v) => v,
+      buildUrl: (v) => v.startsWith('http') ? v : `https://${v}`,
     },
     {
       icon_type: 'phone', emoji: '📞', label: 'Позвонить',
@@ -64,12 +64,12 @@ const BIZ_BUTTONS: Record<BizType, ButtonConfig[]> = {
     {
       icon_type: 'kaspi', emoji: '🛒', label: 'Kaspi магазин',
       inputLabel: 'Ссылка на ваш магазин', placeholder: 'https://kaspi.kz/shop/info/...', hint: 'Главная страница вашего Kaspi магазина',
-      buildUrl: (v) => v,
+      buildUrl: (v) => v.startsWith('http') ? v : `https://${v}`,
     },
     {
       icon_type: 'kaspi_pay', emoji: '💸', label: 'Kaspi Pay',
       inputLabel: 'Ссылка для оплаты', placeholder: 'https://pay.kaspi.kz/pay/...', hint: 'Kaspi.kz → Платежи → Мой QR-код → Поделиться',
-      buildUrl: (v) => v,
+      buildUrl: (v) => v.startsWith('http') ? v : `https://${v}`,
     },
     {
       icon_type: 'whatsapp', emoji: '💬', label: 'WhatsApp для вопросов',
@@ -79,7 +79,7 @@ const BIZ_BUTTONS: Record<BizType, ButtonConfig[]> = {
     {
       icon_type: 'twogis', emoji: '📍', label: '2ГИС — маршрут',
       inputLabel: 'Ссылка на 2ГИС', placeholder: 'https://2gis.kz/...', hint: 'Найдите точку в 2ГИС → Поделиться',
-      buildUrl: (v) => v,
+      buildUrl: (v) => v.startsWith('http') ? v : `https://${v}`,
     },
   ],
   master: [
@@ -101,7 +101,7 @@ const BIZ_BUTTONS: Record<BizType, ButtonConfig[]> = {
     {
       icon_type: 'twogis', emoji: '📍', label: '2ГИС — адрес',
       inputLabel: 'Ссылка на 2ГИС', placeholder: 'https://2gis.kz/...', hint: 'Найдите точку в 2ГИС → Поделиться',
-      buildUrl: (v) => v,
+      buildUrl: (v) => v.startsWith('http') ? v : `https://${v}`,
     },
   ],
 }
