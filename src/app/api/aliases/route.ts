@@ -110,8 +110,11 @@ export async function POST(request: Request) {
   // Bidirectional collision check — an alias fallback only runs on a profile-miss
   // in [username]/page.tsx, so if a real username ever matched this alias the
   // profile would always win and the alias would be permanently unreachable.
-  // Only meaningful for 'ascii'-kind aliases: profiles.username is CHECK-constrained
-  // to ^[a-z0-9-]{3,32}$, so it can never equal a 'symbol'-kind (emoji) alias.
+  // Only meaningful for 'ascii'-kind aliases: the live username CHECK is
+  // ^[a-z0-9][a-z0-9._-]{2,31}$ (dots allowed — that's how egov.kz etc.
+  // exist; the regex in SUPABASE_SCHEMA.sql is stale), which admits no
+  // character outside [a-z0-9._-], so a username can never equal a
+  // 'symbol'-kind (emoji) alias and the lookup would always miss.
   if (cls.kind === 'ascii') {
     const { data: profileCollision } = await adminDb
       .from('profiles').select('id').eq('username', cls.normalized).maybeSingle()

@@ -551,7 +551,13 @@ export default function DashboardPage() {
       .replace(/^[._-]+|[._-]+$/g, '')
       .replace(/[-._]{2,}/g, (m) => m[0])
 
-    if (slug.length < 2) { setUsernameMsg({ type: 'err', text: 'Минимум 2 символа' }); return }
+    // 3, not 2: the DB CHECK is ^[a-z0-9][a-z0-9._-]{2,31}$ — one leading
+    // char plus at least two more. Allowing 2 here let the update reach
+    // Postgres, get rejected, and surface as a generic "Ошибка, попробуйте
+    // снова" that gave the user no idea what was actually wrong.
+    if (slug.length < 3) { setUsernameMsg({ type: 'err', text: 'Минимум 3 символа' }); return }
+    if (slug.length > 32) { setUsernameMsg({ type: 'err', text: 'Максимум 32 символа' }); return }
+    if (!/^[a-z0-9][a-z0-9._-]*$/.test(slug)) { setUsernameMsg({ type: 'err', text: 'Начните с буквы или цифры' }); return }
     if (RESERVED_ROUTE_WORDS.has(slug)) { setUsernameMsg({ type: 'err', text: 'Это слово зарезервировано' }); return }
     if (slug === profile.username) { setUsernameMsg({ type: 'err', text: 'Это уже ваш текущий адрес' }); return }
 
