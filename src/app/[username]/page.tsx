@@ -69,28 +69,28 @@ const KNOWN_BRANDS: Record<string, {
 }> = {
   'egov.kz': {
     title: 'eGov.kz — телефон 1414, WhatsApp, контакты портала электронного правительства',
-    desc: 'Официальные контакты eGov.kz — портал электронного правительства Казахстана. Единый контакт-центр: 1414 (бесплатно с мобильного). Справки, госуслуги онлайн.',
+    desc: 'Справочная страница eGov.kz на tapni.kz. Контакт-центр: 1414 (бесплатно с мобильного), WhatsApp, ссылки на госуслуги Казахстана. Данные из открытых источников.',
     keywords: 'egov.kz, электронное правительство Казахстан, 1414, госуслуги, справки онлайн, eGov контакты, телефон egov',
     sameAs: 'https://egov.kz',
     type: 'GovernmentOrganization',
   },
   'kolesa.kz': {
     title: 'Kolesa.kz — телефон, WhatsApp, контакты автопортала Казахстана',
-    desc: 'Официальные контакты Kolesa.kz — автомобильный портал №1 в Казахстане. Продажа и покупка авто, запчастей. Служба поддержки Kolesa.kz.',
+    desc: 'Справочная страница Kolesa.kz на tapni.kz. Телефоны и WhatsApp службы поддержки, ссылки на автомобильный портал №1 Казахстана. Данные из открытых источников.',
     keywords: 'kolesa.kz контакты, телефон колеса, kolesa служба поддержки, автопортал Казахстан, купить авто Казахстан',
     sameAs: 'https://kolesa.kz',
     type: 'Organization',
   },
   'krisha.kz': {
     title: 'Krisha.kz — телефон, WhatsApp, контакты платформы недвижимости',
-    desc: 'Официальные контакты Krisha.kz — платформа №1 для покупки, продажи и аренды недвижимости в Казахстане. Служба поддержки Krisha.kz.',
+    desc: 'Справочная страница Krisha.kz на tapni.kz. Телефоны и WhatsApp службы поддержки, ссылки на платформу недвижимости №1 Казахстана. Данные из открытых источников.',
     keywords: 'krisha.kz контакты, телефон криша, недвижимость Казахстан, аренда квартир, купить квартиру Казахстан',
     sameAs: 'https://krisha.kz',
     type: 'Organization',
   },
   'halyk.kz': {
     title: 'Halyk Bank (Народный Банк) — телефон, WhatsApp, контакты',
-    desc: 'Официальные контакты Halyk Bank — крупнейший банк Казахстана. Телефон колл-центра, WhatsApp, адреса отделений. Народный Банк Казахстана.',
+    desc: 'Справочная страница Halyk Bank на tapni.kz. Телефон колл-центра, WhatsApp, адреса отделений Народного Банка Казахстана. Данные из открытых источников.',
     keywords: 'Halyk Bank контакты, Народный Банк телефон, халык банк горячая линия, банк Казахстан, halyk.kz',
     sameAs: 'https://halyk.kz',
     type: 'BankOrCreditUnion',
@@ -104,35 +104,35 @@ const KNOWN_BRANDS: Record<string, {
   },
   'azan.kz': {
     title: 'Azan.kz — контакты, WhatsApp Центральной мечети Алматы',
-    desc: 'Официальные контакты Azan.kz — исламский портал и Центральная мечеть Алматы. Время намаза, расписание, контакты имамов.',
+    desc: 'Справочная страница Azan.kz на tapni.kz. Центральная мечеть Алматы: время намаза, расписание, WhatsApp. Данные из открытых источников.',
     keywords: 'azan.kz, Центральная мечеть Алматы, время намаза, исламский портал Казахстан, мечеть контакты',
     sameAs: 'https://azan.kz',
     type: 'ReligiousOrganization',
   },
   '24.kz': {
     title: '24KZ — телефон, контакты первого информационного телеканала Казахстана',
-    desc: 'Официальные контакты 24KZ — первый национальный круглосуточный информационный телеканал Казахстана. Новости, редакция, реклама.',
+    desc: 'Справочная страница 24KZ на tapni.kz. Контакты редакции, реклама, WhatsApp первого информационного телеканала Казахстана. Данные из открытых источников.',
     keywords: '24kz, 24.kz контакты, телеканал 24 Казахстан, новости Казахстан онлайн, телефон редакции',
     sameAs: 'https://24.kz',
     type: 'TelevisionStation',
   },
   'billimclass.kz': {
     title: 'BilimClass.kz — контакты, техподдержка образовательной платформы',
-    desc: 'Официальные контакты BilimClass.kz — цифровая образовательная платформа для школ Казахстана. Техническая поддержка, вопросы учителям.',
+    desc: 'Справочная страница BilimClass.kz на tapni.kz. Техподдержка образовательной платформы для школ Казахстана. Данные из открытых источников.',
     keywords: 'bilimclass.kz, BilimLand контакты, образовательная платформа Казахстан, электронный учебник, школа онлайн',
     sameAs: 'https://bilimclass.kz',
     type: 'EducationalOrganization',
   },
   'kundelik': {
     title: 'Kündelik.kz — контакты, техподдержка электронного дневника',
-    desc: 'Официальные контакты Kündelik.kz — единая цифровая образовательная система и электронный дневник для школ Казахстана. Техподдержка.',
+    desc: 'Справочная страница Kündelik.kz на tapni.kz. Техподдержка электронного дневника для школ Казахстана. Данные из открытых источников.',
     keywords: 'kundelik.kz, электронный дневник Казахстан, portal.kundelik.kz, школьный журнал онлайн, тех поддержка',
     sameAs: 'https://portal.kundelik.kz',
     type: 'EducationalOrganization',
   },
   'newtimes.kz': {
     title: 'NewTimes.kz — контакты, WhatsApp редакции новостного агентства',
-    desc: 'Официальные контакты NewTimes.kz — популярное казахстанское информационное агентство. Политика, экономика, происшествия, спорт.',
+    desc: 'Справочная страница NewTimes.kz на tapni.kz. Контакты редакции, WhatsApp казахстанского информационного агентства. Данные из открытых источников.',
     keywords: 'newtimes.kz, новости Казахстан, информационное агентство, СМИ Казахстан, редакция контакты',
     sameAs: 'https://newtimes.kz',
     type: 'NewsMediaOrganization',
@@ -1019,17 +1019,20 @@ export default async function ProfilePage({ params }: Props) {
           These pages rank in search ("egov.kz контакты", "kolesa.kz телефон") and get cold
           visitors who don't know tapni.kz. Convert them with a clear value proposition. */}
       {KNOWN_BRANDS[username] ? (
-        <div className="mx-auto mt-8 mb-6 max-w-xs px-4">
+        <div className="mx-auto mt-8 mb-6 max-w-xs px-4 flex flex-col gap-2">
+          <p className="text-center text-[10px] text-gray-600 leading-relaxed">
+            Справочная страница tapni.kz — контакты из открытых источников, не является официальным ресурсом
+          </p>
           <Link
             href={`/auth?utm_source=brand_page&utm_medium=cta&utm_campaign=brand&utm_content=${username}`}
             className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-center backdrop-blur-md transition-all hover:border-violet-500/40 hover:bg-black/60 active:scale-[0.98]"
           >
             <div className="flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5 text-violet-400" />
-              <span className="text-[11px] font-semibold text-gray-300">Создано на tapni.kz</span>
+              <span className="text-[11px] font-semibold text-gray-300">tapni.kz</span>
             </div>
             <p className="text-xs text-gray-400 leading-snug">
-              Создайте такую же страницу для вашего бизнеса — бесплатно, за 1 минуту
+              Создайте мобильную визитку для вашего бизнеса — бесплатно, за 1 минуту
             </p>
             <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1 text-[11px] font-bold text-white">
               Попробовать бесплатно →
