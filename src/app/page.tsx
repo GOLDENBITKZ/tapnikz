@@ -271,9 +271,9 @@ export default async function LandingPage() {
       <section className="relative px-5 py-10" aria-label="Популярные сайты Казахстана">
         <div className="mx-auto max-w-5xl">
           <div className="mb-6 text-center">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Они уже с нами</p>
-            <h2 className="text-lg font-extrabold text-gray-900">Популярные сайты Казахстана выбрали tapni.kz</h2>
-            <p className="mt-1 text-sm text-gray-500">Цифровые визитки для крупнейших казахстанских брендов</p>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Примеры страниц</p>
+            <h2 className="text-lg font-extrabold text-gray-900">Популярные сайты Казахстана на tapni.kz</h2>
+            <p className="mt-1 text-sm text-gray-500">Справочные страницы с контактами крупнейших казахстанских брендов</p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {POPULAR_SITES.map((site) => (
