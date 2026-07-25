@@ -46,6 +46,14 @@ function useDebouncedAliasCheck(rawInput: string, delayMs = 300) {
       return
     }
 
+    // clearTimeout alone isn't enough: once the timer has fired the DB query
+    // is already in flight, and its setStatus would land even though the
+    // input has since changed. Two queries can also resolve out of order,
+    // which would leave the box showing a verdict for a different alias —
+    // e.g. "Свободно" for one that is actually taken. This flag drops any
+    // result belonging to a superseded input.
+    let cancelled = false
+
     setStatus('checking')
     const timer = setTimeout(async () => {
       const db = getSupabase()
@@ -54,12 +62,13 @@ function useDebouncedAliasCheck(rawInput: string, delayMs = 300) {
         ? db.from('profiles').select('id').eq('username', cls.normalized).maybeSingle()
         : null
       const [aliasResult, profileResult] = await Promise.all([aliasCheck, profileCheck])
+      if (cancelled) return
       const isTaken = !!aliasResult.data || !!profileResult?.data
       setStatus(isTaken ? 'taken' : 'free')
       setNormalized(cls.normalized)
     }, delayMs)
 
-    return () => clearTimeout(timer)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [rawInput, delayMs])
 
   return { status, normalized }

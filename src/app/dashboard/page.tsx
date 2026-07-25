@@ -2065,15 +2065,20 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Emoji/symbol alias reservation — separate from the username-change
-                section above: an alias doesn't replace tapni.kz/{username}, it's
-                an additional short redirect. AliasChecker renders its own
-                Premium-upsell state when !profile.is_premium, so no extra
-                gate is needed here. */}
-            {profile && (
-              <AliasChecker accessToken={accessToken} isPremium={!!profile.is_premium} />
-            )}
           </form>
+        )}
+
+        {/* Emoji/symbol alias reservation — an alias doesn't replace
+            tapni.kz/{username}, it's an additional short redirect, so this
+            sits outside the profile <form> above rather than inside it:
+            nested inside, pressing Enter in either of its inputs would
+            submit saveProfile instead of reserving the alias. It posts to
+            /api/aliases on its own and renders its own Premium-upsell state
+            when !profile.is_premium, so it needs no extra gate here. */}
+        {tab === 'profile' && profile && (
+          <div className="mt-5">
+            <AliasChecker accessToken={accessToken} isPremium={!!profile.is_premium} />
+          </div>
         )}
 
         {/* ─── Links Tab ─── */}
