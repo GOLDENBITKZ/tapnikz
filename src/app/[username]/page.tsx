@@ -1019,24 +1019,24 @@ export default async function ProfilePage({ params }: Props) {
           These pages rank in search ("egov.kz контакты", "kolesa.kz телефон") and get cold
           visitors who don't know tapni.kz. Convert them with a clear value proposition. */}
       {KNOWN_BRANDS[username] ? (
-        <div className="mx-auto mt-8 mb-6 max-w-xs px-4 flex flex-col gap-2">
-          <p className="text-center text-[10px] text-gray-600 leading-relaxed">
-            Справочная страница tapni.kz — контакты из открытых источников, не является официальным ресурсом
-          </p>
+        <div className="mx-auto mt-8 mb-6 max-w-xs px-4">
           <Link
             href={`/auth?utm_source=brand_page&utm_medium=cta&utm_campaign=brand&utm_content=${username}`}
-            className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-center backdrop-blur-md transition-all hover:border-violet-500/40 hover:bg-black/60 active:scale-[0.98]"
+            className="flex flex-col items-center gap-3 rounded-2xl border border-violet-500/30 bg-gradient-to-b from-violet-950/60 to-black/60 px-5 py-5 text-center backdrop-blur-md transition-all hover:border-violet-400/50 hover:from-violet-900/60 active:scale-[0.98]"
           >
             <div className="flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-violet-400" />
-              <span className="text-[11px] font-semibold text-gray-300">tapni.kz</span>
+              <Zap className="h-4 w-4 text-violet-400" />
+              <span className="text-xs font-bold text-white">tapni.kz</span>
             </div>
-            <p className="text-xs text-gray-400 leading-snug">
-              Создайте мобильную визитку для вашего бизнеса — бесплатно, за 1 минуту
+            <p className="text-xs text-gray-300 leading-snug">
+              Создайте мобильную визитку для вашего бизнеса — бесплатно
             </p>
-            <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1 text-[11px] font-bold text-white">
+            <span className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-violet-900/50">
               Попробовать бесплатно →
             </span>
+            <p className="text-[9px] text-gray-600 leading-relaxed">
+              Справочная страница · не является официальным ресурсом
+            </p>
           </Link>
         </div>
       ) : (
