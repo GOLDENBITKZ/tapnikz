@@ -5,7 +5,7 @@ import { notFound, redirect } from 'next/navigation'
 // Cache profile pages for 60s on the edge — reduces Supabase roundtrips for popular pages
 export const revalidate = 60
 import { makeVcardToken } from '@/lib/vcard-token'
-import { decodeAliasParam, toAliasHex } from '@/lib/unicode-utils'
+import { resolveAliasTarget } from '@/lib/resolve-alias'
 import { type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours, FREE_LINK_LIMIT } from '@/lib/supabase'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
@@ -158,17 +158,12 @@ const getData = cache(async (username: string) => {
 
   if (!profile) {
     // No profile matched — fall back to a reserved alias (tapni.kz/{emoji}).
-    // Only ever runs on a profile-miss, so this can't change behavior for
-    // any real username. Non-ASCII params arrive percent-encoded from
-    // Next.js, so decode before hashing (see decodeAliasParam); usernames
-    // themselves are ASCII-only by DB constraint, so the profile lookup
-    // above is unaffected either way.
-    const { data: alias } = await db
-      .from('aliases')
-      .select('target_url')
-      .eq('alias_hex', toAliasHex(decodeAliasParam(username)))
-      .maybeSingle()
-    return { profile: null, links: [] as LinkRow[], aliasTarget: (alias?.target_url as string | undefined) ?? null }
+    // Only ever runs on a profile-miss, so this can't change behavior for any
+    // real username. resolveAliasTarget handles the decoding and the
+    // "no target set → owner's own profile" rule, shared with the
+    // /tapni.kz/{alias} route so the two can't drift apart.
+    const aliasTarget = await resolveAliasTarget(username)
+    return { profile: null, links: [] as LinkRow[], aliasTarget }
   }
 
   const { data: links } = await db

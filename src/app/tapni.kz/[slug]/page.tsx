@@ -1,6 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { decodeAliasParam, toAliasHex } from '@/lib/unicode-utils'
+import { resolveAliasTarget } from '@/lib/resolve-alias'
 
 // Static "tapni.kz" folder living alongside the dynamic [username] route.
 // Next.js resolves static segments before dynamic ones, so this claims
@@ -27,14 +26,7 @@ type Props = { params: Promise<{ slug: string }> }
 
 export default async function BrandedAliasRedirectPage({ params }: Props) {
   const { slug } = await params
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = getSupabaseAdmin() as any
-  const { data: alias } = await db
-    .from('aliases')
-    .select('target_url')
-    .eq('alias_hex', toAliasHex(decodeAliasParam(slug)))
-    .maybeSingle()
-
-  if (!alias?.target_url) notFound()
-  redirect(alias.target_url)
+  const target = await resolveAliasTarget(slug)
+  if (!target) notFound()
+  redirect(target)
 }

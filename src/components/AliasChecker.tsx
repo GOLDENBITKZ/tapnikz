@@ -24,7 +24,7 @@ type AliasItem = {
   id: string
   aliasRaw: string
   category: AliasCategory
-  targetUrl: string
+  targetUrl: string | null
   urls: [string, string]
 }
 
@@ -117,7 +117,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
   }
 
   async function reserve() {
-    if (state.kind !== 'free' || !targetUrl.trim()) return
+    if (state.kind !== 'free') return
     setSubmitting(true)
     setSubmitMsg(null)
     try {
@@ -129,7 +129,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
       const body = await res.json()
       if (!body.ok) { setSubmitMsg({ type: 'err', text: errorMessage(body.error) }); return }
       setMyAliases((prev) => [
-        { id: body.alias.id, aliasRaw: body.alias.aliasRaw, category: body.alias.category, targetUrl: targetUrl.trim(), urls: body.alias.urls },
+        { id: body.alias.id, aliasRaw: body.alias.aliasRaw, category: body.alias.category, targetUrl: targetUrl.trim() || null, urls: body.alias.urls },
         ...(prev ?? []),
       ])
       setAliasInput('')
@@ -143,7 +143,6 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
   }
 
   async function saveEdit(id: string) {
-    if (!editUrl.trim()) return
     setEditSaving(true)
     try {
       const res = await fetch(`/api/aliases/${id}`, {
@@ -153,7 +152,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
       })
       const body = await res.json()
       if (!body.ok) { setSubmitMsg({ type: 'err', text: errorMessage(body.error) }); return }
-      setMyAliases((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, targetUrl: editUrl.trim() } : a)))
+      setMyAliases((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, targetUrl: editUrl.trim() || null } : a)))
       setEditingId(null)
     } catch {
       setSubmitMsg({ type: 'err', text: 'Ошибка сети. Попробуйте снова.' })
@@ -266,14 +265,19 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
         type="text"
         value={targetUrl}
         onChange={(e) => setTargetUrl(e.target.value)}
-        placeholder="https://example.com — куда вести"
-        className="mb-2 w-full rounded-xl border border-white/10 bg-black/50 px-3 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-violet-400/50"
+        placeholder="https://example.com — необязательно"
+        className="mb-1.5 w-full rounded-xl border border-white/10 bg-black/50 px-3 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-violet-400/50"
       />
+      {!targetUrl.trim() && (
+        <p className="mb-2 text-[11px] leading-relaxed text-gray-500">
+          Оставьте пустым — символ будет вести на вашу страницу tapni.kz. Адрес можно изменить в любой момент.
+        </p>
+      )}
 
       <button
         type="button"
         onClick={reserve}
-        disabled={submitting || state.kind !== 'free' || !targetUrl.trim()}
+        disabled={submitting || state.kind !== 'free'}
         className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-3 text-xs font-bold text-white shadow-lg shadow-violet-900/50 transition-colors hover:bg-violet-500 disabled:bg-white/5 disabled:text-gray-600 disabled:shadow-none"
       >
         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Zap className="h-3.5 w-3.5" /> Застолбить символ</>}
@@ -283,7 +287,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
         <p className={`mt-2 text-xs ${submitMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{submitMsg.text}</p>
       )}
 
-      {state.kind === 'free' && targetUrl.trim() && (
+      {state.kind === 'free' && (
         <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
           Будет доступно сразу по двум адресам: <span className="font-mono text-gray-400">tapni.kz/{state.normalized}</span> и <span className="font-mono text-gray-400">tapni.kz/tapni.kz/{state.normalized}</span>
         </p>
@@ -311,7 +315,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { setEditingId(a.id); setEditUrl(a.targetUrl) }}
+                      onClick={() => { setEditingId(a.id); setEditUrl(a.targetUrl ?? '') }}
                       className="flex flex-shrink-0 items-center gap-1 text-[11px] text-violet-300 hover:text-violet-200"
                     >
                       <Pencil className="h-3 w-3" /> Изменить
@@ -325,12 +329,13 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
                       type="text"
                       value={editUrl}
                       onChange={(e) => setEditUrl(e.target.value)}
-                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/50 px-2 py-2 text-xs text-white outline-none focus:border-violet-400/50"
+                      placeholder="пусто — на вашу страницу"
+                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/50 px-2 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-violet-400/50"
                     />
                     <button
                       type="button"
                       onClick={() => saveEdit(a.id)}
-                      disabled={editSaving || !editUrl.trim()}
+                      disabled={editSaving}
                       className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
                     >
                       {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
@@ -338,7 +343,9 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
                   </div>
                 ) : (
                   <>
-                    <p className="mb-2 truncate text-[11px] text-gray-500">→ {a.targetUrl}</p>
+                    <p className="mb-2 truncate text-[11px] text-gray-500">
+                      {a.targetUrl ? `→ ${a.targetUrl}` : '→ на вашу страницу tapni.kz'}
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {a.urls.map((u) => (
                         <button

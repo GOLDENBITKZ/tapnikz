@@ -49,17 +49,21 @@ export async function PATCH(
       return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
     }
 
-    const targetUrlRaw = (body.target_url ?? '').trim()
-    if (!targetUrlRaw || targetUrlRaw.length > 2048) {
-      return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
-    }
-    try {
-      const parsed = new URL(targetUrlRaw)
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
+    // Empty clears the target, which points the alias back at the owner's own
+    // profile page — the same default a reservation made without a URL gets.
+    const targetUrl: string | null = (body.target_url ?? '').trim() || null
+    if (targetUrl) {
+      if (targetUrl.length > 2048) {
         return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
       }
-    } catch {
-      return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
+      try {
+        const parsed = new URL(targetUrl)
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
+        }
+      } catch {
+        return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
+      }
     }
 
     // Ownership check — verify this alias belongs to the caller before
@@ -72,7 +76,7 @@ export async function PATCH(
 
     const { error: updateError } = await adminDb
       .from('aliases')
-      .update({ target_url: targetUrlRaw })
+      .update({ target_url: targetUrl })
       .eq('id', id).eq('user_id', prof.id)
 
     if (updateError) return Response.json({ ok: false, error: 'internal_error' }, { status: 500 })

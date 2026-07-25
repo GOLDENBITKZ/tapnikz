@@ -15,7 +15,7 @@ export type AliasListItem = {
   id: string
   aliasRaw: string
   category: AliasCategory
-  targetUrl: string
+  targetUrl: string | null
   urls: [string, string]
   createdAt: string
   updatedAt: string
@@ -89,18 +89,24 @@ export async function POST(request: Request) {
   const aliasRaw = body.alias_raw ?? ''
   const targetUrlRaw = (body.target_url ?? '').trim()
 
-  // Same URL-scheme validation idiom as api/links/route.ts and api/click/route.ts:
-  // only http/https, bounded length (mirrors the aliases.target_url CHECK constraint).
-  if (!targetUrlRaw || targetUrlRaw.length > 2048) {
-    return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
-  }
-  try {
-    const parsed = new URL(targetUrlRaw)
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
+  // target_url is optional. Left empty, the alias points at the owner's own
+  // profile page — resolved at redirect time from the current username, so a
+  // later rename carries the alias along instead of breaking it.
+  // When given, the same URL-scheme validation as api/links and api/click:
+  // http/https only, bounded length (mirrors the target_url CHECK).
+  const targetUrl: string | null = targetUrlRaw || null
+  if (targetUrl) {
+    if (targetUrl.length > 2048) {
       return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
     }
-  } catch {
-    return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
+    try {
+      const parsed = new URL(targetUrl)
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
+      }
+    } catch {
+      return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
+    }
   }
 
   // Tier comes from classifyAlias and never from the request body — otherwise
@@ -148,7 +154,7 @@ export async function POST(request: Request) {
       alias_normalized: cls.normalized,
       alias_hex: cls.hex,
       category: cls.category,
-      target_url: targetUrlRaw,
+      target_url: targetUrl,
       is_premium: true,
     }])
     .select('id')

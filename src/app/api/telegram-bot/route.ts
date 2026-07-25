@@ -157,6 +157,11 @@ const ADMIN_HELP = `<b>tapni.kz Admin Panel</b>
 /revenue [days] — выручка за N дней (по умолч. 30)
 /payments <i>username</i> — история платежей пользователя
 
+<b>Поддержка</b>
+/tickets — открытые обращения (старые сверху, 🔴 = срочные)
+  У каждого — кнопки «Ответить» и «Закрыть».
+  Ответ уходит пользователю прямо в бот, даже если Telegram не привязан.
+
 <b>Сообщения</b>
 /message <i>username текст</i> — отправить сообщение пользователю
 /setphone <i>username +7XXXXXXXXXX</i> — изменить номер телефона
@@ -164,6 +169,7 @@ const ADMIN_HELP = `<b>tapni.kz Admin Panel</b>
 /delete <i>username</i> — удалить аккаунт (двухшаговое подтверждение)
 
 <b>Система</b>
+/health — состояние сервиса: БД, ошибки, очередь тикетов
 /myid — показать ваш chat ID
 /setup — обновить команды бота в меню Telegram`
 
@@ -209,6 +215,24 @@ async function setupBotCommands() {
   await tgPost('setChatMenuButton', {
     menu_button: { type: 'commands' },
   })
+
+  // Admin-only menu, scoped to the admin's own chat so these never appear for
+  // users. Only the two commands worth one tap — the rest take arguments and
+  // are documented in /help.
+  const adminId = adminChatId()
+  if (adminId) {
+    await tgPost('setMyCommands', {
+      commands: [
+        { command: 'health', description: '📟 Состояние сервиса' },
+        { command: 'tickets', description: '🆘 Открытые обращения' },
+        { command: 'stats', description: '📊 Статистика платформы' },
+        { command: 'revenue', description: '💰 Выручка' },
+        { command: 'expiring', description: '⏰ Истекают подписки' },
+        { command: 'help', description: '📖 Все команды' },
+      ],
+      scope: { type: 'chat', chat_id: Number(adminId) },
+    })
+  }
 }
 
 // ─── Main webhook handler ─────────────────────────────────────
@@ -247,6 +271,12 @@ export async function POST(request: Request) {
       await managerClientsHandler(chatId)
     } else if (data === 'payout_request') {
       await managerPayoutRequestHandler(chatId)
+    } else if (data.startsWith('tkt_reply:') && chatId === adminChatId()) {
+      const code = (data.split(':')[1] ?? '').replace(/[^A-Z0-9-]/g, '').slice(0, 10)
+      if (code) await ticketReplyPromptHandler(chatId, code)
+    } else if (data.startsWith('tkt_close:') && chatId === adminChatId()) {
+      const code = (data.split(':')[1] ?? '').replace(/[^A-Z0-9-]/g, '').slice(0, 10)
+      if (code) await ticketCloseHandler(chatId, code)
     } else if (data.startsWith('manager_approve:') && chatId === adminChatId()) {
       const uname = (data.split(':')[1] ?? '').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40)
       if (uname) {
@@ -391,6 +421,19 @@ export async function POST(request: Request) {
   if (isAdmin) {
     const reply = (t: string) => sendTelegram(chatId, t)
 
+    // Answering a support ticket: the admin replied to the force_reply prompt,
+    // which carries the ticket code in its own text. Reading it back from
+    // reply_to_message keeps this working across serverless cold starts, where
+    // an in-memory "who is answering what" map would be lost.
+    const repliedTo: string | undefined = msg.reply_to_message?.text
+    if (repliedTo && text) {
+      const m = repliedTo.match(/Ответ на тикет (T-[0-9A-F]{4})/)
+      if (m) {
+        await ticketDeliverReply(chatId, m[1], text)
+        return Response.json({ ok: true })
+      }
+    }
+
     try {
       if (cmd === '/start' || cmd === '/help') {
         await reply(ADMIN_HELP)
@@ -398,6 +441,42 @@ export async function POST(request: Request) {
       } else if (cmd === '/setup') {
         await setupBotCommands()
         await reply('✅ Команды бота обновлены в меню Telegram.')
+
+      } else if (cmd === '/tickets') {
+        await ticketsListHandler(chatId)
+
+      } else if (cmd === '/health') {
+        // One pull-based overview instead of a stream of push notifications:
+        // the admin checks when they want to, and nothing is sent unprompted.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const db = (getSupabaseAdmin() as any)
+        const dayAgo = new Date(Date.now() - 86400000).toISOString()
+        const t0 = Date.now()
+        const [openT, highT, staleT, pendingPay, newUsers, expSoon] = await Promise.all([
+          db.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+          db.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open').eq('priority', 'high'),
+          db.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open').lt('created_at', dayAgo),
+          db.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+          db.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', dayAgo),
+          db.from('profiles').select('*', { count: 'exact', head: true }).eq('is_premium', true)
+            .lte('subscription_expires_at', new Date(Date.now() + 3 * 86400000).toISOString())
+            .gt('subscription_expires_at', new Date().toISOString()),
+        ])
+        const dbMs = Date.now() - t0
+        const openCount = openT.count ?? 0
+        const staleCount = staleT.count ?? 0
+        const needsAction = (highT.count ?? 0) > 0 || staleCount > 0 || (pendingPay.count ?? 0) > 0
+        await reply(
+          `${needsAction ? '⚠️' : '✅'} <b>Состояние сервиса</b>\n\n` +
+          `🆘 Открытых тикетов: <b>${openCount}</b>` +
+          `${(highT.count ?? 0) > 0 ? ` · 🔴 срочных: <b>${highT.count}</b>` : ''}` +
+          `${staleCount > 0 ? `\n⏳ Ждут больше суток: <b>${staleCount}</b>` : ''}\n` +
+          `💳 Платежей на проверке: <b>${pendingPay.count ?? 0}</b>\n` +
+          `👥 Новых за сутки: <b>${newUsers.count ?? 0}</b>\n` +
+          `⏰ Premium истекает за 3 дня: <b>${expSoon.count ?? 0}</b>\n\n` +
+          `🗄 База отвечает за ${dbMs} мс\n` +
+          `${needsAction ? '\n👉 /tickets — разобрать очередь' : '\nВсё спокойно, действий не требуется.'}`
+        )
 
       } else if (cmd === '/stats') {
         const db = (getSupabaseAdmin() as any)
@@ -1356,35 +1435,82 @@ async function helpHandler(chatId: string) {
   )
 }
 
+// ─── Support tickets ──────────────────────────────────────────
+// Every /support message becomes a ticket with a short code, so the admin can
+// answer it straight from Telegram. Previously a request arrived as a plain
+// message and answering meant typing "/message {username} {text}" by hand —
+// impossible at all when the sender had never linked their Telegram, because
+// there was no username to aim at. The ticket carries chat_id, so any sender
+// can be answered.
+
+// 4 hex chars ≈ 65k combinations, checked for collision before use — plenty
+// for a queue that is measured in tens of open tickets, and short enough to
+// read aloud over the phone.
+function newTicketCode(): string {
+  return 'T-' + Math.floor(Math.random() * 0x10000).toString(16).toUpperCase().padStart(4, '0')
+}
+
+// Keywords that mean someone is stuck on money or access — those should not
+// sit behind a queue of "how do I add a button" questions.
+const HIGH_PRIORITY_RE = /оплат|платеж|платёж|деньг|списал|не работает|не открыва|ошибк|пропал|взлом|мошен|верн|premium не|не активир/i
+
+function ticketPriority(message: string): 'high' | 'normal' {
+  return HIGH_PRIORITY_RE.test(message) ? 'high' : 'normal'
+}
+
 async function supportHandler(chatId: string, message?: string) {
   const adminId = adminChatId()
 
   if (message) {
-    // Gather user info for the admin notification
-    const { data: linked } = await (getSupabaseAdmin() as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getSupabaseAdmin() as any
+    const { data: linked } = await db
       .from('profiles')
-      .select('username, business_name, phone, is_premium')
+      .select('id, username, business_name, phone, is_premium')
       .eq('telegram_chat_id', chatId)
       .maybeSingle()
 
-    const userInfo = linked
-      ? `👤 <b>${esc(linked.business_name)}</b> (@${linked.username}) +${linked.phone ?? '?'}${linked.is_premium ? ' ⚡' : ''}`
-      : `👤 Telegram: <code>${chatId}</code> (не привязан)`
+    const priority = ticketPriority(message)
 
-    // Notify admin
-    const sent = adminId && TOKEN()
-    if (sent) {
-      await sendTelegram(adminId,
-        `🆘 <b>Запрос поддержки</b>\n\n${userInfo}\n\n💬 ${esc(message)}`
-      )
+    // Retry on the (unlikely) code collision rather than failing the request.
+    let code = ''
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = newTicketCode()
+      const { error } = await db.from('support_tickets').insert([{
+        code: candidate,
+        chat_id: chatId,
+        profile_id: linked?.id ?? null,
+        username: linked?.username ?? null,
+        message: message.slice(0, 2000),
+        priority,
+      }])
+      if (!error) { code = candidate; break }
+      if (error.code !== '23505') break
+    }
+
+    const userInfo = linked
+      ? `👤 <b>${esc(linked.business_name)}</b> (@${linked.username})\n📱 +${linked.phone ?? '—'}${linked.is_premium ? ' · ⚡ Premium' : ' · бесплатный'}`
+      : `👤 Не привязан · Telegram <code>${chatId}</code>`
+
+    if (adminId && TOKEN() && code) {
+      await tgPost('sendMessage', {
+        chat_id: adminId,
+        text:
+          `${priority === 'high' ? '🔴' : '🆘'} <b>Тикет ${code}</b>${priority === 'high' ? ' · СРОЧНО' : ''}\n\n` +
+          `${userInfo}\n\n💬 ${esc(message)}`,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [
+          [{ text: '💬 Ответить', callback_data: `tkt_reply:${code}` }],
+          [{ text: '✅ Закрыть без ответа', callback_data: `tkt_close:${code}` }],
+        ]},
+      })
     }
 
     await tgPost('sendMessage', {
       chat_id: chatId,
-      text:
-        `✅ <b>Запрос отправлен!</b>\n\n` +
-        `Ответим в ближайшее время.\n` +
-        `Также можно написать напрямую:`,
+      text: code
+        ? `✅ <b>Запрос принят — ${code}</b>\n\nОтветим прямо здесь, в этом чате.\nНомер тикета сохраните на случай уточнений.`
+        : `✅ <b>Запрос отправлен!</b>\n\nОтветим в ближайшее время.`,
       parse_mode: 'HTML',
       reply_markup: { inline_keyboard: [
         [{ text: '💬 WhatsApp поддержка', url: SUPPORT_WA }],
@@ -1400,12 +1526,92 @@ async function supportHandler(chatId: string, message?: string) {
       `🆘 <b>Техническая поддержка tapni.kz</b>\n\n` +
       `Напишите ваш вопрос прямо сейчас:\n` +
       `<code>/support Ваш вопрос здесь</code>\n\n` +
-      `Или свяжитесь с нами напрямую:`,
+      `Мы ответим в этом же чате. Или свяжитесь напрямую:`,
     parse_mode: 'HTML',
     reply_markup: { inline_keyboard: [
       [{ text: '💬 WhatsApp поддержка', url: SUPPORT_WA }],
     ]},
   })
+}
+
+// Admin taps "Ответить" → bot asks for the text with force_reply. The ticket
+// code travels inside the prompt text itself rather than in a server-side
+// map: this runs on serverless, where any in-memory state can vanish between
+// the tap and the reply.
+async function ticketReplyPromptHandler(adminId: string, code: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = getSupabaseAdmin() as any
+  const { data: t } = await db.from('support_tickets').select('code, message, status').eq('code', code).maybeSingle()
+  if (!t) { await sendTelegram(adminId, `❌ Тикет ${esc(code)} не найден`); return }
+
+  await tgPost('sendMessage', {
+    chat_id: adminId,
+    text: `✍️ Ответ на тикет ${t.code}\n\nВопрос: ${esc(String(t.message).slice(0, 300))}\n\nНапишите ответ ответом на это сообщение.`,
+    parse_mode: 'HTML',
+    reply_markup: { force_reply: true, input_field_placeholder: `Ответ по ${t.code}` },
+  })
+}
+
+// Delivers the admin's reply to the user who opened the ticket.
+async function ticketDeliverReply(adminId: string, code: string, replyText: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = getSupabaseAdmin() as any
+  const { data: t } = await db.from('support_tickets').select('id, code, chat_id, status').eq('code', code).maybeSingle()
+  if (!t) { await sendTelegram(adminId, `❌ Тикет ${esc(code)} не найден`); return }
+
+  await tgPost('sendMessage', {
+    chat_id: t.chat_id,
+    text: `💬 <b>Ответ поддержки tapni.kz</b>\n\n${esc(replyText)}\n\n<i>Тикет ${t.code}</i>\nЕсли вопрос остался — напишите /support ещё раз.`,
+    parse_mode: 'HTML',
+  })
+
+  await db.from('support_tickets')
+    .update({ status: 'answered', admin_reply: replyText.slice(0, 2000), answered_at: new Date().toISOString() })
+    .eq('id', t.id)
+
+  await sendTelegram(adminId, `✅ Ответ отправлен по тикету ${t.code}`)
+}
+
+async function ticketCloseHandler(adminId: string, code: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = getSupabaseAdmin() as any
+  const { data: t } = await db.from('support_tickets').select('id, code').eq('code', code).maybeSingle()
+  if (!t) { await sendTelegram(adminId, `❌ Тикет ${esc(code)} не найден`); return }
+  await db.from('support_tickets').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', t.id)
+  await sendTelegram(adminId, `✅ Тикет ${t.code} закрыт`)
+}
+
+// Open tickets, oldest first — the one that has been waiting longest is the
+// one that needs answering, and urgent ones are marked so they stand out.
+async function ticketsListHandler(adminId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = getSupabaseAdmin() as any
+  const { data } = await db
+    .from('support_tickets')
+    .select('code, username, message, priority, created_at, chat_id')
+    .eq('status', 'open')
+    .order('created_at', { ascending: true })
+    .limit(15)
+
+  if (!data?.length) { await sendTelegram(adminId, '✅ Открытых тикетов нет'); return }
+
+  const now = Date.now()
+  for (const t of data) {
+    const hours = Math.floor((now - new Date(t.created_at).getTime()) / 3600000)
+    const age = hours < 1 ? 'только что' : hours < 24 ? `${hours} ч назад` : `${Math.floor(hours / 24)} дн назад`
+    await tgPost('sendMessage', {
+      chat_id: adminId,
+      text:
+        `${t.priority === 'high' ? '🔴' : '🆘'} <b>${t.code}</b> · ${age}\n` +
+        `${t.username ? `@${esc(t.username)}` : `<code>${t.chat_id}</code> (не привязан)`}\n\n` +
+        `💬 ${esc(String(t.message).slice(0, 400))}`,
+      parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: [
+        [{ text: '💬 Ответить', callback_data: `tkt_reply:${t.code}` }],
+        [{ text: '✅ Закрыть', callback_data: `tkt_close:${t.code}` }],
+      ]},
+    })
+  }
 }
 
 // ─── Admin activate helper (reusable by /activate and quick_activate callback) ─
