@@ -101,9 +101,14 @@ CREATE TABLE IF NOT EXISTS public.aliases (
 -- 510 hex chars = 255 bytes. Graphemes alone are not a safe bound: one
 -- grapheme can be 25 bytes (ZWJ family emoji), so the byte ceiling backs up
 -- the 32-grapheme limit enforced in src/lib/unicode-utils.ts.
+--
+-- Length is checked with char_length, NOT a {2,510} regex bound: Postgres's
+-- POSIX engine caps a repetition count at 255, and an over-limit bound is
+-- accepted at constraint-creation time (nothing evaluates it on an empty
+-- table) then throws "invalid repetition count(s)" on the first INSERT.
 ALTER TABLE public.aliases DROP CONSTRAINT IF EXISTS aliases_alias_hex_check;
 ALTER TABLE public.aliases ADD CONSTRAINT aliases_alias_hex_check
-  CHECK (alias_hex ~ '^[0-9a-f]{2,510}$');
+  CHECK (alias_hex ~ '^[0-9a-f]+$' AND char_length(alias_hex) BETWEEN 2 AND 510);
 
 ALTER TABLE public.aliases DROP CONSTRAINT IF EXISTS aliases_alias_raw_check;
 ALTER TABLE public.aliases ADD CONSTRAINT aliases_alias_raw_check
