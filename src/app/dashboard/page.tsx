@@ -436,7 +436,16 @@ export default function DashboardPage() {
       ? await getSupabase().from('click_events').select('created_at').in('link_id', linkIds).gte('created_at', sevenDaysAgo).limit(2000)
       : { data: [] }
     if (prof) {
-      setProfile(prof as Profile)
+      // Normalise is_premium to its *effective* value the same way the server does
+      // (src/app/api/links/route.ts). The nightly cron flips is_premium to false
+      // after expiry, so for up to ~24h the raw flag can still read true on an
+      // expired subscription. Without this, the dashboard would offer Premium-only
+      // actions that the server then rejects, and would reveal the full lead list.
+      // Nothing here writes is_premium back — every update() lists fields explicitly.
+      const effectivePremium =
+        prof.is_premium &&
+        (!prof.subscription_expires_at || new Date(prof.subscription_expires_at) > new Date())
+      setProfile({ ...prof, is_premium: effectivePremium } as Profile)
       setProfileForm({
         business_name: prof.business_name,
         bio: prof.bio ?? '',
