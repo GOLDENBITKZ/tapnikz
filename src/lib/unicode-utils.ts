@@ -15,6 +15,7 @@ export type AliasCategory = 'single_emoji' | 'double_emoji' | 'custom'
 export type AliasRejection =
   | 'empty'
   | 'too_long'
+  | 'too_many_bytes'
   | 'non_ascii_letter'
   | 'mixed_script'
   | 'invalid_char'
@@ -23,15 +24,22 @@ export type AliasClassification =
   | { ok: true; category: AliasCategory; normalized: string; hex: string; graphemes: number }
   | { ok: false; reason: AliasRejection }
 
-// Hard ceiling on alias length. Keeps reserved URLs short enough to be
-// spoken, printed on a card and typed by hand — which is the whole point of
-// an alias over a normal tapni.kz/{username}.
-export const MAX_ALIAS_GRAPHEMES = 5
+// Matches the 32-character ceiling on usernames, so an alias can be a
+// readable name and not only a symbol.
+export const MAX_ALIAS_GRAPHEMES = 32
+
+// Graphemes alone are not a safe storage bound: one grapheme can be many
+// bytes (🚀 is 4, 🇰🇿 is 8, a ZWJ family like 👨‍👩‍👧‍👦 is 25), so 32 of the last
+// would be 800 bytes and a 1 600-character index key. This ceiling mirrors
+// the DB CHECK on alias_hex (510 hex chars = 255 bytes). It is generous for
+// every realistic alias — all 32 ASCII characters, or 63 simple emoji — and
+// only binds on long chains of composite emoji.
+export const MAX_ALIAS_BYTES = 255
 
 export const CATEGORY_LABELS: Record<AliasCategory, { label: string; blurb: string }> = {
   single_emoji: { label: 'VIP Single Emoji', blurb: 'Один символ — самый редкий формат, около 1 800 на весь сервис' },
   double_emoji: { label: 'Double Emoji', blurb: 'Два символа — примерно 3,2 млн сочетаний' },
-  custom: { label: 'Combo / Custom', blurb: 'Текст, эмодзи или их сочетание — до 5 символов' },
+  custom: { label: 'Combo / Custom', blurb: 'Текст, эмодзи или их сочетание — до 32 символов' },
 }
 
 // UTF-8 hex of the string — exact-byte lookup key, immune to normalization
@@ -137,6 +145,11 @@ export function classifyAlias(raw: string): AliasClassification {
   const folded = normalized.replace(/[A-Z]/g, (c) => c.toLowerCase())
   const foldedGraphemes = segmentGraphemes(folded)
 
+  // Checked after folding, against the same string that gets hex-encoded and
+  // stored, so this can never disagree with the DB CHECK on alias_hex.
+  const hex = toAliasHex(folded)
+  if (hex.length > MAX_ALIAS_BYTES * 2) return { ok: false, reason: 'too_many_bytes' }
+
   const allPictographic = foldedGraphemes.every(isPictographic)
   let category: AliasCategory = 'custom'
   if (allPictographic && foldedGraphemes.length === 1) category = 'single_emoji'
@@ -146,7 +159,7 @@ export function classifyAlias(raw: string): AliasClassification {
     ok: true,
     category,
     normalized: folded,
-    hex: toAliasHex(folded),
+    hex,
     graphemes: foldedGraphemes.length,
   }
 }

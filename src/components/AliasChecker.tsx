@@ -37,6 +37,7 @@ const TIER_STYLE: Record<AliasCategory, { badge: string; glow: string; icon: str
 const REJECT_TEXT: Record<string, string> = {
   empty: '',
   too_long: `Максимум ${MAX_ALIAS_GRAPHEMES} символов`,
+  too_many_bytes: 'Слишком длинная комбинация эмодзи — сократите',
   non_ascii_letter: 'Только латиница и эмодзи — кириллица недоступна',
   invalid_char: 'Без пробелов и невидимых символов',
   mixed_script: 'Смешение алфавитов запрещено',
@@ -191,7 +192,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
         Застолбить эмодзи-ссылку
       </p>
       <p className="mb-4 text-xs text-gray-400">
-        До {MAX_ALIAS_GRAPHEMES} символов. Чем короче — тем ценнее.
+        Один эмодзи, два или целое слово — до {MAX_ALIAS_GRAPHEMES} символов. Чем короче, тем ценнее.
       </p>
 
       {/* Format toggle — the reservation is the same either way, this only
@@ -368,6 +369,7 @@ function errorMessage(code: string): string {
     case 'reserved_route': return 'Системный адрес — недоступен'
     case 'non_ascii_letter': return 'Только латиница и эмодзи — кириллица недоступна'
     case 'too_long': return `Максимум ${MAX_ALIAS_GRAPHEMES} символов`
+    case 'too_many_bytes': return 'Слишком длинная комбинация эмодзи — сократите'
     case 'already_taken_alias': return 'Уже занято'
     case 'already_taken_username': return 'Занято пользователем'
     case 'not_found': return 'Не найдено'

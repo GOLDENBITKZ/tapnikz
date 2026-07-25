@@ -4,7 +4,7 @@ import { classifyAlias, isReservedWord, type AliasCategory } from '@/lib/unicode
 
 export type ReserveAliasError =
   | 'unauthorized' | 'premium_required' | 'invalid_input'
-  | 'reserved_route' | 'non_ascii_letter' | 'too_long'
+  | 'reserved_route' | 'non_ascii_letter' | 'too_long' | 'too_many_bytes'
   | 'already_taken_alias' | 'already_taken_username'
 
 export type ReserveAliasResult =
@@ -111,6 +111,7 @@ export async function POST(request: Request) {
     const error: ReserveAliasError =
       cls.reason === 'non_ascii_letter' ? 'non_ascii_letter'
       : cls.reason === 'too_long' ? 'too_long'
+      : cls.reason === 'too_many_bytes' ? 'too_many_bytes'
       : 'invalid_input'
     return Response.json({ ok: false, error } satisfies ReserveAliasResult, { status: 400 })
   }
