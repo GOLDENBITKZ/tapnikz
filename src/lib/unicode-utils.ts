@@ -23,6 +23,26 @@ export function toAliasHex(s: string): string {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+// Next.js hands non-ASCII dynamic route params to the page STILL
+// percent-encoded — /tapni.kz/🚀 arrives as the literal 12-char string
+// "%F0%9F%9A%80", not "🚀" (verified against production: an alias stored
+// under hex("%F0%9F%9A%80") resolved while hex("🚀") 404'd). So the two
+// redirect routes must decode before hashing, or every emoji alias misses.
+//
+// Only for route params. Input typed into AliasChecker and posted to
+// /api/aliases as JSON is never percent-encoded, so it must NOT be run
+// through this — decoding there would corrupt an alias containing a literal
+// '%'. The try/catch covers exactly that case here too: a raw '%' that
+// isn't valid percent-encoding makes decodeURIComponent throw URIError,
+// and the raw value is the correct answer then.
+export function decodeAliasParam(param: string): string {
+  try {
+    return decodeURIComponent(param)
+  } catch {
+    return param
+  }
+}
+
 const PRINTABLE_ASCII = /^[\x21-\x7E]+$/
 
 // Homograph guard for the 'symbol' branch: a single grapheme cluster can

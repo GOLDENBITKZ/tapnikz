@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { toAliasHex } from '@/lib/unicode-utils'
+import { decodeAliasParam, toAliasHex } from '@/lib/unicode-utils'
 
 // Safe to add as a static "tapni.kz" folder alongside the dynamic [username]
 // route: profiles.username is CHECK-constrained to ^[a-z0-9-]{3,32}$ (no dot),
@@ -24,7 +24,7 @@ export default async function BrandedAliasRedirectPage({ params }: Props) {
   const { data: alias } = await db
     .from('aliases')
     .select('target_url')
-    .eq('alias_hex', toAliasHex(slug))
+    .eq('alias_hex', toAliasHex(decodeAliasParam(slug)))
     .maybeSingle()
 
   if (!alias?.target_url) notFound()

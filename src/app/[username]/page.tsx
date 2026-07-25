@@ -5,7 +5,7 @@ import { notFound, redirect } from 'next/navigation'
 // Cache profile pages for 60s on the edge — reduces Supabase roundtrips for popular pages
 export const revalidate = 60
 import { makeVcardToken } from '@/lib/vcard-token'
-import { toAliasHex } from '@/lib/unicode-utils'
+import { decodeAliasParam, toAliasHex } from '@/lib/unicode-utils'
 import { type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours, FREE_LINK_LIMIT } from '@/lib/supabase'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
@@ -159,13 +159,14 @@ const getData = cache(async (username: string) => {
   if (!profile) {
     // No profile matched — fall back to a reserved alias (tapni.kz/{emoji}).
     // Only ever runs on a profile-miss, so this can't change behavior for
-    // any real username; `username` here is already the decoded route
-    // param (Next.js decodes segment params before handing them to the
-    // page), so it's hashed as-is, no re-decoding.
+    // any real username. Non-ASCII params arrive percent-encoded from
+    // Next.js, so decode before hashing (see decodeAliasParam); usernames
+    // themselves are ASCII-only by DB constraint, so the profile lookup
+    // above is unaffected either way.
     const { data: alias } = await db
       .from('aliases')
       .select('target_url')
-      .eq('alias_hex', toAliasHex(username))
+      .eq('alias_hex', toAliasHex(decodeAliasParam(username)))
       .maybeSingle()
     return { profile: null, links: [] as LinkRow[], aliasTarget: (alias?.target_url as string | undefined) ?? null }
   }
