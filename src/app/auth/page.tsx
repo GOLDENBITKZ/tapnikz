@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Loader2, AlertCircle, Phone } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
 import { RESERVED_ROUTE_WORDS, toAliasHex } from '@/lib/unicode-utils'
+import { BusinessNameField } from '@/components/business-name-field'
 
 type Tab = 'login' | 'register'
 
@@ -433,21 +434,11 @@ function AuthPageInner() {
 
                 {/* Business name */}
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-gray-700">
-                    Название бизнеса / Имя{' '}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="business_name"
+                  <BusinessNameField
                     value={regForm.business_name}
-                    onChange={handleRegChange}
-                    placeholder="Цветы Алматы"
-                    className={`w-full rounded-xl border bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors ${
-                      fieldErrors.business_name
-                        ? 'border-red-400'
-                        : 'border-gray-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20'
-                    }`}
+                    onChange={(next) => setRegForm((p) => ({ ...p, business_name: next }))}
+                    hasError={!!fieldErrors.business_name}
+                    labelClassName="mb-1.5 block text-xs font-medium text-gray-700"
                   />
                   {fieldErrors.business_name && (
                     <p className="mt-1 text-xs text-red-500">

@@ -1,25 +1,30 @@
 import { revalidatePath } from 'next/cache'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { classifyAlias, isReservedWord } from '@/lib/unicode-utils'
+import { classifyAlias, isReservedWord, type AliasCategory } from '@/lib/unicode-utils'
+
+export type ReserveAliasError =
+  | 'unauthorized' | 'premium_required' | 'invalid_input'
+  | 'reserved_route' | 'non_ascii_letter' | 'too_long'
+  | 'already_taken_alias' | 'already_taken_username'
 
 export type ReserveAliasResult =
-  | { ok: true; alias: { id: string; aliasRaw: string; urls: [string, string] } }
-  | {
-      ok: false
-      error:
-        | 'unauthorized' | 'premium_required' | 'invalid_input'
-        | 'reserved_route' | 'mixed_script'
-        | 'already_taken_alias' | 'already_taken_username'
-    }
+  | { ok: true; alias: { id: string; aliasRaw: string; category: AliasCategory; urls: [string, string] } }
+  | { ok: false; error: ReserveAliasError }
 
 export type AliasListItem = {
   id: string
   aliasRaw: string
+  category: AliasCategory
   targetUrl: string
   urls: [string, string]
   createdAt: string
   updatedAt: string
 }
+
+// A username must match ^[a-z0-9][a-z0-9._-]{2,31}$ (the live CHECK). Only an
+// alias that could satisfy that pattern can possibly collide with one, so
+// emoji aliases skip the profiles query entirely.
+const COULD_BE_USERNAME = /^[a-z0-9][a-z0-9._-]{2,31}$/
 
 // Same Bearer-token auth + effective-premium pattern as src/app/api/links/route.ts's
 // getAuthProfile — the nightly cron flips is_premium off up to 24h after expiry,
@@ -49,15 +54,16 @@ export async function GET(request: Request) {
 
   const { data, error } = await adminDb
     .from('aliases')
-    .select('id, alias_raw, target_url, created_at, updated_at')
+    .select('id, alias_raw, category, target_url, created_at, updated_at')
     .eq('user_id', prof.id)
     .order('created_at', { ascending: false })
 
   if (error) return Response.json({ ok: false, error: 'internal_error' }, { status: 500 })
 
-  const aliases: AliasListItem[] = (data ?? []).map((a: { id: string; alias_raw: string; target_url: string; created_at: string; updated_at: string }) => ({
+  const aliases: AliasListItem[] = (data ?? []).map((a: { id: string; alias_raw: string; category: AliasCategory; target_url: string; created_at: string; updated_at: string }) => ({
     id: a.id,
     aliasRaw: a.alias_raw,
+    category: a.category,
     targetUrl: a.target_url,
     urls: [`https://tapni.kz/${a.alias_raw}`, `https://tapni.kz/tapni.kz/${a.alias_raw}`],
     createdAt: a.created_at,
@@ -97,9 +103,15 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
   }
 
+  // Tier comes from classifyAlias and never from the request body — otherwise
+  // a caller could claim the cheap 'custom' tier while reserving a VIP single
+  // emoji.
   const cls = classifyAlias(aliasRaw)
   if (!cls.ok) {
-    const error = cls.reason === 'mixed_script' || cls.reason === 'not_single_grapheme' ? 'mixed_script' : 'invalid_input'
+    const error: ReserveAliasError =
+      cls.reason === 'non_ascii_letter' ? 'non_ascii_letter'
+      : cls.reason === 'too_long' ? 'too_long'
+      : 'invalid_input'
     return Response.json({ ok: false, error } satisfies ReserveAliasResult, { status: 400 })
   }
 
@@ -107,15 +119,13 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'reserved_route' } satisfies ReserveAliasResult, { status: 400 })
   }
 
-  // Bidirectional collision check — an alias fallback only runs on a profile-miss
-  // in [username]/page.tsx, so if a real username ever matched this alias the
-  // profile would always win and the alias would be permanently unreachable.
-  // Only meaningful for 'ascii'-kind aliases: the live username CHECK is
-  // ^[a-z0-9][a-z0-9._-]{2,31}$ (dots allowed — that's how egov.kz etc.
-  // exist; the regex in SUPABASE_SCHEMA.sql is stale), which admits no
-  // character outside [a-z0-9._-], so a username can never equal a
-  // 'symbol'-kind (emoji) alias and the lookup would always miss.
-  if (cls.kind === 'ascii') {
+  // Bidirectional collision check — the alias fallback only runs on a
+  // profile-miss in [username]/page.tsx, so if a real username ever matched
+  // this alias the profile would always win and the alias would be
+  // permanently unreachable. Skipped for anything that couldn't be a valid
+  // username in the first place (every emoji alias), where the query would
+  // always miss.
+  if (COULD_BE_USERNAME.test(cls.normalized)) {
     const { data: profileCollision } = await adminDb
       .from('profiles').select('id').eq('username', cls.normalized).maybeSingle()
     if (profileCollision) {
@@ -136,6 +146,7 @@ export async function POST(request: Request) {
       alias_raw: cls.normalized,
       alias_normalized: cls.normalized,
       alias_hex: cls.hex,
+      category: cls.category,
       target_url: targetUrlRaw,
       is_premium: true,
     }])
@@ -163,6 +174,7 @@ export async function POST(request: Request) {
     alias: {
       id: inserted.id,
       aliasRaw: cls.normalized,
+      category: cls.category,
       urls: [`https://tapni.kz/${cls.normalized}`, `https://tapni.kz/tapni.kz/${cls.normalized}`],
     },
   } satisfies ReserveAliasResult, { status: 201 })

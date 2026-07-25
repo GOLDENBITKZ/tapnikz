@@ -19,6 +19,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { AliasChecker } from '@/components/AliasChecker'
+import { BusinessNameField } from '@/components/business-name-field'
 
 type DashTab = 'profile' | 'links' | 'leads' | 'payment'
 
@@ -1701,18 +1702,10 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-600">
-                Название бизнеса / Имя <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={profileForm.business_name}
-                onChange={(e) => setProfileForm((p) => ({ ...p, business_name: e.target.value }))}
-                placeholder="Цветы Алматы"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500/60"
-              />
-            </div>
+            <BusinessNameField
+              value={profileForm.business_name}
+              onChange={(next) => setProfileForm((p) => ({ ...p, business_name: next }))}
+            />
 
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-600">Описание (Bio)</label>
