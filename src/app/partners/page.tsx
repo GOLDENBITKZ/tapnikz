@@ -109,7 +109,10 @@ export default function PartnersPage() {
     }
   }
 
-  function ActivateButton() {
+  // Plain render function, not a component: defining a component inside another
+  // component gives it a new identity every render, so React remounts the whole
+  // subtree (button flickers and transitions restart while `activating` toggles).
+  function renderActivateButton() {
     if (authState === 'loading') {
       return (
         <button disabled className="inline-flex items-center gap-2 px-8 py-4 bg-white/20 text-white rounded-xl text-lg font-semibold">
@@ -177,7 +180,7 @@ export default function PartnersPage() {
             Рекомендуйте мобильные визитки — получайте <b className="text-white">20% комиссии</b> с первой оплаты клиента.<br />
             Без вложений, без одобрения, без лимитов.
           </p>
-          <ActivateButton />
+          {renderActivateButton()}
         </div>
       </section>
 
@@ -279,7 +282,7 @@ export default function PartnersPage() {
         <div className="max-w-xl mx-auto">
           <h2 className="text-2xl font-bold text-white mb-3">Готовы начать?</h2>
           <p className="text-violet-100 mb-8">Активируйте кабинет и получите личную ссылку прямо сейчас.</p>
-          <ActivateButton />
+          {renderActivateButton()}
           <p className="text-violet-200 text-xs mt-4">
             По вопросам:{' '}
             <a href="/go/tg?u=Tapnikzbot" className="underline hover:text-white transition-colors">

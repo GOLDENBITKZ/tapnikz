@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { LogOut, Users, CheckCircle, DollarSign, Clock, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
 
@@ -190,9 +191,9 @@ export default function ManagerPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Nav */}
       <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <a href="/" className="font-bold text-lg text-violet-600 tracking-tight">tapni.kz</a>
+        <Link href="/" className="font-bold text-lg text-violet-600 tracking-tight">tapni.kz</Link>
         <div className="flex items-center gap-3">
-          <a href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Кабинет</a>
+          <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Кабинет</Link>
           <button onClick={handleLogout} className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors">
             <LogOut className="w-4 h-4" />
           </button>

@@ -3728,7 +3728,7 @@ function ReferralCard({ username }: { username: string }) {
       </div>
       <p className="mt-2 text-[11px] text-gray-600">
         Комиссия начисляется один раз — за первую оплату привлечённого клиента.{' '}
-        <a href="/partners" className="text-violet-600 hover:underline font-medium">Подробнее →</a>
+        <Link href="/partners" className="text-violet-600 hover:underline font-medium">Подробнее →</Link>
       </p>
     </div>
   )

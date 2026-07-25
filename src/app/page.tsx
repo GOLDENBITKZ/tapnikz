@@ -640,9 +640,9 @@ export default async function LandingPage() {
             </div>
             <p className="text-sm text-gray-500">Рекомендуйте мобильные визитки — получайте 20% с каждой продажи.</p>
           </div>
-          <a href="/partners" className="flex-shrink-0 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors">
+          <Link href="/partners" className="flex-shrink-0 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors">
             Стать менеджером →
-          </a>
+          </Link>
         </div>
       </section>
 

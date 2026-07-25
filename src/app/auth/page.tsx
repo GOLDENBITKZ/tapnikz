@@ -464,11 +464,13 @@ function AuthPageInner() {
 
                 <p className="text-center text-[10px] leading-relaxed text-gray-400">
                   Регистрируясь, вы соглашаетесь с{' '}
-                  <a href="/terms" className="underline hover:text-gray-600">условиями использования</a>
+                  {/* Link, not <a>: a full reload would wipe everything typed into the form.
+                      prefetch={false} — legal pages are rarely opened, no need to preload them. */}
+                  <Link href="/terms" prefetch={false} className="underline hover:text-gray-600">условиями использования</Link>
                   {', '}
-                  <a href="/privacy" className="underline hover:text-gray-600">политикой конфиденциальности</a>
+                  <Link href="/privacy" prefetch={false} className="underline hover:text-gray-600">политикой конфиденциальности</Link>
                   {' '}и{' '}
-                  <a href="/oferta" className="underline hover:text-gray-600">договором оферты</a>
+                  <Link href="/oferta" prefetch={false} className="underline hover:text-gray-600">договором оферты</Link>
                 </p>
               </form>
             )}

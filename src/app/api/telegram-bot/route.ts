@@ -2045,7 +2045,7 @@ async function getPendingReceipt(chatId: string) {
     if (Date.now() - entry.ts > 10 * 60_000) receiptPending.delete(id)
   }
 
-  let pending = receiptPending.get(chatId)
+  const pending = receiptPending.get(chatId)
   if (pending) return pending
 
   // Cold-start fallback: look up by telegram_chat_id in DB
@@ -2055,11 +2055,12 @@ async function getPendingReceipt(chatId: string) {
     const { data: prof } = await adminDb
       .from('profiles').select('username').eq('telegram_chat_id', chatId).maybeSingle()
     if (prof?.username) {
-      const thirtyMinAgo = new Date(Date.now() - 120 * 60_000).toISOString()
+      // 2h window: a user may pay in Kaspi and forward the receipt much later
+      const pendingSince = new Date(Date.now() - 120 * 60_000).toISOString()
       const { data: pmtRow } = await adminDb
         .from('payments').select('id, plan, days')
         .eq('username', prof.username).eq('status', 'pending')
-        .gte('created_at', thirtyMinAgo)
+        .gte('created_at', pendingSince)
         .order('created_at', { ascending: false }).limit(1).maybeSingle()
       if (pmtRow) {
         const plan: 'monthly' | 'annual' = pmtRow.plan === 'annual' ? 'annual' : 'monthly'
