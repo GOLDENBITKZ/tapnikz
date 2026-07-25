@@ -196,7 +196,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
 
       {/* Format toggle — the reservation is the same either way, this only
           switches which of its two URLs is shown while typing. */}
-      <div className="mb-3 inline-flex rounded-xl border border-white/10 bg-black/40 p-0.5">
+      <div className="mb-3 flex flex-wrap gap-0.5 rounded-xl border border-white/10 bg-black/40 p-0.5">
         {[false, true].map((b) => (
           <button
             key={String(b)}
