@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { normalizeTargetUrl } from '@/lib/normalize-url'
 
 // Same Bearer-token auth + effective-premium pattern as ../route.ts and
 // src/app/api/links/route.ts's getAuthProfile.
@@ -51,18 +52,14 @@ export async function PATCH(
 
     // Empty clears the target, which points the alias back at the owner's own
     // profile page — the same default a reservation made without a URL gets.
-    const targetUrl: string | null = (body.target_url ?? '').trim() || null
-    if (targetUrl) {
-      if (targetUrl.length > 2048) {
-        return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
-      }
-      try {
-        const parsed = new URL(targetUrl)
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
-          return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
-        }
-      } catch {
-        return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
+    // Otherwise normalised like everywhere else, so "instagram.com/shop" is
+    // accepted and unsafe schemes are refused with a specific error.
+    const raw = (body.target_url ?? '').trim()
+    let targetUrl: string | null = null
+    if (raw) {
+      targetUrl = normalizeTargetUrl(raw)
+      if (!targetUrl) {
+        return Response.json({ ok: false, error: 'invalid_url' }, { status: 400 })
       }
     }
 

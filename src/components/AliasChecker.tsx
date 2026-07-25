@@ -265,7 +265,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
         type="text"
         value={targetUrl}
         onChange={(e) => setTargetUrl(e.target.value)}
-        placeholder="https://example.com — необязательно"
+        placeholder="instagram.com/shop — необязательно"
         className="mb-1.5 w-full rounded-xl border border-white/10 bg-black/50 px-3 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-violet-400/50"
       />
       {!targetUrl.trim() && (
@@ -379,8 +379,13 @@ function errorMessage(code: string): string {
     case 'too_many_bytes': return 'Слишком длинная комбинация эмодзи — сократите'
     case 'already_taken_alias': return 'Уже занято'
     case 'already_taken_username': return 'Занято пользователем'
+    case 'invalid_url': return 'Проверьте ссылку назначения — нужен адрес вида example.com'
+    case 'invalid_input': return 'Проверьте символ и ссылку — что-то заполнено неверно'
+    case 'internal_error': return 'Сбой на сервере. Напишите в поддержку, если повторится.'
     case 'not_found': return 'Не найдено'
-    case 'unauthorized': return 'Войдите заново'
-    default: return 'Ошибка. Попробуйте снова.'
+    case 'unauthorized': return 'Сессия истекла — обновите страницу и войдите заново'
+    // Anything unmapped names the code itself: a support message saying
+    // "ошибка foo_bar" is diagnosable, "Ошибка, попробуйте снова" is not.
+    default: return `Не удалось сохранить (${code || 'нет кода'}). Напишите в поддержку.`
   }
 }

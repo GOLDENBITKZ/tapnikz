@@ -1,9 +1,10 @@
 import { revalidatePath } from 'next/cache'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { classifyAlias, isReservedWord, type AliasCategory } from '@/lib/unicode-utils'
+import { normalizeTargetUrl } from '@/lib/normalize-url'
 
 export type ReserveAliasError =
-  | 'unauthorized' | 'premium_required' | 'invalid_input'
+  | 'unauthorized' | 'premium_required' | 'invalid_input' | 'invalid_url'
   | 'reserved_route' | 'non_ascii_letter' | 'too_long' | 'too_many_bytes'
   | 'already_taken_alias' | 'already_taken_username'
 
@@ -92,20 +93,17 @@ export async function POST(request: Request) {
   // target_url is optional. Left empty, the alias points at the owner's own
   // profile page — resolved at redirect time from the current username, so a
   // later rename carries the alias along instead of breaking it.
-  // When given, the same URL-scheme validation as api/links and api/click:
-  // http/https only, bounded length (mirrors the target_url CHECK).
-  const targetUrl: string | null = targetUrlRaw || null
-  if (targetUrl) {
-    if (targetUrl.length > 2048) {
-      return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
-    }
-    try {
-      const parsed = new URL(targetUrl)
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
-      }
-    } catch {
-      return Response.json({ ok: false, error: 'invalid_input' } satisfies ReserveAliasResult, { status: 400 })
+  //
+  // When given, it is normalised the same way the dashboard's link form does:
+  // "instagram.com/shop" becomes "https://instagram.com/shop", because that is
+  // what people type. Anything that cannot be a safe http(s) destination
+  // (javascript:, data:, a bare word) comes back null and is reported as
+  // invalid_url — a specific message, not a blanket failure.
+  let targetUrl: string | null = null
+  if (targetUrlRaw) {
+    targetUrl = normalizeTargetUrl(targetUrlRaw)
+    if (!targetUrl) {
+      return Response.json({ ok: false, error: 'invalid_url' } satisfies ReserveAliasResult, { status: 400 })
     }
   }
 
