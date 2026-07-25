@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, AlertCircle, Phone } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
+import { RESERVED_ROUTE_WORDS, toAliasHex } from '@/lib/unicode-utils'
 
 type Tab = 'login' | 'register'
 
@@ -165,16 +166,7 @@ function AuthPageInner() {
     setError('')
     try {
       // FIX #4: block reserved slugs at registration (dashboard checks it on rename)
-      const RESERVED_SLUGS = new Set([
-        'auth', 'dashboard', 'pay', 'api', 'admin', 'tapni', 'home', 'root',
-        'sitemap.xml', 'robots.txt', 'about', 'privacy', 'terms', 'login', 'register',
-        'kaspi-prodavets', 'instagram-bloger', 'kafe-restoran', 'master-uslugi',
-        'salon-krasoty', 'fotografy', 'fitness', 'nedvizhimost', 'avto', 'dostavka',
-        'almaty', 'astana', 'shymkent', 'aktobe', 'karaganda', 'atyrau',
-        'kostanay', 'pavlodar', 'semey', 'taraz',
-        'discover', 'help', 'partners',
-      ])
-      if (RESERVED_SLUGS.has(regForm.username)) {
+      if (RESERVED_ROUTE_WORDS.has(regForm.username)) {
         setFieldErrors({ username: `Имя «${regForm.username}» зарезервировано` })
         setLoading(false)
         return
@@ -189,6 +181,22 @@ function AuthPageInner() {
 
       if (existing) {
         setFieldErrors({ username: `Имя «${regForm.username}» уже занято` })
+        setLoading(false)
+        return
+      }
+
+      // A Premium user may have reserved this exact string as an alias
+      // (tapni.kz/{alias}) before this signup — since alias lookup only runs
+      // as a fallback on a profile-miss in [username]/page.tsx, letting a
+      // new profile claim the same string would make that alias permanently
+      // unreachable (the profile would always win the lookup).
+      const { data: aliasCollision } = await getSupabase()
+        .from('aliases')
+        .select('id')
+        .eq('alias_hex', toAliasHex(regForm.username))
+        .maybeSingle()
+      if (aliasCollision) {
+        setFieldErrors({ username: `Имя «${regForm.username}» зарезервировано` })
         setLoading(false)
         return
       }

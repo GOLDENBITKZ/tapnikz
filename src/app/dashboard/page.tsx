@@ -14,9 +14,11 @@ import { TEMPLATES, PLACEHOLDER_PREFIX } from '@/lib/templates'
 import type { LeadSubmission } from '@/lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
 import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, type WorkingHours, FREE_LINK_LIMIT, FREE_LEADS_VISIBLE } from '@/lib/supabase'
+import { RESERVED_ROUTE_WORDS, toAliasHex } from '@/lib/unicode-utils'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
+import { AliasChecker } from '@/components/AliasChecker'
 
 type DashTab = 'profile' | 'links' | 'leads' | 'payment'
 
@@ -113,18 +115,6 @@ function getLinkCardColor(type: IconType): { dot: string; ring: string } {
     default:           return { dot: 'bg-violet-500', ring: 'border-l-violet-500' }
   }
 }
-
-const RESERVED_SLUGS = new Set([
-  'auth', 'dashboard', 'pay', 'api', 'admin', 'tapni', 'home', 'root',
-  'sitemap.xml', 'robots.txt', 'about', 'privacy', 'terms', 'login', 'register',
-  // niche/city pages
-  'kaspi-prodavets', 'instagram-bloger', 'kafe-restoran', 'master-uslugi',
-  'salon-krasoty', 'fotografy', 'fitness', 'nedvizhimost', 'avto', 'dostavka',
-  'almaty', 'astana', 'shymkent', 'aktobe', 'karaganda', 'atyrau',
-  'kostanay', 'pavlodar', 'semey', 'taraz',
-  // service pages
-  'discover', 'help', 'partners',
-])
 
 // Smart URL config: show a fixed prefix, user only types the short part
 const SMART_INPUTS: Partial<Record<IconType, { prefix: string; placeholder: string }>> = {
@@ -562,7 +552,7 @@ export default function DashboardPage() {
       .replace(/[-._]{2,}/g, (m) => m[0])
 
     if (slug.length < 2) { setUsernameMsg({ type: 'err', text: 'Минимум 2 символа' }); return }
-    if (RESERVED_SLUGS.has(slug)) { setUsernameMsg({ type: 'err', text: 'Это слово зарезервировано' }); return }
+    if (RESERVED_ROUTE_WORDS.has(slug)) { setUsernameMsg({ type: 'err', text: 'Это слово зарезервировано' }); return }
     if (slug === profile.username) { setUsernameMsg({ type: 'err', text: 'Это уже ваш текущий адрес' }); return }
 
     setSavingUsername(true)
@@ -571,6 +561,14 @@ export default function DashboardPage() {
       const { data: existing } = await getSupabase()
         .from('profiles').select('id').eq('username', slug).neq('id', user.id).maybeSingle()
       if (existing) { setUsernameMsg({ type: 'err', text: 'Этот адрес уже занят' }); return }
+
+      // Same reasoning as auth/page.tsx's registration check: a Premium user
+      // may already have reserved this exact string as an alias, and since
+      // alias lookup only runs as a fallback on a profile-miss, renaming
+      // into it would make that alias permanently unreachable.
+      const { data: aliasCollision } = await getSupabase()
+        .from('aliases').select('id').eq('alias_hex', toAliasHex(slug)).maybeSingle()
+      if (aliasCollision) { setUsernameMsg({ type: 'err', text: 'Этот адрес зарезервирован' }); return }
 
       const { error } = await getSupabase()
         .from('profiles').update({ username: slug, updated_at: new Date().toISOString() }).eq('id', user.id)
@@ -2065,6 +2063,15 @@ export default function DashboardPage() {
                   Только буквы, цифры, дефис. Старые ссылки/QR перестанут работать.
                 </p>
               </div>
+            )}
+
+            {/* Emoji/symbol alias reservation — separate from the username-change
+                section above: an alias doesn't replace tapni.kz/{username}, it's
+                an additional short redirect. AliasChecker renders its own
+                Premium-upsell state when !profile.is_premium, so no extra
+                gate is needed here. */}
+            {profile && (
+              <AliasChecker accessToken={accessToken} isPremium={!!profile.is_premium} />
             )}
           </form>
         )}

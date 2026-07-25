@@ -1,10 +1,11 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 // Cache profile pages for 60s on the edge — reduces Supabase roundtrips for popular pages
 export const revalidate = 60
 import { makeVcardToken } from '@/lib/vcard-token'
+import { toAliasHex } from '@/lib/unicode-utils'
 import { type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours, FREE_LINK_LIMIT } from '@/lib/supabase'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
@@ -155,7 +156,19 @@ const getData = cache(async (username: string) => {
     .eq('username', username)
     .maybeSingle()
 
-  if (!profile) return { profile: null, links: [] as LinkRow[] }
+  if (!profile) {
+    // No profile matched — fall back to a reserved alias (tapni.kz/{emoji}).
+    // Only ever runs on a profile-miss, so this can't change behavior for
+    // any real username; `username` here is already the decoded route
+    // param (Next.js decodes segment params before handing them to the
+    // page), so it's hashed as-is, no re-decoding.
+    const { data: alias } = await db
+      .from('aliases')
+      .select('target_url')
+      .eq('alias_hex', toAliasHex(username))
+      .maybeSingle()
+    return { profile: null, links: [] as LinkRow[], aliasTarget: (alias?.target_url as string | undefined) ?? null }
+  }
 
   const { data: links } = await db
     .from('links')
@@ -163,7 +176,7 @@ const getData = cache(async (username: string) => {
     .eq('profile_id', (profile as Profile).id)
     .order('sort_order')
 
-  return { profile: profile as Profile, links: (links ?? []) as LinkRow[] }
+  return { profile: profile as Profile, links: (links ?? []) as LinkRow[], aliasTarget: null as string | null }
 })
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -474,9 +487,12 @@ export default async function ProfilePage({ params }: Props) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminDb = getSupabaseAdmin() as any
-  const { profile, links } = await getData(username)
+  const { profile, links, aliasTarget } = await getData(username)
 
-  if (!profile) notFound()
+  if (!profile) {
+    if (aliasTarget) redirect(aliasTarget)
+    notFound()
+  }
 
   // Fire-and-forget: don't block page render waiting for view counter update
   adminDb.rpc('increment_profile_view', { p_username: username }).then(() => {}, () => {})
