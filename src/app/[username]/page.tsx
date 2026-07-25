@@ -139,6 +139,12 @@ const KNOWN_BRANDS: Record<string, {
   },
 }
 
+// Pre-render known brand pages at build time — highest-traffic profiles, rarely change.
+// Edge CDN serves them as static HTML with zero DB queries on each request.
+export function generateStaticParams() {
+  return Object.keys(KNOWN_BRANDS).map((username) => ({ username }))
+}
+
 const getData = cache(async (username: string) => {
   // Use admin client — public profile reads must not expose raw Supabase REST API to anon
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1009,17 +1015,40 @@ export default async function ProfilePage({ params }: Props) {
         <InstagramDmPrompt igHandle={igPromptHandle} ownerName={profile.business_name} />
       )}
 
-      {/* Attribution pill — hidden for Premium users (paid feature) */}
-      {(!profile.is_premium || (profile.subscription_expires_at && new Date(profile.subscription_expires_at) <= new Date())) && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center pb-5">
+      {/* Brand-page acquisition banner — shown on official brand profiles instead of watermark.
+          These pages rank in search ("egov.kz контакты", "kolesa.kz телефон") and get cold
+          visitors who don't know tapni.kz. Convert them with a clear value proposition. */}
+      {KNOWN_BRANDS[username] ? (
+        <div className="mx-auto mt-8 mb-6 max-w-xs px-4">
           <Link
-            href={`/?utm_source=profile&utm_medium=footer&utm_campaign=free&utm_content=${profile.username}`}
-            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-3.5 py-1.5 text-[11px] text-gray-400 backdrop-blur-md transition-colors hover:border-violet-500/40 hover:text-gray-200"
+            href={`/auth?utm_source=brand_page&utm_medium=cta&utm_campaign=brand&utm_content=${username}`}
+            className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-center backdrop-blur-md transition-all hover:border-violet-500/40 hover:bg-black/60 active:scale-[0.98]"
           >
-            <Zap className="h-3 w-3 text-violet-400" />
-            Сделано на <span className="font-bold text-white">tapni.kz</span>
+            <div className="flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-violet-400" />
+              <span className="text-[11px] font-semibold text-gray-300">Создано на tapni.kz</span>
+            </div>
+            <p className="text-xs text-gray-400 leading-snug">
+              Создайте такую же страницу для вашего бизнеса — бесплатно, за 1 минуту
+            </p>
+            <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1 text-[11px] font-bold text-white">
+              Попробовать бесплатно →
+            </span>
           </Link>
         </div>
+      ) : (
+        /* Attribution pill — hidden for Premium users (paid feature) */
+        (!profile.is_premium || (profile.subscription_expires_at && new Date(profile.subscription_expires_at) <= new Date())) && (
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center pb-5">
+            <Link
+              href={`/?utm_source=profile&utm_medium=footer&utm_campaign=free&utm_content=${profile.username}`}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-3.5 py-1.5 text-[11px] text-gray-400 backdrop-blur-md transition-colors hover:border-violet-500/40 hover:text-gray-200"
+            >
+              <Zap className="h-3 w-3 text-violet-400" />
+              Сделано на <span className="font-bold text-white">tapni.kz</span>
+            </Link>
+          </div>
+        )
       )}
     </main>
   )

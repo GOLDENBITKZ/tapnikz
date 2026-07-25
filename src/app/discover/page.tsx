@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { DiscoverAvatar } from '@/components/discover-avatar'
 
-export const dynamic = 'force-dynamic'
+// ISR: refresh every 5 minutes — list changes rarely, no need to hit DB on every request
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Каталог предпринимателей — tapni.kz',
