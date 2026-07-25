@@ -8,12 +8,12 @@ export function middleware(request: NextRequest) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://www.googletagmanager.com",
       "style-src 'self' 'unsafe-inline'",
       // https: allows user-provided image URLs (product cards, image blocks, avatars)
       "img-src 'self' data: blob: https:",
       "media-src 'self' https:",
-      "connect-src 'self' https://*.supabase.co https://api.telegram.org https://api.groq.com",
+      "connect-src 'self' https://*.supabase.co https://api.telegram.org https://api.groq.com https://mc.yandex.ru https://*.google-analytics.com",
       "font-src 'self'",
       "frame-src https://www.youtube.com https://www.tiktok.com",
       "frame-ancestors 'none'",

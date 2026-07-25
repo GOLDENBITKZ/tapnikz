@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard', '/api/', '/auth'],
+        disallow: ['/dashboard', '/api/', '/auth', '/manager', '/qr/l/'],
       },
     ],
     sitemap: 'https://tapni.kz/sitemap.xml',

@@ -2148,9 +2148,11 @@ async function handleReceiptPhotoById(chatId: string, fileId: string) {
   }
 
   const amountOk = validation.amount !== null && Math.abs(validation.amount - expectedAmount) <= expectedAmount * 0.05
-  // Verify receipt is for OUR merchant when KASPI_MERCHANT_ID is configured
+  // Auto-approve only when merchant ID is configured AND receipt explicitly matches it.
+  // Without KASPI_MERCHANT_ID the system cannot verify who received the money — fall back to manual review.
   const merchantId = process.env.KASPI_MERCHANT_ID
-  const recipientOk = !merchantId || !validation.recipient || validation.recipient.toLowerCase().includes(merchantId.toLowerCase())
+  const recipientOk = !!merchantId && !!validation.recipient &&
+    validation.recipient.toLowerCase().includes(merchantId.toLowerCase())
   const autoApprove = validation.isReceipt && amountOk && validation.confidence === 'high' && !isDuplicate && recipientOk && validation.transactionId !== null
 
   // Save receipt_url and validation data

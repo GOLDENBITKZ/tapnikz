@@ -4,6 +4,7 @@ import './globals.css'
 import { Suspense } from 'react'
 import { RecoveryRedirect } from '@/components/recovery-redirect'
 import { ChatWidget } from '@/components/chat-widget'
+import { Analytics } from '@/components/analytics'
 
 const nunito = Nunito({
   variable: '--font-nunito',
@@ -46,9 +47,9 @@ export const metadata: Metadata = {
     locale: 'ru_KZ',
     siteName: 'tapni.kz',
     url: 'https://tapni.kz',
-    images: [{ url: '/brand-logo.jpeg', width: 1024, height: 1024, alt: 'tapni.kz — цифровые визитки Казахстана' }],
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'tapni.kz — цифровые визитки для бизнеса Казахстана' }],
   },
-  twitter: { card: 'summary_large_image' },
+  twitter: { card: 'summary_large_image', images: ['/opengraph-image'] },
   robots: { index: true, follow: true },
   alternates: { canonical: 'https://tapni.kz' },
 }
@@ -75,6 +76,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://ahsfumqlrpikkeriyngv.supabase.co" />
       </head>
       <body className="min-h-full flex flex-col">
+        <Analytics />
         <RecoveryRedirect />
         <Suspense fallback={null}>
           <ChatWidget />
