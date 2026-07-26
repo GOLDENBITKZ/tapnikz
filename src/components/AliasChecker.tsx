@@ -10,7 +10,14 @@ import {
   MAX_ALIAS_GRAPHEMES,
   type AliasCategory,
 } from '@/lib/unicode-utils'
-import { EmojiPicker } from '@/components/emoji-picker'
+import dynamic from 'next/dynamic'
+
+// ~12 KB of emoji data that most visitors never open. Loading it only when the
+// picker is actually opened keeps it out of the dashboard's initial payload.
+const EmojiPicker = dynamic(() => import('@/components/emoji-picker').then((m) => m.EmojiPicker), {
+  ssr: false,
+  loading: () => <div className="rounded-xl border border-white/10 bg-black/40 py-6 text-center text-[11px] text-gray-500">Загрузка символов…</div>,
+})
 
 type CheckState =
   | { kind: 'idle' }

@@ -2,7 +2,14 @@
 
 import { useState } from 'react'
 import { Check, Copy, Smile } from 'lucide-react'
-import { EmojiPicker } from '@/components/emoji-picker'
+import dynamic from 'next/dynamic'
+
+// Same reasoning as in AliasChecker: the emoji catalogue is only fetched once
+// someone actually opens the picker, not on every signup page view.
+const EmojiPicker = dynamic(() => import('@/components/emoji-picker').then((m) => m.EmojiPicker), {
+  ssr: false,
+  loading: () => <div className="rounded-xl border border-gray-200 bg-white py-6 text-center text-[11px] text-gray-400">Загрузка символов…</div>,
+})
 
 // Ready-made openers. Business names on tapni.kz already lead with an emoji
 // in practice (the brand profiles do, e.g. "🚗 Kolesa.kz"), and it is the
