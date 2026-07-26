@@ -89,3 +89,57 @@ export async function PATCH(
     return Response.json({ ok: false, error: 'internal_error' }, { status: 500 })
   }
 }
+
+// DELETE /api/aliases/[id] — release a reserved symbol.
+//
+// Deleting is clean by construction: no table has a foreign key pointing at
+// aliases (checked against pg_constraint), so the row leaves nothing behind —
+// no orphans, no cascade, no counters to fix up.
+//
+// Two things do change, and both are intended:
+//   • the symbol goes back into circulation and someone else may take it;
+//   • anything already printed with that link stops working.
+// The UI asks for confirmation and says so before calling this.
+//
+// Deliberately NOT gated on active Premium. Reserving and repointing require
+// it, but removing your own data must never be something a lapsed
+// subscription can trap you out of.
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+      return Response.json({ ok: false, error: 'invalid_input' }, { status: 400 })
+    }
+
+    const auth = await getAuthProfile(request)
+    if (!auth) return Response.json({ ok: false, error: 'unauthorized' }, { status: 401 })
+    const { prof, adminDb } = auth
+
+    // Fetch before deleting: the alias string is needed to bust its cache
+    // afterwards, and it is gone once the row is.
+    const { data: alias } = await adminDb
+      .from('aliases').select('id, alias_raw')
+      .eq('id', id).eq('user_id', prof.id)
+      .maybeSingle()
+    if (!alias) return Response.json({ ok: false, error: 'not_found' }, { status: 404 })
+
+    const { error: deleteError } = await adminDb
+      .from('aliases').delete()
+      .eq('id', id).eq('user_id', prof.id)
+
+    if (deleteError) return Response.json({ ok: false, error: 'internal_error' }, { status: 500 })
+
+    // Without this the deleted symbol would keep redirecting from the ISR
+    // cache on tapni.kz/{alias} for up to 60s. The /tapni.kz/{alias} form is
+    // force-dynamic and stops immediately on its own.
+    revalidatePath(`/${alias.alias_raw}`)
+
+    return Response.json({ ok: true, aliasRaw: alias.alias_raw })
+  } catch (err) {
+    console.error('[aliases/[id] DELETE]', err)
+    return Response.json({ ok: false, error: 'internal_error' }, { status: 500 })
+  }
+}

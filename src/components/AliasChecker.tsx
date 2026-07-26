@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, Loader2, Pencil, Smile, Sparkles, X, Zap } from 'lucide-react'
+import { AlertTriangle, Check, Copy, Loader2, Pencil, Smile, Sparkles, Trash2, X, Zap } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
 import {
   classifyAlias,
@@ -94,6 +94,8 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
   const [editUrl, setEditUrl] = useState('')
   const [editSaving, setEditSaving] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const loadedRef = useRef(false)
 
   const state = useDebouncedAliasCheck(aliasInput)
@@ -142,6 +144,26 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
     }
   }
 
+  async function deleteAlias(id: string) {
+    setDeleting(true)
+    setSubmitMsg(null)
+    try {
+      const res = await fetch(`/api/aliases/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const body = await res.json()
+      if (!body.ok) { setSubmitMsg({ type: 'err', text: errorMessage(body.error) }); return }
+      setMyAliases((prev) => (prev ?? []).filter((a) => a.id !== id))
+      setConfirmDeleteId(null)
+      setSubmitMsg({ type: 'ok', text: `Символ ${body.aliasRaw ?? ''} освобождён — можно застолбить другой` })
+    } catch {
+      setSubmitMsg({ type: 'err', text: 'Ошибка сети. Попробуйте снова.' })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   async function saveEdit(id: string) {
     setEditSaving(true)
     try {
@@ -184,16 +206,24 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
     )
   }
 
+  // One symbol per account, so once something is reserved the form has nothing
+  // left to do — showing it would only invite a reservation the server will
+  // refuse. The existing symbol stays editable and can be released below.
+  const atLimit = (myAliases?.length ?? 0) >= 1
+
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-violet-950/70 to-black p-5">
       <p className="mb-1 flex items-center gap-2 text-sm font-bold text-white">
         <Sparkles className="h-4 w-4 text-violet-400" />
-        Застолбить эмодзи-ссылку
+        {atLimit ? 'Ваша эмодзи-ссылка' : 'Застолбить эмодзи-ссылку'}
       </p>
       <p className="mb-4 text-xs text-gray-400">
-        Один эмодзи, два или целое слово — до {MAX_ALIAS_GRAPHEMES} символов. Чем короче, тем ценнее.
+        {atLimit
+          ? 'На аккаунт — одна ссылка. Чтобы занять другой символ, освободите текущий.'
+          : `Один эмодзи, два или целое слово — до ${MAX_ALIAS_GRAPHEMES} символов. Чем короче, тем ценнее.`}
       </p>
 
+      {!atLimit && <>
       {/* Format toggle — the reservation is the same either way, this only
           switches which of its two URLs is shown while typing. */}
       <div className="mb-3 flex flex-wrap gap-0.5 rounded-xl border border-white/10 bg-black/40 p-0.5">
@@ -282,6 +312,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
       >
         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Zap className="h-3.5 w-3.5" /> Застолбить символ</>}
       </button>
+      </>}
 
       {submitMsg && (
         <p className={`mt-2 text-xs ${submitMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{submitMsg.text}</p>
@@ -313,15 +344,57 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
                       <X className="h-3.5 w-3.5" />
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => { setEditingId(a.id); setEditUrl(a.targetUrl ?? '') }}
-                      className="flex flex-shrink-0 items-center gap-1 text-[11px] text-violet-300 hover:text-violet-200"
-                    >
-                      <Pencil className="h-3 w-3" /> Изменить
-                    </button>
+                    <div className="flex flex-shrink-0 items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(a.id); setEditUrl(a.targetUrl ?? '') }}
+                        className="flex items-center gap-1 text-[11px] text-violet-300 hover:text-violet-200"
+                      >
+                        <Pencil className="h-3 w-3" /> Изменить
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(a.id)}
+                        className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-red-400"
+                      >
+                        <Trash2 className="h-3 w-3" /> Освободить
+                      </button>
+                    </div>
                   )}
                 </div>
+
+                {/* Two-step, and the warning is specific: the symbol goes back
+                    into circulation and anything already printed stops working.
+                    Both are irreversible, so they are said before the tap. */}
+                {confirmDeleteId === a.id && (
+                  <div className="mb-2 rounded-xl border border-red-400/30 bg-red-400/10 p-3">
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-red-300">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Освободить символ {a.aliasRaw}?
+                    </p>
+                    <p className="mb-2.5 text-[11px] leading-relaxed text-gray-400">
+                      Ссылка перестанет работать, а символ смогут занять другие. Всё, что уже напечатано с этим адресом, станет недействительным.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => deleteAlias(a.id)}
+                        disabled={deleting}
+                        className="flex items-center gap-1 rounded-lg bg-red-500/90 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-red-500 disabled:opacity-40"
+                      >
+                        {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        Да, освободить
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        disabled={deleting}
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] text-gray-400 hover:text-white disabled:opacity-40"
+                      >
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {editingId === a.id ? (
                   <div className="flex gap-2">
@@ -380,6 +453,7 @@ function errorMessage(code: string): string {
     case 'already_taken_alias': return 'Уже занято'
     case 'already_taken_username': return 'Занято пользователем'
     case 'invalid_url': return 'Проверьте ссылку назначения — нужен адрес вида example.com'
+    case 'limit_reached': return 'На аккаунт одна ссылка — освободите текущую, чтобы занять другую'
     case 'invalid_input': return 'Проверьте символ и ссылку — что-то заполнено неверно'
     case 'internal_error': return 'Сбой на сервере. Напишите в поддержку, если повторится.'
     case 'not_found': return 'Не найдено'

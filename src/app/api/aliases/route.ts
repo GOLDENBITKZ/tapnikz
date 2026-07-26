@@ -6,7 +6,12 @@ import { normalizeTargetUrl } from '@/lib/normalize-url'
 export type ReserveAliasError =
   | 'unauthorized' | 'premium_required' | 'invalid_input' | 'invalid_url'
   | 'reserved_route' | 'non_ascii_letter' | 'too_long' | 'too_many_bytes'
-  | 'already_taken_alias' | 'already_taken_username'
+  | 'already_taken_alias' | 'already_taken_username' | 'limit_reached'
+
+// One reserved symbol per account. Scarcity is the whole point of the VIP
+// tier — letting one account hoard symbols would empty the pool that makes
+// them worth anything.
+export const MAX_ALIASES_PER_ACCOUNT = 1
 
 export type ReserveAliasResult =
   | { ok: true; alias: { id: string; aliasRaw: string; category: AliasCategory; urls: [string, string] } }
@@ -82,6 +87,14 @@ export async function POST(request: Request) {
 
   if (!prof.is_premium) {
     return Response.json({ ok: false, error: 'premium_required' } satisfies ReserveAliasResult, { status: 403 })
+  }
+
+  // One per account. Checked before any other work so the caller gets the
+  // real reason rather than a confusing "already taken" from a later step.
+  const { count: ownedCount } = await adminDb
+    .from('aliases').select('*', { count: 'exact', head: true }).eq('user_id', prof.id)
+  if ((ownedCount ?? 0) >= MAX_ALIASES_PER_ACCOUNT) {
+    return Response.json({ ok: false, error: 'limit_reached' } satisfies ReserveAliasResult, { status: 409 })
   }
 
   let body: { alias_raw?: string; target_url?: string }
