@@ -1,10 +1,9 @@
 // Alias validation, pricing-tier classification and hex-encoding for the
-// alias-reservation feature (tapni.kz/{alias} and tapni.kz/tapni.kz/{alias},
-// one reservation, two access URLs).
+// alias-reservation feature (tapni.kz/{alias}).
 //
 // Runs in three environments: the /api/aliases Route Handler (Node), the
-// [username]/page.tsx and tapni.kz/[slug]/page.tsx redirect lookups (Node),
-// and the AliasChecker 'use client' debounce check (browser). All of them
+// [username]/page.tsx redirect lookup (Node), and the AliasChecker
+// 'use client' debounce check (browser). All of them
 // must derive the same alias_hex and the same tier from the same input, so
 // this file stays dependency-free and avoids Node-only APIs — no `Buffer`,
 // which is not polyfilled in client bundles; TextEncoder is the Web-standard
@@ -53,8 +52,8 @@ export function toAliasHex(s: string): string {
 // Next.js hands non-ASCII dynamic route params to the page STILL
 // percent-encoded — /tapni.kz/🚀 arrives as the literal 12-char string
 // "%F0%9F%9A%80", not "🚀" (verified against production: an alias stored
-// under hex("%F0%9F%9A%80") resolved while hex("🚀") 404'd). So the two
-// redirect routes must decode before hashing, or every emoji alias misses.
+// under hex("%F0%9F%9A%80") resolved while hex("🚀") 404'd). So the redirect
+// lookup must decode before hashing, or every emoji alias misses.
 //
 // Only for route params. Input typed into AliasChecker and posted to
 // /api/aliases as JSON is never percent-encoded and must NOT be run through

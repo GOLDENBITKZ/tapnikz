@@ -32,7 +32,7 @@ type AliasItem = {
   aliasRaw: string
   category: AliasCategory
   targetUrl: string | null
-  urls: [string, string]
+  url: string
 }
 
 const TIER_STYLE: Record<AliasCategory, { badge: string; glow: string; icon: string }> = {
@@ -92,7 +92,6 @@ function useDebouncedAliasCheck(rawInput: string, delayMs = 300) {
 export function AliasChecker({ accessToken, isPremium }: { accessToken: string; isPremium: boolean }) {
   const [aliasInput, setAliasInput] = useState('')
   const [targetUrl, setTargetUrl] = useState('')
-  const [branded, setBranded] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitMsg, setSubmitMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
@@ -106,7 +105,6 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
   const loadedRef = useRef(false)
 
   const state = useDebouncedAliasCheck(aliasInput)
-  const prefix = branded ? 'tapni.kz/tapni.kz/' : 'tapni.kz/'
 
   useEffect(() => {
     if (!isPremium || loadedRef.current || !accessToken) return
@@ -138,7 +136,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
       const body = await res.json()
       if (!body.ok) { setSubmitMsg({ type: 'err', text: errorMessage(body.error) }); return }
       setMyAliases((prev) => [
-        { id: body.alias.id, aliasRaw: body.alias.aliasRaw, category: body.alias.category, targetUrl: targetUrl.trim() || null, urls: body.alias.urls },
+        { id: body.alias.id, aliasRaw: body.alias.aliasRaw, category: body.alias.category, targetUrl: targetUrl.trim() || null, url: body.alias.url },
         ...(prev ?? []),
       ])
       setAliasInput('')
@@ -231,25 +229,8 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
       </p>
 
       {!atLimit && <>
-      {/* Format toggle — the reservation is the same either way, this only
-          switches which of its two URLs is shown while typing. */}
-      <div className="mb-3 flex flex-wrap gap-0.5 rounded-xl border border-white/10 bg-black/40 p-0.5">
-        {[false, true].map((b) => (
-          <button
-            key={String(b)}
-            type="button"
-            onClick={() => setBranded(b)}
-            className={`rounded-lg px-3 py-1.5 font-mono text-[11px] transition-colors ${
-              branded === b ? 'bg-violet-500/25 text-violet-200' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            {b ? 'tapni.kz/tapni.kz/' : 'tapni.kz/'}
-          </button>
-        ))}
-      </div>
-
       <div className="mb-2 flex items-center overflow-hidden rounded-xl border border-white/10 bg-black/50 focus-within:border-violet-400/50">
-        <span className="flex-shrink-0 pl-3 font-mono text-[11px] text-gray-500">{prefix}</span>
+        <span className="flex-shrink-0 pl-3 font-mono text-[11px] text-gray-500">tapni.kz/</span>
         <input
           type="text"
           value={aliasInput}
@@ -327,7 +308,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
 
       {state.kind === 'free' && (
         <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-          Будет доступно сразу по двум адресам: <span className="font-mono text-gray-400">tapni.kz/{state.normalized}</span> и <span className="font-mono text-gray-400">tapni.kz/tapni.kz/{state.normalized}</span>
+          Ваш адрес будет: <span className="font-mono text-gray-400">tapni.kz/{state.normalized}</span>
         </p>
       )}
 
@@ -426,19 +407,14 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
                     <p className="mb-2 truncate text-[11px] text-gray-500">
                       {a.targetUrl ? `→ ${a.targetUrl}` : '→ на вашу страницу tapni.kz'}
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {a.urls.map((u) => (
-                        <button
-                          key={u}
-                          type="button"
-                          onClick={() => copy(u, u)}
-                          className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 font-mono text-[10px] text-gray-400 transition-colors hover:border-violet-400/40 hover:text-violet-200"
-                        >
-                          {copied === u ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
-                          {u.replace('https://', '')}
-                        </button>
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copy(a.url, a.url)}
+                      className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 font-mono text-[10px] text-gray-400 transition-colors hover:border-violet-400/40 hover:text-violet-200"
+                    >
+                      {copied === a.url ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
+                      {a.url.replace('https://', '')}
+                    </button>
                   </>
                 )}
               </div>

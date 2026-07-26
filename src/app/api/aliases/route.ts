@@ -14,7 +14,7 @@ export type ReserveAliasError =
 export const MAX_ALIASES_PER_ACCOUNT = 1
 
 export type ReserveAliasResult =
-  | { ok: true; alias: { id: string; aliasRaw: string; category: AliasCategory; urls: [string, string] } }
+  | { ok: true; alias: { id: string; aliasRaw: string; category: AliasCategory; url: string } }
   | { ok: false; error: ReserveAliasError }
 
 export type AliasListItem = {
@@ -22,7 +22,7 @@ export type AliasListItem = {
   aliasRaw: string
   category: AliasCategory
   targetUrl: string | null
-  urls: [string, string]
+  url: string
   createdAt: string
   updatedAt: string
 }
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
     aliasRaw: a.alias_raw,
     category: a.category,
     targetUrl: a.target_url,
-    urls: [`https://tapni.kz/${a.alias_raw}`, `https://tapni.kz/tapni.kz/${a.alias_raw}`],
+    url: `https://tapni.kz/${a.alias_raw}`,
     createdAt: a.created_at,
     updatedAt: a.updated_at,
   }))
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
       id: inserted.id,
       aliasRaw: cls.normalized,
       category: cls.category,
-      urls: [`https://tapni.kz/${cls.normalized}`, `https://tapni.kz/tapni.kz/${cls.normalized}`],
+      url: `https://tapni.kz/${cls.normalized}`,
     },
   } satisfies ReserveAliasResult, { status: 201 })
 }

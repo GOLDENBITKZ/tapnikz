@@ -78,9 +78,8 @@ export async function PATCH(
 
     if (updateError) return Response.json({ ok: false, error: 'internal_error' }, { status: 500 })
 
-    // Bust both the 60s ISR cache on tapni.kz/{alias} (served by
-    // [username]/page.tsx) so the new destination is live immediately —
-    // tapni.kz/tapni.kz/{alias} is force-dynamic already, nothing to bust there.
+    // Bust the 60s ISR cache on tapni.kz/{alias} (served by
+    // [username]/page.tsx) so the new destination is live immediately.
     revalidatePath(`/${alias.alias_raw}`)
 
     return Response.json({ ok: true })
@@ -133,8 +132,7 @@ export async function DELETE(
     if (deleteError) return Response.json({ ok: false, error: 'internal_error' }, { status: 500 })
 
     // Without this the deleted symbol would keep redirecting from the ISR
-    // cache on tapni.kz/{alias} for up to 60s. The /tapni.kz/{alias} form is
-    // force-dynamic and stops immediately on its own.
+    // cache on tapni.kz/{alias} for up to 60s.
     revalidatePath(`/${alias.alias_raw}`)
 
     return Response.json({ ok: true, aliasRaw: alias.alias_raw })

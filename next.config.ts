@@ -47,15 +47,6 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      {
-        // /tapni.kz/{alias} only ever answers with a redirect or a 404 — it
-        // never serves content, so there is nothing here worth indexing.
-        // Saying so explicitly keeps these URLs out of search results and off
-        // the crawl budget. Deliberately NOT a robots.txt Disallow: crawlers
-        // should still be free to follow the redirect through to its target.
-        source: '/tapni.kz/:path*',
-        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
-      },
     ]
   },
 };

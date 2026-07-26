@@ -1,9 +1,7 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { decodeAliasParam, toAliasHex } from '@/lib/unicode-utils'
 
-// Shared by both redirect routes ([username]/page.tsx's profile-miss fallback
-// and tapni.kz/[slug]/page.tsx) so the "no target set" rule can never drift
-// between them.
+// Used by [username]/page.tsx's profile-miss fallback.
 //
 // An alias with target_url = NULL points at its owner's own profile page.
 // The username is read at redirect time rather than baked in at creation, so
