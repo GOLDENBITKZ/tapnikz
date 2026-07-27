@@ -78,9 +78,11 @@ export function EmojiPicker({
         )}
       </div>
 
-      {/* Category tabs — horizontally scrollable so they never wrap the card */}
+      {/* Category tabs. They wrap onto as many rows as they need — scrolling
+          them sideways hid categories past an edge with nothing to show they
+          were there, so on a phone half the catalogue was invisible. */}
       {!deferredQuery.trim() && (
-        <div className="mb-2 flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mb-2 flex flex-wrap gap-1">
           <button type="button" onClick={() => { setGroupIdx(-1); setExpanded(false) }} className={tab(groupIdx === -1)}>
             ⚡ Частые
           </button>

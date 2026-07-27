@@ -15,6 +15,7 @@ export type AliasRejection =
   | 'empty'
   | 'too_long'
   | 'too_many_bytes'
+  | 'emoji_only'
   | 'non_ascii_letter'
   | 'mixed_script'
   | 'invalid_char'
@@ -35,10 +36,13 @@ export const MAX_ALIAS_GRAPHEMES = 32
 // only binds on long chains of composite emoji.
 export const MAX_ALIAS_BYTES = 255
 
+// single_emoji and double_emoji can no longer be created — kept so rows
+// reserved before the text requirement still render with the label they were
+// given.
 export const CATEGORY_LABELS: Record<AliasCategory, { label: string; blurb: string }> = {
-  single_emoji: { label: 'VIP Single Emoji', blurb: 'Один символ — самый редкий формат, около 1 800 на весь сервис' },
-  double_emoji: { label: 'Double Emoji', blurb: 'Два символа — примерно 3,2 млн сочетаний' },
-  custom: { label: 'Combo / Custom', blurb: 'Текст, эмодзи или их сочетание — до 32 символов' },
+  single_emoji: { label: 'VIP Single Emoji', blurb: 'Один символ — формат больше не выдаётся' },
+  double_emoji: { label: 'Double Emoji', blurb: 'Два символа — формат больше не выдаётся' },
+  custom: { label: 'Слово + эмодзи', blurb: 'Например shop🚀 или bizde😅 — до 32 символов' },
 }
 
 // UTF-8 hex of the string — exact-byte lookup key, immune to normalization
@@ -117,18 +121,17 @@ function hasIllegalWhitespaceOrControl(s: string): boolean {
   return ILLEGAL_INVISIBLE.test(s.replace(ZERO_WIDTH_JOINER, ''))
 }
 
-function isPictographic(grapheme: string): boolean {
-  if (KEYCAP_SEQUENCE.test(grapheme)) return true
-  for (const ch of grapheme) {
-    if (PRINTABLE_ASCII_CHAR.test(ch)) return false
-    if (LETTER_OR_NUMBER.test(ch)) return false
-  }
-  return true
-}
+// An alias must contain text. A pure-emoji alias would take one of a few
+// thousand symbols out of circulation permanently, so the first person to ask
+// for 🚀 would be the last — everyone after them is simply refused. Requiring
+// at least one letter or digit makes the namespace effectively unlimited:
+// shop🚀, cafe🚀 and bizde🚀 can all coexist.
+//
+// This is why the pricing tiers no longer apply to anything new. They were
+// built on the scarcity of single emoji, and that scarcity is exactly what is
+// being removed. Rows reserved before this rule keep their recorded category.
+const HAS_ASCII_TEXT = /[a-z0-9]/i
 
-// Tier is derived here and only here, then trusted by the API — the client
-// never gets to declare its own category, or it could claim the cheap tier
-// for a VIP single emoji.
 export function classifyAlias(raw: string): AliasClassification {
   const normalized = raw.normalize('NFC').trim()
   if (!normalized) return { ok: false, reason: 'empty' }
@@ -138,6 +141,8 @@ export function classifyAlias(raw: string): AliasClassification {
   if (graphemes.length > MAX_ALIAS_GRAPHEMES) return { ok: false, reason: 'too_long' }
 
   if (hasNonAsciiLetterOrNumber(graphemes)) return { ok: false, reason: 'non_ascii_letter' }
+
+  if (!HAS_ASCII_TEXT.test(normalized)) return { ok: false, reason: 'emoji_only' }
 
   // Lowercase only the ASCII half, so "GO🚀" and "go🚀" are the same
   // reservation while emoji are left byte-identical.
@@ -149,14 +154,11 @@ export function classifyAlias(raw: string): AliasClassification {
   const hex = toAliasHex(folded)
   if (hex.length > MAX_ALIAS_BYTES * 2) return { ok: false, reason: 'too_many_bytes' }
 
-  const allPictographic = foldedGraphemes.every(isPictographic)
-  let category: AliasCategory = 'custom'
-  if (allPictographic && foldedGraphemes.length === 1) category = 'single_emoji'
-  else if (allPictographic && foldedGraphemes.length === 2) category = 'double_emoji'
-
+  // Always 'custom' now: the two emoji tiers required an all-pictographic
+  // alias, which the text requirement above rules out.
   return {
     ok: true,
-    category,
+    category: 'custom',
     normalized: folded,
     hex,
     graphemes: foldedGraphemes.length,

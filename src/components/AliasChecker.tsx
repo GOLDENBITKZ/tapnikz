@@ -45,6 +45,7 @@ const REJECT_TEXT: Record<string, string> = {
   empty: '',
   too_long: `Максимум ${MAX_ALIAS_GRAPHEMES} символов`,
   too_many_bytes: 'Слишком длинная комбинация эмодзи — сократите',
+  emoji_only: 'Добавьте слово — например shop🚀. Только эмодзи занять нельзя',
   non_ascii_letter: 'Только латиница и эмодзи — кириллица недоступна',
   invalid_char: 'Без пробелов и невидимых символов',
   mixed_script: 'Смешение алфавитов запрещено',
@@ -195,14 +196,16 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
           <Sparkles className="h-4 w-4 text-violet-400" />
           Застолбить эмодзи-ссылку
         </p>
+        {/* No tier list here any more. Advertising VIP / Double emoji would be
+            selling something that can no longer be reserved. */}
         <p className="mb-3 text-xs leading-relaxed text-gray-400">
-          Короткий адрес вроде <span className="font-mono text-violet-300">tapni.kz/🚀</span> — ведёт куда вы укажете.
-          Один символ, два или сочетание с текстом.
+          Короткий адрес вроде <span className="font-mono text-violet-300">tapni.kz/shop🚀</span> — ведёт куда вы укажете.
+          Слово плюс эмодзи: заметно в ленте и легко продиктовать.
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {(Object.keys(TIER_STYLE) as AliasCategory[]).map((c) => (
-            <span key={c} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${TIER_STYLE[c].badge}`}>
-              {TIER_STYLE[c].icon} {CATEGORY_LABELS[c].label}
+          {['bizde😅', 'shop🚀', 'cafe☕'].map((e) => (
+            <span key={e} className="rounded-full border border-violet-400/30 bg-violet-400/10 px-2.5 py-1 font-mono text-[10px] text-violet-200">
+              tapni.kz/{e}
             </span>
           ))}
         </div>
@@ -225,7 +228,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
       <p className="mb-4 text-xs text-gray-400">
         {atLimit
           ? 'На аккаунт — одна ссылка. Чтобы занять другой символ, освободите текущий.'
-          : `Один эмодзи, два или целое слово — до ${MAX_ALIAS_GRAPHEMES} символов. Чем короче, тем ценнее.`}
+          : `Слово плюс эмодзи — например shop🚀. До ${MAX_ALIAS_GRAPHEMES} символов.`}
       </p>
 
       {!atLimit && <>
@@ -235,7 +238,7 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
           type="text"
           value={aliasInput}
           onChange={(e) => setAliasInput(e.target.value)}
-          placeholder="🚀"
+          placeholder="shop🚀"
           className="min-w-0 flex-1 bg-transparent px-1.5 py-3 text-base text-white placeholder-gray-600 outline-none"
         />
         {state.kind === 'checking' && <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin text-gray-500" />}
@@ -407,14 +410,27 @@ export function AliasChecker({ accessToken, isPremium }: { accessToken: string; 
                     <p className="mb-2 truncate text-[11px] text-gray-500">
                       {a.targetUrl ? `→ ${a.targetUrl}` : '→ на вашу страницу tapni.kz'}
                     </p>
+                    {/* The point of reserving a link is pasting it somewhere,
+                        so copying is the primary action on this card — a full
+                        labelled button, not a URL you have to realise is
+                        clickable. The address stays visible underneath so it
+                        is obvious what lands on the clipboard. */}
                     <button
                       type="button"
                       onClick={() => copy(a.url, a.url)}
-                      className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 font-mono text-[10px] text-gray-400 transition-colors hover:border-violet-400/40 hover:text-violet-200"
+                      className={`flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors ${
+                        copied === a.url
+                          ? 'bg-emerald-500/90 text-white'
+                          : 'bg-violet-600 text-white hover:bg-violet-500'
+                      }`}
                     >
-                      {copied === a.url ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
-                      {a.url.replace('https://', '')}
+                      {copied === a.url
+                        ? <><Check className="h-3.5 w-3.5" /> Скопировано — вставьте в Instagram</>
+                        : <><Copy className="h-3.5 w-3.5" /> Скопировать ссылку</>}
                     </button>
+                    <p className="mt-1.5 text-center font-mono text-[10px] text-gray-500">
+                      {a.url.replace('https://', '')}
+                    </p>
                   </>
                 )}
               </div>
@@ -430,6 +446,7 @@ function errorMessage(code: string): string {
   switch (code) {
     case 'premium_required': return 'Доступно только на Premium'
     case 'reserved_route': return 'Системный адрес — недоступен'
+    case 'emoji_only': return 'Добавьте слово — например shop🚀. Только эмодзи занять нельзя'
     case 'non_ascii_letter': return 'Только латиница и эмодзи — кириллица недоступна'
     case 'too_long': return `Максимум ${MAX_ALIAS_GRAPHEMES} символов`
     case 'too_many_bytes': return 'Слишком длинная комбинация эмодзи — сократите'

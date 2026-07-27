@@ -5,7 +5,7 @@ import { normalizeTargetUrl } from '@/lib/normalize-url'
 
 export type ReserveAliasError =
   | 'unauthorized' | 'premium_required' | 'invalid_input' | 'invalid_url'
-  | 'reserved_route' | 'non_ascii_letter' | 'too_long' | 'too_many_bytes'
+  | 'reserved_route' | 'non_ascii_letter' | 'too_long' | 'too_many_bytes' | 'emoji_only'
   | 'already_taken_alias' | 'already_taken_username' | 'limit_reached'
 
 // One reserved symbol per account. Scarcity is the whole point of the VIP
@@ -129,6 +129,7 @@ export async function POST(request: Request) {
       cls.reason === 'non_ascii_letter' ? 'non_ascii_letter'
       : cls.reason === 'too_long' ? 'too_long'
       : cls.reason === 'too_many_bytes' ? 'too_many_bytes'
+      : cls.reason === 'emoji_only' ? 'emoji_only'
       : 'invalid_input'
     return Response.json({ ok: false, error } satisfies ReserveAliasResult, { status: 400 })
   }
