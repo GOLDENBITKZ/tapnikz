@@ -22,7 +22,6 @@ import { ShareButton } from '@/components/share-button'
 import { LeadFormButton } from '@/components/lead-form-button'
 import { FollowGateButton } from '@/components/follow-gate-button'
 import { MilestoneBlock } from '@/components/milestone-block'
-import { InstagramDmPrompt } from '@/components/instagram-dm-prompt'
 import { CountdownBlock } from '@/components/countdown-block'
 import { FaqBlock } from '@/components/faq-block'
 import { PricelistBlock } from '@/components/pricelist-block'
@@ -527,10 +526,6 @@ export default async function ProfilePage({ params }: Props) {
 
   const t = themeClasses(profile.theme)
   const avatarLetter = profile.business_name.charAt(0).toUpperCase()
-
-  // Extract instagram_dm handle for the DM engagement prompt
-  const igDmLink = links.find((l) => l.icon_type === 'instagram_dm')
-  const igPromptHandle = igDmLink?.url.replace(/^https?:\/\/ig\.me\/m\//i, '').replace(/^ig\.me\/m\//i, '') || null
 
   // JSON-LD structured data for Google/Yandex rich results
   const socialTypes = new Set(['instagram', 'whatsapp', 'telegram', 'tiktok', 'youtube', 'vk', 'website', 'twogis'])
@@ -1065,11 +1060,6 @@ export default async function ProfilePage({ params }: Props) {
         })()}
 
       </div>
-
-      {/* Instagram DM engagement prompt — appears after 15s if profile has instagram_dm button */}
-      {igPromptHandle && (
-        <InstagramDmPrompt igHandle={igPromptHandle} ownerName={profile.business_name} />
-      )}
 
       {/* Brand-page acquisition banner — shown on official brand profiles instead of watermark.
           These pages rank in search ("egov.kz контакты", "kolesa.kz телефон") and get cold
