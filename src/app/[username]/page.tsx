@@ -264,6 +264,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+// Type sized from the content, not from a fixed scale.
+//
+// Real names in this database run from 9 to 147 characters — a café called
+// "Kolesa.kz" and a school portal called "Kündelik.kz (portal.kundelik.kz) —
+// единая цифровая образовательная система и электронный дневник для
+// общеобразовательных школ Республики Казахстан." No single size serves both:
+// 24px extrabold makes the second one a wall of text that pushes every button
+// off a phone screen, which is the opposite of what this page is for.
+//
+// Long text also stops working centred. Centring is fine for a line or two;
+// past that the eye loses the start of each line, so anything long switches to
+// left alignment where it actually reads.
+function nameType(name: string) {
+  const n = name.length
+  if (n <= 20) return 'text-[28px] font-extrabold tracking-tight leading-[1.15] text-center'
+  if (n <= 45) return 'text-[22px] font-bold tracking-tight leading-snug text-center'
+  if (n <= 90) return 'text-[18px] font-bold leading-snug text-center'
+  return 'text-[16px] font-semibold leading-snug text-left'
+}
+
+function bioType(bio: string) {
+  // ~45 characters per line on a 360px phone at this size, so 120 is roughly
+  // where a centred bio stops being two tidy lines and starts being a block.
+  return bio.length <= 120
+    ? 'text-sm leading-relaxed text-center'
+    : 'text-[13px] leading-relaxed text-left'
+}
+
 function themeClasses(theme: Theme) {
   switch (theme) {
     case 'light':
@@ -566,33 +594,47 @@ export default async function ProfilePage({ params }: Props) {
         </div>
 
         {/* Name, bio, address */}
-        <div className="mb-6 text-center animate-fade-up animation-delay-75">
-          <h1 className={`mb-1 text-2xl font-extrabold tracking-tight ${t.text}`}>
+        <div className="mb-6 animate-fade-up animation-delay-75">
+          <h1 className={`${nameType(profile.business_name)} ${t.text}`}>
             {profile.business_name}
           </h1>
-          {profile.bio && (
-            <p className={`mt-1 text-sm leading-relaxed ${t.subtext}`}>{profile.bio}</p>
-          )}
-          {profile.address && (
-            <p className={`mt-2 flex items-center justify-center gap-1 text-xs ${t.address}`}>
-              <MapPin className="h-3 w-3 flex-shrink-0" />
-              {profile.address}
-            </p>
-          )}
-          <p className={`mt-1.5 text-xs ${t.subtext} opacity-40`}>tapni.kz/{profile.username}</p>
 
-          {/* Open Now badge */}
+          {profile.bio && (
+            <p className={`mt-2.5 ${bioType(profile.bio)} ${t.subtext}`}>{profile.bio}</p>
+          )}
+
+          {/* Address and the address bar sit together: both answer "where is
+              this", one physically and one on the web. */}
+          <div className="mt-3.5 flex flex-col items-center gap-1.5">
+            {profile.address && (
+              <p className={`flex items-center gap-1.5 text-xs ${t.address}`}>
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                {profile.address}
+              </p>
+            )}
+            {/* Was opacity-40, which made the one line telling you where you
+                are almost invisible. It is quiet now, not hidden. */}
+            <p className={`font-mono text-[11px] tracking-tight ${t.address} opacity-70`}>
+              tapni.kz/{profile.username}
+            </p>
+          </div>
+
+          {/* Open Now badge. Centred explicitly — the wrapper above is no
+              longer text-center, since long names and bios now set their own
+              alignment. */}
           {(() => {
             const status = getOpenStatus(profile.working_hours)
             if (!status) return null
             return (
-              <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                status.isOpen
-                  ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-500/20'
-                  : 'bg-black/[0.06] text-gray-500 ring-1 ring-black/[0.1]'
-              }`}>
-                <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
-                {status.label}
+              <div className="mt-3.5 flex justify-center">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  status.isOpen
+                    ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-500/20'
+                    : 'bg-black/[0.06] text-gray-500 ring-1 ring-black/[0.1]'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
+                  {status.label}
+                </span>
               </div>
             )
           })()}

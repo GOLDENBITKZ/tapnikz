@@ -1,15 +1,21 @@
 import type { Metadata, Viewport } from 'next'
-import { Nunito } from 'next/font/google'
+import { Manrope } from 'next/font/google'
 import './globals.css'
 import { Suspense } from 'react'
 import { RecoveryRedirect } from '@/components/recovery-redirect'
 import { ChatWidget } from '@/components/chat-widget'
 import { Analytics } from '@/components/analytics'
 
-const nunito = Nunito({
-  variable: '--font-nunito',
+// Manrope over the previous Nunito. Real profiles here include a bank and a
+// government portal alongside cafés; Nunito's rounded forms read juvenile at
+// display sizes on those. Manrope is semi-geometric with distinctive Cyrillic
+// (ж, к, я) and holds up both at 28px tight-tracked and at 13px body — one
+// family doing every job, so hierarchy comes from size and weight rather than
+// from mixing faces.
+const manrope = Manrope({
+  variable: '--font-manrope',
   subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '600', '700', '800', '900'],
+  weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
 })
 
@@ -69,7 +75,7 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${nunito.variable} h-full antialiased`}
+      className={`${manrope.variable} h-full antialiased`}
     >
       <head>
         <link rel="preconnect" href="https://ahsfumqlrpikkeriyngv.supabase.co" />
