@@ -273,23 +273,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // 24px extrabold makes the second one a wall of text that pushes every button
 // off a phone screen, which is the opposite of what this page is for.
 //
-// Long text also stops working centred. Centring is fine for a line or two;
-// past that the eye loses the start of each line, so anything long switches to
-// left alignment where it actually reads.
+// Size adapts, alignment does not. An earlier version also switched long text
+// to the left, which reads better in isolation but broke the composition: the
+// avatar, address and badges stay centred, so the name and bio ended up hugging
+// one edge while everything around them was centred. Alignment belongs to the
+// block as a whole, and this block is centred — so long text gets more room by
+// dropping in size and tightening leading instead.
 function nameType(name: string) {
   const n = name.length
-  if (n <= 20) return 'text-[28px] font-extrabold tracking-tight leading-[1.15] text-center'
-  if (n <= 45) return 'text-[22px] font-bold tracking-tight leading-snug text-center'
-  if (n <= 90) return 'text-[18px] font-bold leading-snug text-center'
-  return 'text-[16px] font-semibold leading-snug text-left'
+  if (n <= 20) return 'text-[28px] font-extrabold tracking-tight leading-[1.15]'
+  if (n <= 45) return 'text-[22px] font-bold tracking-tight leading-snug'
+  if (n <= 90) return 'text-[18px] font-bold leading-snug'
+  return 'text-[16px] font-semibold leading-snug'
 }
 
 function bioType(bio: string) {
-  // ~45 characters per line on a 360px phone at this size, so 120 is roughly
-  // where a centred bio stops being two tidy lines and starts being a block.
+  // ~45 characters per line on a 360px phone, so 120 is roughly where a bio
+  // stops being two tidy lines. Past that it steps down a size and loosens
+  // leading, which keeps a long centred paragraph scannable.
   return bio.length <= 120
-    ? 'text-sm leading-relaxed text-center'
-    : 'text-[13px] leading-relaxed text-left'
+    ? 'text-sm leading-relaxed'
+    : 'text-[13px] leading-[1.7]'
 }
 
 function themeClasses(theme: Theme) {
@@ -593,8 +597,8 @@ export default async function ProfilePage({ params }: Props) {
           </div>
         </div>
 
-        {/* Name, bio, address */}
-        <div className="mb-6 animate-fade-up animation-delay-75">
+        {/* Name, bio, address — one centred block. */}
+        <div className="mb-6 text-center animate-fade-up animation-delay-75">
           <h1 className={`${nameType(profile.business_name)} ${t.text}`}>
             {profile.business_name}
           </h1>
@@ -619,9 +623,7 @@ export default async function ProfilePage({ params }: Props) {
             </p>
           </div>
 
-          {/* Open Now badge. Centred explicitly — the wrapper above is no
-              longer text-center, since long names and bios now set their own
-              alignment. */}
+          {/* Open Now badge */}
           {(() => {
             const status = getOpenStatus(profile.working_hours)
             if (!status) return null
