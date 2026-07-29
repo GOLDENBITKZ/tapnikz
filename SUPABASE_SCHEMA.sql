@@ -344,6 +344,61 @@ CREATE POLICY manager_own_commissions_select ON public.sales_commissions FOR SEL
 REVOKE SELECT ON public.profiles FROM anon;
 REVOKE SELECT ON public.links    FROM anon;
 
+-- Column privileges, because RLS cannot express them. profiles_update_owner
+-- permits a user to write their own row, and "their own row" included
+-- is_premium — a single PATCH through the public anon key granted Premium
+-- until 2099. is_manager, is_promo, subscription_plan, view_count and the
+-- referral columns were writable the same way. Users keep exactly the columns
+-- the dashboard and signup write; billing, role and referral state is
+-- service-role only.
+REVOKE INSERT, UPDATE ON public.profiles FROM anon, authenticated, PUBLIC;
+
+GRANT UPDATE (
+  username, business_name, bio, theme, phone, address,
+  avatar_url, working_hours, updated_at
+) ON public.profiles TO authenticated;
+
+-- referred_by is insertable (signup carries the referral code) but not
+-- updatable, so a bonus cannot be claimed after the fact. is_premium is
+-- insertable only because older client bundles send it; the trigger below
+-- discards the value.
+GRANT INSERT (
+  id, username, business_name, bio, theme, phone, address,
+  avatar_url, working_hours, referred_by, is_premium
+) ON public.profiles TO authenticated;
+
+-- Aliases are written only by /api/aliases with the service role; the client
+-- just SELECTs to check availability. Direct writes let a free account reserve
+-- an alias with is_paid = true and skipped the word-required and reserved-word
+-- rules, which exist only in the API.
+REVOKE INSERT, UPDATE, DELETE ON public.aliases FROM anon, authenticated, PUBLIC;
+
+-- SECURITY INVOKER is required, not incidental: under SECURITY DEFINER
+-- current_user is the function owner, so the role test never matches and the
+-- trigger silently does nothing.
+CREATE OR REPLACE FUNCTION public.force_free_profile_on_client_insert()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path TO 'public', 'pg_temp'
+AS $$
+BEGIN
+  IF current_user IN ('anon', 'authenticated') THEN
+    NEW.is_premium := false;
+    NEW.subscription_expires_at := NULL;
+    NEW.subscription_plan := NULL;
+    NEW.is_manager := false;
+    NEW.manager_since := NULL;
+    NEW.is_promo := false;
+    NEW.view_count := 0;
+    NEW.referral_bonus_given := false;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS profiles_force_free_on_client_insert ON public.profiles;
+CREATE TRIGGER profiles_force_free_on_client_insert
+  BEFORE INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.force_free_profile_on_client_insert();
+
 -- ─── Functions ──────────────────────────────────────────────
 -- SECURITY DEFINER with a pinned search_path (an unpinned one is hijackable).
 -- EXECUTE is revoked from PUBLIC below, not just from anon/authenticated:
