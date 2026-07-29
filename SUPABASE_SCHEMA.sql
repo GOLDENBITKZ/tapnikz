@@ -373,6 +373,18 @@ GRANT INSERT (
 -- rules, which exist only in the API.
 REVOKE INSERT, UPDATE, DELETE ON public.aliases FROM anon, authenticated, PUBLIC;
 
+-- These six had write grants and no write policy, so RLS alone refused them.
+-- Unreachable privilege, and a trap: any permissive write policy added later
+-- would expose them the same instant. Every write goes through a route handler
+-- using the service role. profiles/links/aliases keep DELETE — users may
+-- delete their own account, links and alias, covered by owner policies.
+REVOKE INSERT, UPDATE, DELETE ON public.click_events       FROM anon, authenticated, PUBLIC;
+REVOKE INSERT, UPDATE, DELETE ON public.gift_codes         FROM anon, authenticated, PUBLIC;
+REVOKE INSERT, UPDATE, DELETE ON public.lead_submissions   FROM anon, authenticated, PUBLIC;
+REVOKE INSERT, UPDATE, DELETE ON public.payments           FROM anon, authenticated, PUBLIC;
+REVOKE INSERT, UPDATE, DELETE ON public.sales_commissions  FROM anon, authenticated, PUBLIC;
+REVOKE INSERT, UPDATE, DELETE ON public.support_tickets    FROM anon, authenticated, PUBLIC;
+
 -- SECURITY INVOKER is required, not incidental: under SECURITY DEFINER
 -- current_user is the function owner, so the role test never matches and the
 -- trigger silently does nothing.
