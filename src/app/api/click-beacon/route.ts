@@ -2,6 +2,11 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 // Lightweight POST endpoint for navigator.sendBeacon click tracking.
 // Returns 204 always — no redirect, no URL lookup needed.
+// Deliberately still per-process, unlike the eight limits moved to the shared
+// Postgres counter: this runs on every button tap, and a database round trip
+// here would cost more than the limit protects. It guards analytics accuracy,
+// not money or anyone's inbox, so a leaky cap only means slightly noisier
+// click counts.
 
 const rateMap = new Map<string, { count: number; resetAt: number }>()
 

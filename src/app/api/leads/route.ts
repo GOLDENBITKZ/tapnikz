@@ -1,24 +1,15 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { sendTelegram } from '@/lib/telegram'
+import { consumeRate } from '@/lib/rate-limit'
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-// Rate limit: 3 lead submissions per phone+profile per hour
-const rateMap = new Map<string, { count: number; resetAt: number }>()
-function checkRate(key: string): boolean {
-  const now = Date.now()
-  // Prune expired entries to prevent unbounded memory growth
-  if (rateMap.size > 1000) {
-    for (const [k, v] of rateMap) { if (now > v.resetAt) rateMap.delete(k) }
-  }
-  const entry = rateMap.get(key)
-  if (!entry || now > entry.resetAt) { rateMap.set(key, { count: 1, resetAt: now + 3600_000 }); return true }
-  if (entry.count >= 3) return false
-  entry.count++
-  return true
-}
+// 3 lead submissions per phone+profile per hour. Shared across instances: the
+// limit protects a business owner's Telegram from being flooded with fake
+// enquiries, and a per-process counter did not survive a second lambda.
+const LEAD_LIMIT = 3
 
 export async function POST(request: Request) {
   let body: { username: string; link_id?: string; name?: string; phone?: string; email?: string; message?: string }
@@ -33,7 +24,7 @@ export async function POST(request: Request) {
   if (cleanPhone.length < 10) return Response.json({ error: 'invalid phone' }, { status: 400 })
 
   const rateKey = `${username}:${cleanPhone}`
-  if (!checkRate(rateKey)) return Response.json({ error: 'too_many_requests' }, { status: 429 })
+  if (!(await consumeRate(`lead:${rateKey}`, LEAD_LIMIT, 3600))) return Response.json({ error: 'too_many_requests' }, { status: 429 })
 
   try {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

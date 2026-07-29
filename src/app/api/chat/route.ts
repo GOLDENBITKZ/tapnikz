@@ -1,36 +1,11 @@
 import Groq from 'groq-sdk'
+import { consumeRate } from '@/lib/rate-limit'
 
-// Global rate limit: 20 Groq calls/minute across all users
-const globalMap = new Map<'global', { count: number; resetAt: number }>()
-// Per-IP rate limit: 8 Groq calls/hour
-const userMap = new Map<string, { count: number; resetAt: number }>()
-
-function checkGlobal(): boolean {
-  const now = Date.now()
-  const entry = globalMap.get('global')
-  if (!entry || now > entry.resetAt) {
-    globalMap.set('global', { count: 1, resetAt: now + 60_000 })
-    return true
-  }
-  if (entry.count >= 20) return false
-  entry.count++
-  return true
-}
-
-function checkUser(ip: string): boolean {
-  const now = Date.now()
-  const entry = userMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    if (userMap.size > 1000) {
-      for (const [k, v] of userMap) { if (now > v.resetAt) userMap.delete(k) }
-    }
-    userMap.set(ip, { count: 1, resetAt: now + 3_600_000 })
-    return true
-  }
-  if (entry.count >= 8) return false
-  entry.count++
-  return true
-}
+// Both limits are shared across instances. The global one especially: a cap
+// meant to protect the GROQ account as a whole is meaningless if every lambda
+// keeps its own tally of it.
+const CHAT_GLOBAL_LIMIT = 20   // Groq calls/minute across all users
+const CHAT_USER_LIMIT = 8      // Groq calls/hour per IP
 
 const SYSTEM = (page: string) => `Ты — точный помощник tapni.kz. Отвечай ТОЛЬКО на основе информации ниже. Не придумывай функций. Если не знаешь — скажи "уточните у поддержки в WhatsApp +77755696531". Всегда заканчивай конкретным призывом к действию. Отвечай по-русски, 1-3 предложения.
 
@@ -107,10 +82,10 @@ export async function POST(request: Request) {
     return Response.json({ error: 'too short' }, { status: 400 })
   }
 
-  if (!checkGlobal()) {
+  if (!(await consumeRate('chat:global', CHAT_GLOBAL_LIMIT, 60))) {
     return Response.json({ rateLimited: true, reason: 'global' }, { status: 429 })
   }
-  if (!checkUser(ip)) {
+  if (!(await consumeRate(`chat:${ip}`, CHAT_USER_LIMIT, 3600))) {
     return Response.json({ rateLimited: true, reason: 'user' }, { status: 429 })
   }
 

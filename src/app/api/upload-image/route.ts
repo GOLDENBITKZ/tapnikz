@@ -1,25 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { consumeRate } from '@/lib/rate-limit'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
 
-// Per-user rate limit: max 20 uploads per hour (prevents storage spam)
-const uploadRateMap = new Map<string, { count: number; resetAt: number }>()
-function checkUploadRate(userId: string): boolean {
-  const now = Date.now()
-  const entry = uploadRateMap.get(userId)
-  if (!entry || now > entry.resetAt) {
-    // Prune map if it grows too large (>500 entries = unlikely normal usage)
-    if (uploadRateMap.size > 500) {
-      for (const [k, v] of uploadRateMap) { if (now > v.resetAt) uploadRateMap.delete(k) }
-    }
-    uploadRateMap.set(userId, { count: 1, resetAt: now + 3_600_000 })
-    return true
-  }
-  if (entry.count >= 20) return false
-  entry.count++
-  return true
-}
+// 20 uploads per user per hour, shared across instances — this one guards
+// storage, which is billed and never freed by a failed attempt.
+const UPLOAD_LIMIT = 20
 
 function detectImageType(bytes: Uint8Array): 'jpeg' | 'png' | 'webp' | null {
   if (bytes[0] === 0xFF && bytes[1] === 0xD8) return 'jpeg'
@@ -40,7 +27,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authErr } = await admin.auth.getUser(token)
     if (!user || authErr) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    if (!checkUploadRate(user.id)) {
+    if (!(await consumeRate(`upload:${user.id}`, UPLOAD_LIMIT, 3600))) {
       return NextResponse.json({ error: 'Слишком много загрузок. Попробуйте через час.' }, { status: 429 })
     }
 

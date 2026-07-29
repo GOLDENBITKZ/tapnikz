@@ -1,22 +1,10 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { consumeRate } from '@/lib/rate-limit'
 
-// Rate limit: max 3 reset requests per phone per hour
-const rateMap = new Map<string, { count: number; resetAt: number }>()
-
-function checkRate(phone: string): boolean {
-  const now = Date.now()
-  const entry = rateMap.get(phone)
-  if (!entry || now > entry.resetAt) {
-    if (rateMap.size > 500) {
-      for (const [k, v] of rateMap) { if (now > v.resetAt) rateMap.delete(k) }
-    }
-    rateMap.set(phone, { count: 1, resetAt: now + 3_600_000 })
-    return true
-  }
-  if (entry.count >= 3) return false
-  entry.count++
-  return true
-}
+// 3 reset requests per phone per hour. Shared across instances — this one
+// sends a Telegram message to whoever owns the number, so a leaky counter
+// means anyone can be messaged repeatedly by entering their phone.
+const RESET_LIMIT = 3
 
 async function sendTelegram(chatId: string, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN
@@ -49,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   // Rate limit silently
-  if (!checkRate(phone)) {
+  if (!(await consumeRate(`reset:${phone}`, RESET_LIMIT, 3600))) {
     return Response.json({ ok: true })
   }
 

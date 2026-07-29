@@ -2,27 +2,15 @@ import { sendTelegram, adminChatId } from '@/lib/telegram'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { activatePremium } from '@/lib/activate-premium'
 import Groq from 'groq-sdk'
+import { consumeRate } from '@/lib/rate-limit'
 
 // In-memory map for receipt flow: chatId → pending payment info
 // Cleared after photo received or after 10 minutes
 const receiptPending = new Map<string, { username: string; plan: 'monthly' | 'annual'; days: number; paymentId: string | null; ts: number }>()
 
-// Rate limit receipt photo submissions: max 5 per chatId per hour (protects Groq Vision quota)
-const receiptRateMap = new Map<string, { count: number; resetAt: number }>()
-function checkReceiptRate(chatId: string): boolean {
-  const now = Date.now()
-  const entry = receiptRateMap.get(chatId)
-  if (!entry || now > entry.resetAt) {
-    if (receiptRateMap.size > 500) {
-      for (const [k, v] of receiptRateMap) { if (now > v.resetAt) receiptRateMap.delete(k) }
-    }
-    receiptRateMap.set(chatId, { count: 1, resetAt: now + 3_600_000 })
-    return true
-  }
-  if (entry.count >= 5) return false
-  entry.count++
-  return true
-}
+// 5 receipt photos per chat per hour, shared across instances — each one is
+// sent to Groq Vision, so a per-process counter left the quota unguarded.
+const RECEIPT_LIMIT = 5
 
 // Escape user-controlled strings before embedding in Telegram HTML messages
 function esc(s: unknown): string {
@@ -2288,7 +2276,7 @@ async function handleReceiptPhoto(
 }
 
 async function handleReceiptPhotoById(chatId: string, fileId: string) {
-  if (!checkReceiptRate(chatId)) {
+  if (!(await consumeRate(`receipt:${chatId}`, RECEIPT_LIMIT, 3600))) {
     await tgPost('sendMessage', {
       chat_id: chatId,
       text: '⏳ Слишком много чеков. Попробуйте через час.',

@@ -1,7 +1,9 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { verifyVcardToken } from '@/lib/vcard-token'
 
-// Rate limit: 5 downloads per IP per hour
+// Rate limit: 5 downloads per IP per hour. Left per-process: a vCard download
+// costs a token check and one row read, so a leaky cap buys an attacker
+// nothing worth a database round trip on every request.
 const rateMap = new Map<string, { count: number; resetAt: number }>()
 function checkRate(ip: string): boolean {
   const now = Date.now()

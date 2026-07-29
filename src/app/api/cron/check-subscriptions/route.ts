@@ -425,8 +425,17 @@ export async function GET(request: Request) {
     }
   }
 
+  // Rate-limit rows are only meaningful inside their window, and the longest
+  // window in use is an hour. Without this the table grows one row per IP per
+  // endpoint and never shrinks.
+  const { count: rateRowsCleared } = await db
+    .from('rate_limits')
+    .delete({ count: 'exact' })
+    .lt('window_start', new Date(Date.now() - 24 * 3600_000).toISOString())
+
   return Response.json({
     ok: true,
+    rateRowsCleared: rateRowsCleared ?? 0,
     expired: expired?.length ?? 0,
     expiring7: expiring7?.length ?? 0,
     expiring3: expiring3?.length ?? 0,

@@ -1,28 +1,13 @@
 import { sendTelegram, sendTelegramWithButtons, adminChatId } from '@/lib/telegram'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { consumeRate } from '@/lib/rate-limit'
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-// In-process rate limit: max 3 payment requests per username per hour
-const rateMap = new Map<string, { count: number; resetAt: number }>()
-
-function checkRate(username: string): boolean {
-  const now = Date.now()
-  const entry = rateMap.get(username)
-  if (!entry || now > entry.resetAt) {
-    // Prune expired entries when map grows large to prevent memory leak
-    if (rateMap.size > 200) {
-      for (const [k, v] of rateMap) { if (now > v.resetAt) rateMap.delete(k) }
-    }
-    rateMap.set(username, { count: 1, resetAt: now + 3600_000 })
-    return true
-  }
-  if (entry.count >= 3) return false
-  entry.count++
-  return true
-}
+// 3 admin notifications per username per hour, shared across instances.
+const NOTIFY_LIMIT = 3
 
 // Verify Supabase JWT from Authorization header and return the profile username
 // Returns null if unauthenticated or no profile found
@@ -72,7 +57,7 @@ export async function POST(request: Request) {
 
   if ('type' in body && body.type === 'new_user') {
     // Rate-limit new_user pings before hitting the DB
-    if (!checkRate(username)) {
+    if (!(await consumeRate(`notify:${username}`, NOTIFY_LIMIT, 3600))) {
       return Response.json({ ok: true })
     }
     // Verify by DB: profile must exist and have been created within the last 5 minutes.
@@ -134,7 +119,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Forbidden — username mismatch' }, { status: 403 })
     }
 
-    if (!checkRate(username)) {
+    if (!(await consumeRate(`notify:${username}`, NOTIFY_LIMIT, 3600))) {
       return Response.json({ ok: true })
     }
 
@@ -190,7 +175,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    if (!checkRate(username)) {
+    if (!(await consumeRate(`notify:${username}`, NOTIFY_LIMIT, 3600))) {
       return Response.json({ ok: true })
     }
     const b = body as { type: 'invoice_request'; username: string; phone?: string; company: string; bin: string }
@@ -213,7 +198,7 @@ export async function POST(request: Request) {
     if (callerUsername !== username) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (!checkRate(username)) {
+    if (!(await consumeRate(`notify:${username}`, NOTIFY_LIMIT, 3600))) {
       return Response.json({ ok: true })
     }
     text =

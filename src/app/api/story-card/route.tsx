@@ -2,22 +2,12 @@ import { ImageResponse } from 'next/og'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { consumeRate } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
-// IP rate limit: 5 requests per minute per IP
-const storyRateMap = new Map<string, { count: number; resetAt: number }>()
-function checkStoryRate(ip: string): boolean {
-  const now = Date.now()
-  if (storyRateMap.size > 500) {
-    for (const [k, v] of storyRateMap) { if (now > v.resetAt) storyRateMap.delete(k) }
-  }
-  const entry = storyRateMap.get(ip)
-  if (!entry || now > entry.resetAt) { storyRateMap.set(ip, { count: 1, resetAt: now + 60_000 }); return true }
-  if (entry.count >= 5) return false
-  entry.count++
-  return true
-}
+// 5 image renders per minute per IP, shared across instances.
+const STORY_LIMIT = 5
 
 // Load Roboto Bold with full Cyrillic + Kazakh alphabet support (cached at module load)
 let fontData: ArrayBuffer | null = null
@@ -31,7 +21,7 @@ function getFont(): ArrayBuffer {
 
 export async function GET(request: Request) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  if (!checkStoryRate(ip)) {
+  if (!(await consumeRate(`story:${ip}`, STORY_LIMIT, 60))) {
     return new Response('Too Many Requests', { status: 429 })
   }
 

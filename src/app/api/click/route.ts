@@ -5,6 +5,11 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 const HOME = 'https://tapni.kz'
 
 // Rate limit: max 30 clicks per IP per hour (blocks bots; a human visits ~1-5 links per session)
+// Deliberately still per-process, unlike the eight limits moved to the shared
+// Postgres counter: this runs on every button tap, and a database round trip
+// here would cost more than the limit protects. It guards analytics accuracy,
+// not money or anyone's inbox, so a leaky cap only means slightly noisier
+// click counts.
 const clickRateMap = new Map<string, { count: number; resetAt: number }>()
 function checkClickRate(ip: string): boolean {
   const now = Date.now()

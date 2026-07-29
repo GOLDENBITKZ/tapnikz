@@ -124,7 +124,7 @@ const KNOWN_BRANDS: Record<string, {
     sameAs: 'https://24.kz',
     type: 'TelevisionStation',
   },
-  'billimclass.kz': {
+  'bilimclass.kz': {
     title: 'BilimClass.kz — контакты, техподдержка образовательной платформы',
     desc: 'Справочная страница BilimClass.kz на tapni.kz. Техподдержка образовательной платформы для школ Казахстана. Данные из открытых источников.',
     keywords: 'bilimclass.kz, BilimLand контакты, образовательная платформа Казахстан, электронный учебник, школа онлайн',

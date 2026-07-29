@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanitizeCopy, type PageCopy } from '@/lib/page-copy'
+import { clientIp, consumeRate, refundRate } from '@/lib/rate-limit'
 
 // This route previously generated page *structure* — a theme and a list of
 // buttons, every one with url: "". Nothing ever called it, and the reason is
@@ -11,39 +12,13 @@ import { sanitizeCopy, type PageCopy } from '@/lib/page-copy'
 // page without an account, so it is the only thing between a bored visitor and
 // the GROQ bill.
 //
-// Counted at the point of calling GROQ, not on arrival. Charging for rejected
+// Counted when GROQ is actually called, not on arrival. Charging for rejected
 // requests looked reasonable until it was tested: a typo returning
 // prompt_too_short, and a malformed body, each burned quota before anything was
 // generated — five fumbles and a visitor is locked out for an hour having never
-// seen the feature work. Only calls that actually cost money count.
+// seen the feature work.
 const GENERATE_LIMIT = 10
-const generateRateMap = new Map<string, { count: number; resetAt: number }>()
-
-function isRateLimited(ip: string): boolean {
-  const entry = generateRateMap.get(ip)
-  if (!entry || Date.now() > entry.resetAt) return false
-  return entry.count >= GENERATE_LIMIT
-}
-
-function recordGeneration(ip: string): void {
-  const now = Date.now()
-  const entry = generateRateMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    if (generateRateMap.size > 500) {
-      for (const [k, v] of generateRateMap) { if (now > v.resetAt) generateRateMap.delete(k) }
-    }
-    generateRateMap.set(ip, { count: 1, resetAt: now + 3_600_000 })
-    return
-  }
-  entry.count++
-}
-
-/** Give the slot back when the generation failed: nothing was produced and
- *  nothing was billed, so charging the visitor for it is just a smaller cap. */
-function refundGeneration(ip: string): void {
-  const entry = generateRateMap.get(ip)
-  if (entry && Date.now() <= entry.resetAt && entry.count > 0) entry.count--
-}
+const GENERATE_WINDOW = 3600
 
 // Checked against live GROQ output before shipping. Three rules earned their
 // place by fixing failures seen in testing, not by sounding sensible:
@@ -225,10 +200,7 @@ const MAX_CORRECTIONS = 2
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-    if (isRateLimited(ip)) {
-      return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
-    }
+    const rateKey = `generate:${clientIp(req)}`
 
     let body: { prompt?: unknown }
     try { body = await req.json() } catch {
@@ -246,11 +218,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'unavailable' }, { status: 503 })
     }
 
-    recordGeneration(ip)
+    if (!(await consumeRate(rateKey, GENERATE_LIMIT, GENERATE_WINDOW))) {
+      return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+    }
 
     let result = await attempt(groqKey, prompt)
     if (!result.ok) {
-      refundGeneration(ip)
+      await refundRate(rateKey)
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
 
