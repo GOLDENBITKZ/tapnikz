@@ -112,6 +112,12 @@ const AUDIENCES = [
 ]
 
 const LINK_TYPES: { label: string; items: { name: string; color: string }[]; wide?: boolean }[] = [
+  // Every type the dashboard actually offers — 37, matching ICON_OPTIONS.
+  // The heading above says "все функции", and it used to list 20: the whole
+  // Instagram marketing set, lead forms, countdowns, Smart QR and the app-store
+  // buttons were all missing from a section claiming to be complete.
+  // ediny_qr is deliberately absent: it survives in the DB CHECK for old rows
+  // but is no longer offered to anyone.
   {
     label: 'Контакты и мессенджеры',
     items: [
@@ -125,44 +131,62 @@ const LINK_TYPES: { label: string; items: { name: string; color: string }[]; wid
   {
     label: 'Социальные сети',
     items: [
-      { name: 'Instagram', color: 'bg-pink-100 text-pink-600 border-pink-200' },
-      { name: 'TikTok',    color: 'bg-gray-100 text-gray-600 border-gray-300' },
-      { name: 'YouTube',   color: 'bg-red-100 text-red-600 border-red-200' },
-      { name: 'Facebook',  color: 'bg-blue-100 text-blue-700 border-blue-200' },
-      { name: 'ВКонтакте', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+      { name: 'Instagram',   color: 'bg-pink-100 text-pink-600 border-pink-200' },
+      { name: 'TikTok',      color: 'bg-gray-100 text-gray-600 border-gray-300' },
+      { name: 'YouTube',     color: 'bg-red-100 text-red-600 border-red-200' },
+      { name: 'Facebook',    color: 'bg-blue-100 text-blue-700 border-blue-200' },
+      { name: 'ВКонтакте',   color: 'bg-blue-100 text-blue-700 border-blue-200' },
+      { name: 'X (Twitter)', color: 'bg-gray-100 text-gray-700 border-gray-300' },
     ],
   },
   {
     label: 'Казахстанские сервисы',
+    wide: true,
     items: [
       { name: 'Kaspi Pay',     color: 'bg-red-100 text-red-600 border-red-200' },
+      { name: 'Kaspi Pay QR',  color: 'bg-red-100 text-red-600 border-red-200' },
       { name: 'Kaspi магазин', color: 'bg-red-100 text-red-700 border-red-200' },
+      { name: 'Kaspi товар',   color: 'bg-red-100 text-red-700 border-red-200' },
       { name: '2ГИС',          color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
       { name: 'Kolesa.kz',     color: 'bg-orange-100 text-orange-600 border-orange-200' },
       { name: 'Krisha.kz',     color: 'bg-blue-100 text-blue-600 border-blue-200' },
     ],
   },
   {
-    label: 'Контент-блоки',
+    label: 'Instagram-маркетинг',
     items: [
-      { name: 'Текст',      color: 'bg-gray-100 text-gray-600 border-gray-200' },
-      { name: 'Изображение', color: 'bg-indigo-100 text-indigo-600 border-indigo-200' },
-      { name: 'Видео',      color: 'bg-purple-100 text-purple-600 border-purple-200' },
-      { name: 'Прайс-лист', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-      { name: 'FAQ',        color: 'bg-violet-100 text-violet-600 border-violet-200' },
+      { name: 'Написать в Direct',   color: 'bg-pink-100 text-pink-600 border-pink-200' },
+      { name: 'Reels / Пост',        color: 'bg-pink-100 text-pink-600 border-pink-200' },
+      { name: 'Подпишись и получи',  color: 'bg-purple-100 text-purple-600 border-purple-200' },
+      { name: 'DM-триггер по слову', color: 'bg-purple-100 text-purple-600 border-purple-200' },
+      { name: 'Вирусный вызов',      color: 'bg-violet-100 text-violet-600 border-violet-200' },
     ],
   },
   {
-    label: 'Маркетинг и продажи',
-    wide: true,
+    label: 'Контент-блоки',
     items: [
-      { name: 'Форма заявки',   color: 'bg-amber-100 text-amber-700 border-amber-200' },
-      { name: 'Карточка товара', color: 'bg-orange-100 text-orange-600 border-orange-200' },
-      { name: 'Таймер',         color: 'bg-red-100 text-red-600 border-red-200' },
-      { name: 'Follow Gate',    color: 'bg-pink-100 text-pink-600 border-pink-200' },
-      { name: 'Instagram DM',   color: 'bg-pink-100 text-pink-600 border-pink-200' },
+      { name: 'Текст / Описание', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+      { name: 'Баннер',           color: 'bg-amber-100 text-amber-700 border-amber-200' },
+      { name: 'Видео',            color: 'bg-red-100 text-red-600 border-red-200' },
+      { name: 'Прайс-лист',       color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+      { name: 'FAQ',              color: 'bg-sky-100 text-sky-700 border-sky-200' },
+      { name: 'Таймер акции',     color: 'bg-orange-100 text-orange-600 border-orange-200' },
+      { name: 'Карточка товара',  color: 'bg-violet-100 text-violet-600 border-violet-200' },
+      { name: 'Запись / Заявка',  color: 'bg-teal-100 text-teal-700 border-teal-200' },
     ],
   },
+  {
+    label: 'Приложения и прочее',
+    items: [
+      { name: 'Smart QR',      color: 'bg-violet-100 text-violet-600 border-violet-200' },
+      { name: 'Google Play',   color: 'bg-green-100 text-green-700 border-green-200' },
+      { name: 'App Store',     color: 'bg-gray-100 text-gray-700 border-gray-300' },
+      { name: 'Меню',          color: 'bg-amber-100 text-amber-700 border-amber-200' },
+      { name: 'PayPal',        color: 'bg-blue-100 text-blue-700 border-blue-200' },
+      { name: 'Другая ссылка', color: 'bg-gray-100 text-gray-600 border-gray-200' },
+    ],
+  },
+
 ]
 
 const FEATURES = [
