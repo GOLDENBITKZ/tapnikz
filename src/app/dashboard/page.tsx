@@ -676,6 +676,21 @@ export default function DashboardPage() {
     return u
   }
 
+  // Turn an /api/links refusal into something the user can act on.
+  //
+  // The plain-link path already did this, but the eleven specialised paths
+  // (timer, price list, image, video, FAQ, lead form and the Instagram blocks)
+  // threw a bare Error and reported "Не удалось добавить таймер". Five of those
+  // types are Premium-only, so a free user was told their timer had failed
+  // rather than that it is a paid feature — the service looks broken and the
+  // upsell never happens.
+  async function linkErrorFrom(res: Response, fallback: string): Promise<string> {
+    const body = await res.json().catch(() => ({})) as { error?: string }
+    if (body.error === 'premium_required') return 'Этот тип доступен только на Premium.'
+    if (body.error === 'limit_reached') return `Лимит ${FREE_LINK_LIMIT} кнопки на бесплатном плане.`
+    return fallback
+  }
+
   async function addLink(e: React.FormEvent) {
     e.preventDefault()
     if (!user || !profile) return
@@ -704,12 +719,12 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || 'Таймер', url: urlJson, icon_type: 'countdown', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'countdown' })
         setCountdownTarget('')
         setCountdownLabel('')
         await loadData(user.id)
-      } catch { setLinkError('Не удалось добавить таймер') }
+      } catch (err) { setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить таймер') }
       finally { setAddingLink(false) }
       return
     }
@@ -727,12 +742,12 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || pricelistTitle.trim() || 'Прайс-лист', url: urlJson, icon_type: 'pricelist', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'pricelist' })
         setPricelistTitle('')
         setPricelistItems([{ name: '', price: '', desc: '' }])
         await loadData(user.id)
-      } catch { setLinkError('Не удалось добавить прайс-лист') }
+      } catch (err) { setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить прайс-лист') }
       finally { setAddingLink(false) }
       return
     }
@@ -757,7 +772,7 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || 'Изображение', url: urlJson, icon_type: 'image', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'image' })
         setImageSrc('')
         setImageSp('')
@@ -765,7 +780,7 @@ export default function DashboardPage() {
         setImageLink('')
         setImageDisplayMode('image')
         await loadData(user.id)
-      } catch { setLinkError('Не удалось добавить изображение') }
+      } catch (err) { setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить изображение') }
       finally { setAddingLink(false) }
       return
     }
@@ -782,11 +797,11 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || 'Видео', url: urlJson, icon_type: 'video', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'video' })
         setVideoUrl('')
         await loadData(user.id)
-      } catch { setLinkError('Не удалось добавить видео') }
+      } catch (err) { setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить видео') }
       finally { setAddingLink(false) }
       return
     }
@@ -804,12 +819,12 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || faqTitle.trim() || 'FAQ', url: urlJson, icon_type: 'faq', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'faq' })
         setFaqTitle('')
         setFaqItems([{ q: '', a: '' }])
         await loadData(user.id)
-      } catch { setLinkError('Не удалось добавить FAQ') }
+      } catch (err) { setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить FAQ') }
       finally { setAddingLink(false) }
       return
     }
@@ -831,14 +846,14 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || `Напиши «${keywordWord.trim().toUpperCase()}» в Direct`, url: urlJson, icon_type: 'instagram_keyword', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'instagram_keyword' })
         setKeywordIg('')
         setKeywordWord('')
         setKeywordReward('')
         await loadData(user.id)
-      } catch {
-        setLinkError('Не удалось добавить DM-триггер')
+      } catch (err) {
+        setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить DM-триггер')
       } finally {
         setAddingLink(false)
       }
@@ -866,15 +881,15 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || 'Вирусный вызов', url: urlJson, icon_type: 'milestone', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'milestone' })
         setMilestoneGoal('500')
         setMilestoneHours('24')
         setMilestoneRewardUrl('')
         setMilestoneRewardCode('')
         await loadData(user.id)
-      } catch {
-        setLinkError('Не удалось добавить вирусный вызов')
+      } catch (err) {
+        setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить вирусный вызов')
       } finally {
         setAddingLink(false)
       }
@@ -898,13 +913,13 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || 'Получить материал', url: urlJson, icon_type: 'follow_gate', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'follow_gate' })
         setFollowGateHandle('')
         setFollowGateContent('')
         await loadData(user.id)
-      } catch {
-        setLinkError('Не удалось добавить гейт')
+      } catch (err) {
+        setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить гейт')
       } finally {
         setAddingLink(false)
       }
@@ -921,11 +936,11 @@ export default function DashboardPage() {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
           body: JSON.stringify({ title: linkForm.title || 'Записаться', url: '', icon_type: 'lead_form', sort_order: maxOrder + 1 }),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
         setLinkForm({ title: '', url: '', icon_type: 'lead_form' })
         await loadData(user.id)
-      } catch {
-        setLinkError('Не удалось добавить форму заявки')
+      } catch (err) {
+        setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить форму заявки')
       } finally {
         setAddingLink(false)
       }
@@ -982,8 +997,8 @@ export default function DashboardPage() {
         setProductPrice('')
         setProductLinkUrl('')
         await loadData(user.id)
-      } catch {
-        setLinkError('Не удалось добавить карточку товара')
+      } catch (err) {
+        setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить карточку товара')
       } finally {
         setAddingLink(false)
         setProductPhotoUploading(false)
@@ -1017,8 +1032,8 @@ export default function DashboardPage() {
         setSmartQrAndroid('')
         setSmartQrWeb('')
         await loadData(user.id)
-      } catch {
-        setLinkError('Не удалось добавить Smart QR')
+      } catch (err) {
+        setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить Smart QR')
       } finally {
         setAddingLink(false)
       }
@@ -1057,8 +1072,8 @@ export default function DashboardPage() {
       }
       setLinkForm({ title: '', url: '', icon_type: linkForm.icon_type })
       await loadData(user.id)
-    } catch {
-      setLinkError('Не удалось добавить')
+    } catch (err) {
+      setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить')
     } finally {
       setAddingLink(false)
     }
@@ -1079,8 +1094,8 @@ export default function DashboardPage() {
           if (pd.sp) await getSupabase().storage.from('avatars').remove([pd.sp])
         } catch {}
       }
-    } catch {
-      setLinkError('Не удалось удалить кнопку. Попробуйте ещё раз.')
+    } catch (err) {
+      setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось удалить кнопку. Попробуйте ещё раз.')
     } finally {
       setDeletingId(null)
     }
