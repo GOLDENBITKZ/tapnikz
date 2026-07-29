@@ -56,10 +56,9 @@ function AuthPageInner() {
       if (!stored) return
       const parsed = JSON.parse(stored) as { copy?: unknown; phone?: unknown }
       const copy = sanitizeCopy(parsed.copy)
-      if (copy) {
-        setHandoff({ copy, phone: typeof parsed.phone === 'string' ? parsed.phone : '' })
-        setTab('register')
-      }
+      // The register tab is not switched here: the landing CTA always carries
+      // tab=register, and the effect below acts on it.
+      if (copy) setHandoff({ copy, phone: typeof parsed.phone === 'string' ? parsed.phone : '' })
     } catch { /* malformed or unavailable — fall through to a normal signup */ }
   }, [])
 
