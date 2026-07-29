@@ -277,7 +277,11 @@ CREATE POLICY links_select_public ON public.links FOR SELECT USING (true);
 
 -- Enforces ownership, the 3-link free tier, and Premium-only link types at
 -- the database, so a client writing directly cannot bypass the API's checks.
--- The type list must stay in sync with PREMIUM_ONLY in src/app/api/links/route.ts.
+-- This list and the one in links_update_owner below are the only copies of
+-- PREMIUM_ONLY_TYPES outside src/lib/link-types.ts, because SQL cannot import
+-- it. Every other copy in the codebase was consolidated into that module; when
+-- an eighth paid type is added, these two policies are what will not follow on
+-- their own.
 -- Premium is read the same way the API reads it — the is_premium column stays
 -- true until the nightly cron clears it, so expiry has to be checked here too.
 CREATE POLICY links_insert_owner ON public.links FOR INSERT WITH CHECK (

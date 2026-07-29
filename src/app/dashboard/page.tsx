@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { TEMPLATES, PLACEHOLDER_PREFIX } from '@/lib/templates'
+import { JSON_URL_TYPES, NO_URL_INPUT_TYPES } from '@/lib/link-types'
 import type { LeadSubmission } from '@/lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
 import { getSupabase, type Profile, type Link as LinkRow, type IconType, type Theme, type WorkingHours, FREE_LINK_LIMIT, FREE_LEADS_VISIBLE } from '@/lib/supabase'
@@ -1243,8 +1244,7 @@ export default function DashboardPage() {
       if (!newTitle && t !== 'text_block') newTitle = link.title
 
       // Block dangerous URL schemes before saving
-      const JSON_TYPES = ['text_block','product','follow_gate','milestone','instagram_keyword','countdown','pricelist','image','video','faq','smart_qr']
-      if (newUrl && !JSON_TYPES.includes(t) && /^(javascript|data|vbscript):/i.test(newUrl)) {
+      if (newUrl && !JSON_URL_TYPES.has(t) && /^(javascript|data|vbscript):/i.test(newUrl)) {
         setLinkError('Недопустимая схема URL')
         return
       }
@@ -2843,8 +2843,7 @@ export default function DashboardPage() {
                     const { dot, ring } = getLinkCardColor(link.icon_type)
                     const isEditing = editingId === link.id
                     const t = link.icon_type
-                    const JSON_TYPES = ['follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'product', 'text_block', 'lead_form', 'smart_qr']
-                    const isJsonType = JSON_TYPES.includes(t)
+                    const isJsonType = NO_URL_INPUT_TYPES.has(t)
                     const si = SMART_INPUTS[t]
                     return (
                       <div key={link.id} className="rounded-xl">

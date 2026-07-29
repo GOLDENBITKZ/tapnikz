@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { JSON_URL_TYPES } from '@/lib/link-types'
 
 async function getAuthProfile(request: Request) {
   const header = request.headers.get('authorization')
@@ -12,11 +13,6 @@ async function getAuthProfile(request: Request) {
   return prof ? { prof, adminDb } : null
 }
 
-// JSON-stored types don't need URL scheme validation
-const JSON_URL_TYPES = new Set([
-  'text_block', 'product', 'follow_gate', 'milestone', 'instagram_keyword',
-  'countdown', 'pricelist', 'image', 'video', 'faq', 'smart_qr',
-])
 
 // PATCH /api/links/[id] — update title, url, visible_from, visible_until for a single link
 export async function PATCH(

@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { FREE_LINK_LIMIT as FREE_LIMIT } from '@/lib/supabase'
+import { isValidIconType, PREMIUM_ONLY_TYPES, EMPTY_URL_OK_TYPES, JSON_URL_TYPES } from '@/lib/link-types'
 
 async function getAuthProfile(request: Request) {
   const header = request.headers.get('authorization')
@@ -33,33 +34,21 @@ export async function POST(request: Request) {
   const url = body.url ?? ''
   const iconType = body.icon_type ?? 'link'
 
-  const VALID_ICON_TYPES = new Set([
-    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr','smart_qr',
-    'twogis','website','phone','email','kolesa','krisha','vk','facebook','twitter','link',
-    'text_block','product','lead_form','android','ios','menu','paypal',
-    'instagram_dm','instagram_reel','follow_gate','milestone','instagram_keyword',
-    'countdown','pricelist','image','video','faq',
-  ])
-  if (!VALID_ICON_TYPES.has(iconType)) {
+  if (!isValidIconType(iconType)) {
     return Response.json({ error: 'invalid icon_type' }, { status: 400 })
   }
 
-  // Premium-only link types — enforce server-side (UI check is bypassable)
-  const PREMIUM_ONLY = new Set(['product', 'smart_qr', 'countdown', 'pricelist', 'image', 'video', 'faq'])
-  if (PREMIUM_ONLY.has(iconType) && !prof.is_premium) {
+  if (PREMIUM_ONLY_TYPES.has(iconType) && !prof.is_premium) {
     return Response.json({ error: 'premium_required' }, { status: 403 })
   }
 
-  const EMPTY_URL_OK = ['lead_form', 'text_block', 'follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'faq', 'video']
-  if (!url && !EMPTY_URL_OK.includes(iconType)) {
+  if (!url && !EMPTY_URL_OK_TYPES.has(iconType)) {
     return Response.json({ error: 'url required' }, { status: 400 })
   }
 
-  // Types that store JSON (not a URL) in the url field — skip URL validation
-  const JSON_URL_TYPES = ['text_block', 'product', 'follow_gate', 'milestone', 'instagram_keyword', 'countdown', 'pricelist', 'image', 'video', 'faq', 'smart_qr']
 
   // Validate URL scheme at write time (mirrors /api/click validation)
-  if (url && !JSON_URL_TYPES.includes(iconType)) {
+  if (url && !JSON_URL_TYPES.has(iconType)) {
     try {
       const parsed = new URL(url.startsWith('tel:') || url.startsWith('mailto:') ? url : url.startsWith('http') ? url : `https://${url}`)
       if (!['http:', 'https:', 'tel:', 'mailto:'].includes(parsed.protocol)) {

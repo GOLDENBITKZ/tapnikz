@@ -8,6 +8,7 @@ import { makeVcardToken } from '@/lib/vcard-token'
 import { resolveAliasTarget } from '@/lib/resolve-alias'
 import { type Profile, type Link as LinkRow, type Theme, type IconType, type WorkingHours, FREE_LINK_LIMIT } from '@/lib/supabase'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { NO_URL_NEEDED_TYPES } from '@/lib/link-types'
 import {
   WhatsAppIcon, TelegramIcon, InstagramIcon, TikTokIcon, YouTubeIcon,
   FacebookIcon, VKIcon, TwitterXIcon, KaspiIcon, KaspiPayIcon, KaspiShopIcon,
@@ -59,13 +60,6 @@ function getVideoEmbedUrl(url: string): string | null {
 
 type Props = { params: Promise<{ username: string }> }
 
-// Types whose row carries its own content (JSON in url) or renders a form, so
-// an empty url is their normal state rather than an unfinished link. Mirrors
-// EMPTY_URL_OK and JSON_URL_TYPES in src/app/api/links/route.ts.
-const NO_URL_NEEDED = new Set<IconType>([
-  'lead_form', 'text_block', 'follow_gate', 'milestone', 'instagram_keyword',
-  'countdown', 'pricelist', 'faq', 'video', 'image', 'product', 'smart_qr',
-])
 
 // Brand-specific SEO data for popular KZ profiles
 const KNOWN_BRANDS: Record<string, {
@@ -674,9 +668,9 @@ export default async function ProfilePage({ params }: Props) {
             // A plain link with no destination is a button that goes nowhere.
             // It stays in the dashboard waiting for a URL, but a visitor should
             // never be given something to tap that cannot work. The types in
-            // NO_URL_NEEDED carry their content in the row itself or render a
+            // NO_URL_NEEDED_TYPES carry their content in the row itself or render a
             // form, so an empty url is correct for them.
-            if (!NO_URL_NEEDED.has(l.icon_type) && !l.url?.trim()) return false
+            if (!NO_URL_NEEDED_TYPES.has(l.icon_type) && !l.url?.trim()) return false
             return true
           })
           // Free users: show only first FREE_LINK_LIMIT links (consistent with API write cap)

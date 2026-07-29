@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import type { IconType } from '@/lib/supabase'
 import { PLACEHOLDER_PREFIX } from '@/lib/templates'
+import { isValidIconType, PREMIUM_ONLY_TYPES, JSON_URL_TYPES } from '@/lib/link-types'
 
 export async function POST(request: Request) {
   const header = request.headers.get('authorization')
@@ -27,23 +28,13 @@ export async function POST(request: Request) {
   const { count: existing } = await adminDb.from('links').select('*', { count: 'exact', head: true }).eq('profile_id', prof.id)
   if ((existing ?? 0) > 0) return Response.json({ error: 'profile already has links' }, { status: 409 })
 
-  const VALID_ICON_TYPES = new Set([
-    'whatsapp','telegram','instagram','tiktok','youtube','kaspi','kaspi_pay','kaspi_shop','kaspi_qr','smart_qr',
-    'twogis','website','phone','email','kolesa','krisha','vk','facebook','twitter','link',
-    'text_block','product','lead_form','android','ios','menu','paypal',
-    'instagram_dm','instagram_reel','follow_gate','milestone','instagram_keyword',
-    'countdown','pricelist','image','video','faq',
-  ])
-  const JSON_URL_TYPES = new Set(['text_block','product','follow_gate','milestone','instagram_keyword','countdown','pricelist','image','video','faq','smart_qr'])
-  // Must stay in sync with PREMIUM_ONLY in ../route.ts and the links RLS policies.
-  const PREMIUM_ONLY = new Set(['product','smart_qr','countdown','pricelist','image','video','faq'])
   const SAFE_SCHEMES = /^(https?|tel:|mailto:|\{)/i
 
   for (const l of links) {
-    if (!VALID_ICON_TYPES.has(l.icon_type)) {
+    if (!isValidIconType(l.icon_type)) {
       return Response.json({ error: `invalid icon_type: ${l.icon_type}` }, { status: 400 })
     }
-    if (PREMIUM_ONLY.has(l.icon_type) && !isPremium) {
+    if (PREMIUM_ONLY_TYPES.has(l.icon_type) && !isPremium) {
       return Response.json({ error: 'premium_required' }, { status: 403 })
     }
     const url = (l.url ?? '').replace(PLACEHOLDER_PREFIX, '')

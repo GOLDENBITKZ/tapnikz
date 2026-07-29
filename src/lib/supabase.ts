@@ -14,44 +14,11 @@ export function getSupabase(): SupabaseClient {
 
 export type Theme = 'dark' | 'light' | 'gradient' | 'blogger' | 'business' | 'seller'
 
-export type IconType =
-  | 'whatsapp'
-  | 'telegram'
-  | 'instagram'
-  | 'tiktok'
-  | 'youtube'
-  | 'kaspi'
-  | 'kaspi_pay'
-  | 'kaspi_shop'
-  | 'kaspi_qr'
-  | 'smart_qr'
-  | 'twogis'
-  | 'website'
-  | 'phone'
-  | 'email'
-  | 'kolesa'
-  | 'krisha'
-  | 'vk'
-  | 'facebook'
-  | 'twitter'
-  | 'link'
-  | 'text_block'
-  | 'product'
-  | 'lead_form'
-  | 'android'
-  | 'ios'
-  | 'menu'
-  | 'paypal'
-  | 'instagram_dm'
-  | 'instagram_reel'
-  | 'follow_gate'
-  | 'milestone'
-  | 'instagram_keyword'
-  | 'countdown'
-  | 'pricelist'
-  | 'image'
-  | 'video'
-  | 'faq'
+// Derived from ALL_ICON_TYPES so the union and the runtime list cannot
+// disagree. Re-exported here because most of the app imports types from this
+// module; the definition and the behaviour sets live in ./link-types.
+import type { IconType } from './link-types'
+export type { IconType }
 
 export type TimeSlot = { name: string; time: string }
 
