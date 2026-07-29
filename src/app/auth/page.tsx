@@ -236,7 +236,9 @@ function AuthPageInner() {
             phone: regForm.phone,
             bio: null,
             theme: 'dark',
-            is_premium: false,
+            // is_premium and the other billing/role columns are deliberately
+            // absent: the client has no INSERT privilege on them, and their
+            // column defaults already produce a free account.
             // Prevent self-referral: manager cannot earn commission from their own account
             ...(referredBy && referredBy !== regForm.username.toLowerCase() ? { referred_by: referredBy } : {}),
           },
