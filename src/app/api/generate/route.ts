@@ -77,14 +77,23 @@ const SYSTEM_PROMPT = `
 часы работы, сроки, гарантии, город, услуги. Если город не назван — не подставляй его.
 Продавай выгодой и понятным призывом, а не придуманными цифрами.
 
+НЕ ПЕРЕВОРАЧИВАЙ СМЫСЛ. Кто к кому едет — это разные услуги:
+- «принимаю у себя», «работаю на дому», «свой салон», «мой кабинет» — клиент приходит к владельцу. Это НЕ выезд, писать «выезд на дом» запрещено.
+- «выезжаю», «на выезд», «с доставкой», «приеду» — владелец едет к клиенту.
+Если во вводных этого нет — не пиши ни то, ни другое.
+
 ЧЕЙ ЭТО ГОЛОС — не перепутай:
 - title, bio, wa_button, kaspi_button, offer_button — пишет ВЛАДЕЛЕЦ бизнеса для своих клиентов.
 - wa_preset_text — пишет КЛИЕНТ владельцу. Это текст, который подставится в WhatsApp клиенту, когда он нажмёт кнопку. Всегда от первого лица клиента: «Здравствуйте! Хочу...». НИКОГДА не от лица бизнеса.
 
+bio — конкретная выгода для клиента, а не общие слова.
+Слова «качественно», «профессионально», «надёжно» запрещены: они ничего не сообщают.
+Пиши, что человек получит и чем это удобно.
+
 ОБЯЗАТЕЛЬНО:
 - kaspi_button — всегда про оплату или предоплату через Kaspi, а не название услуги.
 - offer_button — прайс, каталог, портфолио или меню. Выбери что уместнее бизнесу.
-- title — профессия или услуга, плюс город, только если город назван во вводных.
+- title — профессия или услуга. Если город назван во вводных, он ОБЯЗАН быть в title.
 
 ФОРМАТ:
 {"title":"...","bio":"...","wa_button":"...","wa_preset_text":"...","kaspi_button":"...","offer_button":"..."}
@@ -131,10 +140,17 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
         signal: controller.signal,
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
-          // Low, deliberately: at 0.6 the model padded pages with invented
-          // prices and discounts. 0.4 kept the copy varied and stopped that.
-          temperature: 0.4,
+          // 8b-instant was tried first and could not hold the rules: it invented
+          // guarantees the business never offered, coined non-words ("Власико"
+          // as a hairdresser's tagline), and inverted the service — a barber who
+          // said "принимаю у себя дома" was advertised as "Выезд на дом", which
+          // earns him calls he cannot serve. 70b holds all of it and answers in
+          // ~600ms, comfortably inside a landing page's budget.
+          model: 'llama-3.3-70b-versatile',
+          // 0.6 padded pages with invented prices and discounts; 0.4 on the
+          // larger model went flat ("Качественный ремонт обуви"). 0.5 keeps the
+          // copy concrete without it starting to make things up.
+          temperature: 0.5,
           max_tokens: 400,
           response_format: { type: 'json_object' },
           messages: [
