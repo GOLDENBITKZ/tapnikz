@@ -2,17 +2,29 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Zap, ArrowRight, CheckCircle2, MessageCircle, CreditCard, MapPin, Send, Camera } from 'lucide-react'
+import { Zap, ArrowRight, CheckCircle2, MessageCircle, CreditCard, MapPin, Send, Camera, Phone } from 'lucide-react'
 
-type LinkKey = 'whatsapp' | 'kaspi' | 'twogis' | 'telegram' | 'instagram'
+type LinkKey = 'whatsapp' | 'instagram' | 'kaspi' | 'twogis' | 'phone' | 'telegram'
 
+// Ordered by what people actually add, measured against live profiles:
+// instagram (20 profiles) and whatsapp (18) lead on adoption, whatsapp (533)
+// and twogis (133) lead by a wide margin on clicks, and phone sits third on
+// adoption (13) but was missing from this form entirely. Kaspi keeps its place
+// despite low adoption so far — it is the headline differentiator for this
+// market, and four profiles is too little to read as disinterest.
 const DEMO_LINKS: { key: LinkKey; label: string; color: string; icon: React.ReactNode; logo: string }[] = [
   { key: 'whatsapp',  label: 'WhatsApp',  color: 'bg-[#25D366]', icon: <MessageCircle className="h-3 w-3 text-white" />, logo: '/logos/whatsapp.svg' },
+  { key: 'instagram', label: 'Instagram', color: 'bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045]', icon: <Camera className="h-3 w-3 text-white" />, logo: '/logos/instagram.svg' },
   { key: 'kaspi',     label: 'Kaspi Pay', color: 'bg-gradient-to-br from-[#FF8C00] to-[#F14635]', icon: <CreditCard className="h-3 w-3 text-white" />, logo: '/logos/kaspi_pay.svg' },
   { key: 'twogis',    label: '2ГИС',      color: 'bg-gradient-to-br from-[#00AA4F] to-[#007a38]', icon: <MapPin className="h-3 w-3 text-white" />, logo: '/logos/twogis.svg' },
+  { key: 'phone',     label: 'Телефон',   color: 'bg-gradient-to-br from-slate-600 to-slate-800', icon: <Phone className="h-3 w-3 text-white" />, logo: '/logos/phone.svg' },
   { key: 'telegram',  label: 'Telegram',  color: 'bg-[#2AABEE]', icon: <Send className="h-3 w-3 text-white" />, logo: '/logos/telegram.svg' },
-  { key: 'instagram', label: 'Instagram', color: 'bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045]', icon: <Camera className="h-3 w-3 text-white" />, logo: '/logos/instagram.svg' },
 ]
+
+// Pre-selected so the phone is already a finished page on arrival — the demo
+// has to show the result, not an empty screen waiting for input. Instagram was
+// the most-added button on the service yet started switched off.
+const DEFAULT_ACTIVE: LinkKey[] = ['whatsapp', 'instagram', 'kaspi', 'twogis']
 
 // Platform icons placed in orbit around phone mockup
 const ORBIT_ICONS: { logo: string; label: string; color: string; top: string; left: string; delay: string }[] = [
@@ -131,7 +143,7 @@ function PhoneMockup({ business, active }: { business: string; active: Set<LinkK
 
 export function LandingHero({ profileCount }: { profileCount?: number }) {
   const [business, setBusiness] = useState('')
-  const [active, setActive] = useState<Set<LinkKey>>(new Set(['whatsapp', 'kaspi', 'twogis']))
+  const [active, setActive] = useState<Set<LinkKey>>(new Set(DEFAULT_ACTIVE))
 
   function toggle(key: LinkKey) {
     setActive((prev) => {

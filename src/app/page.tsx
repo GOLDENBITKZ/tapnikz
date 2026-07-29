@@ -10,7 +10,13 @@ export const revalidate = 3600
 const TG_BOT = '/go/tg?u=Tapnikzbot'
 const WA_SUPPORT = 'https://wa.me/77755696531'
 const IG_TAPNI = 'https://instagram.com/tapni.kz'
-const DEMO_PROFILE = 'https://tapni.kz/egov.kz'
+// The service's own page, not egov.kz. The badges below promised WhatsApp,
+// Kaspi, 2ГИС and Telegram, and egov.kz has none of them — it is a government
+// reference page with App Store links and VK, so anyone scanning the QR landed
+// somewhere that did not match what was advertised. tapni.kz/tapnikz carries
+// every button named here, and using our own profile avoids pointing the
+// homepage at a customer's page without asking them.
+const DEMO_PROFILE = 'https://tapni.kz/tapnikz'
 
 const JSON_LD = {
   '@context': 'https://schema.org',
@@ -569,7 +575,7 @@ export default async function LandingPage() {
             {/* Text side */}
             <div className="flex flex-col items-center gap-4 max-w-sm text-center sm:items-start sm:text-left">
               <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                {['WhatsApp', 'Kaspi Pay', '2ГИС', 'Telegram', 'Instagram'].map((b) => (
+                {['WhatsApp', 'Instagram', 'Kaspi QR', '2ГИС', 'Telegram'].map((b) => (
                   <span key={b} className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">{b}</span>
                 ))}
               </div>
