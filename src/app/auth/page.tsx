@@ -7,6 +7,7 @@ import { Loader2, AlertCircle, Phone } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
 import { RESERVED_ROUTE_WORDS, toAliasHex } from '@/lib/unicode-utils'
 import { BusinessNameField } from '@/components/business-name-field'
+import { sanitizeCopy, buildLinksFromCopy, type PageCopy } from '@/lib/page-copy'
 
 type Tab = 'login' | 'register'
 
@@ -45,6 +46,22 @@ function AuthPageInner() {
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [showPassword, setShowPassword] = useState(false)
+  // Copy generated on the landing page, handed over through sessionStorage.
+  // Absent for anyone who arrived any other way — signup must not depend on it.
+  const [handoff, setHandoff] = useState<{ copy: PageCopy; phone: string } | null>(null)
+
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem('tapni_copy')
+      if (!stored) return
+      const parsed = JSON.parse(stored) as { copy?: unknown; phone?: unknown }
+      const copy = sanitizeCopy(parsed.copy)
+      if (copy) {
+        setHandoff({ copy, phone: typeof parsed.phone === 'string' ? parsed.phone : '' })
+        setTab('register')
+      }
+    } catch { /* malformed or unavailable — fall through to a normal signup */ }
+  }, [])
 
   useEffect(() => {
     const ref = searchParams.get('ref')
@@ -234,7 +251,7 @@ function AuthPageInner() {
             username: regForm.username,
             business_name: regForm.business_name,
             phone: regForm.phone,
-            bio: null,
+            bio: handoff?.copy.bio ?? null,
             theme: 'dark',
             // is_premium and the other billing/role columns are deliberately
             // absent: the client has no INSERT privilege on them, and their
@@ -246,8 +263,28 @@ function AuthPageInner() {
 
       if (profileError) throw profileError
 
-      // Notify admin about new registration (non-blocking)
       const token = authData.session?.access_token
+
+      // Create the three generated buttons. Awaited, unlike the admin ping
+      // below: /dashboard reads links on mount, so racing the redirect would
+      // land the user on an empty page and make the handoff look broken.
+      //
+      // The registration phone is the fallback for the WhatsApp link — it is
+      // required here, so that button ends up working even when the visitor
+      // skipped the phone field on the landing page.
+      if (handoff && token) {
+        try {
+          const links = buildLinksFromCopy(handoff.copy, handoff.phone || regForm.phone)
+          await fetch('/api/links/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(links),
+          })
+        } catch { /* the account exists either way — better in with no buttons than not at all */ }
+        try { window.sessionStorage.removeItem('tapni_copy') } catch { /* ignore */ }
+      }
+
+      // Notify admin about new registration (non-blocking)
       fetch('/api/notify-admin', {
         method: 'POST',
         keepalive: true,  // survives page unload/redirect

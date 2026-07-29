@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Zap, ArrowRight, CheckCircle2, MessageCircle, CreditCard, MapPin, Send, Camera, Phone } from 'lucide-react'
+import { Zap, ArrowRight, CheckCircle2, MessageCircle, CreditCard, MapPin, Send, Camera, Phone, Sparkles, Loader2 } from 'lucide-react'
+import type { PageCopy } from '@/lib/page-copy'
 
 type LinkKey = 'whatsapp' | 'instagram' | 'kaspi' | 'twogis' | 'phone' | 'telegram'
 
@@ -34,9 +35,22 @@ const ORBIT_ICONS: { logo: string; label: string; color: string; top: string; le
   { logo: '/logos/telegram.svg',  label: 'Telegram', color: '#2AABEE', top: '72%', left: '110%', delay: '0.8s' },
 ]
 
-function PhoneMockup({ business, active }: { business: string; active: Set<LinkKey> }) {
-  const displayName = business.trim() || 'Ваш бизнес'
-  const activeButtons = DEMO_LINKS.filter((l) => active.has(l.key))
+// Once copy is generated the mockup stops being a toggle demo and starts being
+// a preview of the page that signup will actually create — same three buttons,
+// same words. Showing anything else here would be advertising a different page.
+function generatedButtons(copy: PageCopy) {
+  return [
+    { key: 'whatsapp', label: copy.wa_button, color: 'bg-[#25D366]', logo: '/logos/whatsapp.svg' },
+    { key: 'kaspi', label: copy.kaspi_button, color: 'bg-gradient-to-br from-[#FF8C00] to-[#F14635]', logo: '/logos/kaspi_pay.svg' },
+    { key: 'offer', label: copy.offer_button, color: 'bg-gradient-to-br from-violet-600 to-violet-700', logo: '' },
+  ]
+}
+
+function PhoneMockup({ business, active, copy }: { business: string; active: Set<LinkKey>; copy: PageCopy | null }) {
+  const displayName = copy?.title || business.trim() || 'Ваш бизнес'
+  const activeButtons = copy
+    ? generatedButtons(copy)
+    : DEMO_LINKS.filter((l) => active.has(l.key)).map((l) => ({ key: l.key as string, label: l.label, color: l.color, logo: l.logo }))
 
   return (
     <div className="relative mx-auto h-[500px] w-[240px]">
@@ -96,12 +110,16 @@ function PhoneMockup({ business, active }: { business: string; active: Set<LinkK
             {displayName.toUpperCase()}
           </p>
           {/* Bio */}
-          <p className="mb-1 px-1 text-center text-[7px] leading-relaxed text-gray-400">Мобильная визитка в Казахстане</p>
-          {/* Address */}
-          <p className="mb-1 flex items-center gap-0.5 text-[7px] text-gray-500">
-            <svg className="h-2.5 w-2.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            г. Алматы
+          <p className="mb-1 px-1 text-center text-[7px] leading-relaxed text-gray-400">
+            {copy?.bio || 'Мобильная визитка в Казахстане'}
           </p>
+          {/* Address — a placeholder city is only honest while nothing real is shown */}
+          {!copy && (
+            <p className="mb-1 flex items-center gap-0.5 text-[7px] text-gray-500">
+              <svg className="h-2.5 w-2.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              г. Алматы
+            </p>
+          )}
           {/* Username */}
           <p className="mb-2 text-[6.5px] text-gray-600 opacity-60">tapni.kz/ваш-ник</p>
           {/* Share */}
@@ -114,9 +132,13 @@ function PhoneMockup({ business, active }: { business: string; active: Set<LinkK
             {activeButtons.map((b) => (
               <div key={b.key} className={`flex animate-btn-appear items-center gap-2 rounded-xl ${b.color} px-2.5 py-1.5`}>
                 <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md overflow-hidden">
-                  <img src={b.logo} alt="" width={20} height={20} className="h-full w-full object-contain" />
+                  {b.logo ? (
+                    <img src={b.logo} alt="" width={20} height={20} className="h-full w-full object-contain" />
+                  ) : (
+                    <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                  )}
                 </div>
-                <span className="flex-1 text-[7.5px] font-bold text-white">{b.label}</span>
+                <span className="flex-1 text-[7.5px] font-bold leading-tight text-white">{b.label}</span>
                 <svg className="h-2.5 w-2.5 opacity-40 text-white" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
             ))}
@@ -141,9 +163,21 @@ function PhoneMockup({ business, active }: { business: string; active: Set<LinkK
   )
 }
 
+const GEN_ERRORS: Record<string, string> = {
+  rate_limited: 'На сегодня хватит генераций. Попробуйте через час.',
+  prompt_too_short: 'Опишите бизнес чуть подробнее.',
+  timeout: 'Долго не отвечает. Попробуйте ещё раз.',
+  busy: 'Сейчас много запросов. Попробуйте через минуту.',
+  unavailable: 'Генератор временно недоступен.',
+}
+
 export function LandingHero({ profileCount }: { profileCount?: number }) {
   const [business, setBusiness] = useState('')
+  const [phone, setPhone] = useState('')
   const [active, setActive] = useState<Set<LinkKey>>(new Set(DEFAULT_ACTIVE))
+  const [copy, setCopy] = useState<PageCopy | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [genError, setGenError] = useState('')
 
   function toggle(key: LinkKey) {
     setActive((prev) => {
@@ -152,6 +186,45 @@ export function LandingHero({ profileCount }: { profileCount?: number }) {
       return next
     })
   }
+
+  async function generate() {
+    if (business.trim().length < 3 || generating) return
+    setGenerating(true)
+    setGenError('')
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: business.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGenError(GEN_ERRORS[data?.error] ?? 'Не получилось. Попробуйте ещё раз.')
+        return
+      }
+      setCopy(data as PageCopy)
+    } catch {
+      setGenError('Нет связи. Проверьте интернет.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  // Handed to /auth through sessionStorage rather than the query string: six
+  // fields of Russian prose percent-encode into well over a browser's comfort,
+  // and none of it belongs in a shareable, logged URL.
+  function handOff() {
+    if (typeof window === 'undefined') return
+    try {
+      if (copy) {
+        window.sessionStorage.setItem('tapni_copy', JSON.stringify({ copy, phone: phone.trim() }))
+      } else {
+        window.sessionStorage.removeItem('tapni_copy')
+      }
+    } catch { /* private mode — signup still works, just without the head start */ }
+  }
+
+  const ctaName = copy?.title || business.trim()
 
   return (
     <div className="grid items-center gap-6 lg:grid-cols-2 lg:gap-16">
@@ -183,35 +256,74 @@ export function LandingHero({ profileCount }: { profileCount?: number }) {
           <input
             type="text"
             value={business}
-            onChange={(e) => setBusiness(e.target.value)}
-            placeholder="Название вашего бизнеса"
-            maxLength={40}
-            className="mb-3 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+            onChange={(e) => { setBusiness(e.target.value); setCopy(null); setGenError('') }}
+            placeholder="Например: пеку торты на заказ, Шымкент"
+            maxLength={120}
+            className="mb-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
           />
-          <p className="mb-2 text-xs text-gray-400">Выбери кнопки:</p>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {DEMO_LINKS.map((l) => (
-              <button
-                key={l.key}
-                type="button"
-                onClick={() => toggle(l.key)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 active:scale-[0.96] ${
-                  active.has(l.key)
-                    ? 'bg-violet-600 text-white'
-                    : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'
-                }`}
-              >
-                <CheckCircle2 className={`h-3 w-3 transition-opacity ${active.has(l.key) ? 'opacity-100' : 'opacity-0'}`} />
-                {l.label}
-              </button>
-            ))}
-          </div>
+
+          <button
+            type="button"
+            onClick={generate}
+            disabled={business.trim().length < 3 || generating}
+            className="mb-1 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-bold text-white transition-all duration-150 hover:bg-violet-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+          >
+            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {generating ? 'Собираю страницу…' : copy ? 'Собрать заново' : 'Собрать страницу за меня'}
+          </button>
+          <p className="mb-3 text-center text-[11px] text-gray-400">
+            {copy ? 'Всё можно изменить после регистрации' : 'Напишем тексты и кнопки — бесплатно, без регистрации'}
+          </p>
+
+          {genError && (
+            <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-center text-xs font-medium text-red-600">{genError}</p>
+          )}
+
+          {copy ? (
+            <>
+              <label className="mb-1 block text-xs text-gray-400">
+                Ваш WhatsApp — кнопка сразу заработает
+              </label>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+7 700 000 00 00"
+                maxLength={20}
+                className="mb-3 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+              />
+            </>
+          ) : (
+            <>
+              <p className="mb-2 text-xs text-gray-400">Или выбери кнопки вручную:</p>
+              <div className="mb-4 flex flex-wrap gap-2">
+                {DEMO_LINKS.map((l) => (
+                  <button
+                    key={l.key}
+                    type="button"
+                    onClick={() => toggle(l.key)}
+                    className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 active:scale-[0.96] ${
+                      active.has(l.key)
+                        ? 'bg-violet-600 text-white'
+                        : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'
+                    }`}
+                  >
+                    <CheckCircle2 className={`h-3 w-3 transition-opacity ${active.has(l.key) ? 'opacity-100' : 'opacity-0'}`} />
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           <Link
-            href={`/auth?name=${encodeURIComponent(business.trim() || '')}&tab=register`}
+            href={`/auth?name=${encodeURIComponent(ctaName)}&tab=register`}
+            onClick={handOff}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-amber-500/25 transition-all duration-200 hover:bg-amber-400 active:scale-[0.98] animate-amber-glow"
           >
             <Zap className="h-4 w-4" />
-            Создать такую страницу
+            {copy ? 'Забрать эту страницу' : 'Создать такую страницу'}
             <ArrowRight className="h-4 w-4" />
           </Link>
           <p className="mt-2 text-center text-[11px] text-gray-400">
@@ -225,7 +337,7 @@ export function LandingHero({ profileCount }: { profileCount?: number }) {
         <div className="relative">
           <div className="absolute -bottom-10 left-1/2 h-48 w-56 -translate-x-1/2 rounded-full bg-violet-700/20 blur-3xl" />
           <div className="scale-[0.78] origin-top -mb-[88px] sm:scale-90 sm:-mb-[42px] lg:scale-100 lg:mb-0">
-            <PhoneMockup business={business} active={active} />
+            <PhoneMockup business={business} active={active} copy={copy} />
           </div>
         </div>
       </div>

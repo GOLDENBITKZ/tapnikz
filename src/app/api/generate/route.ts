@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { sanitizeCopy } from '@/lib/page-copy'
 
-// Per-IP rate limit: 5 AI-generate calls/hour (protects GROQ quota)
+// This route previously generated page *structure* — a theme and a list of
+// buttons, every one with url: "". Nothing ever called it, and the reason is
+// visible in that contract: it produced a page of dead buttons the owner still
+// had to fill in by hand. It now generates the part a model can actually
+// supply — the words — while URLs stay with the person who knows them.
+
+// Per-IP cap on generations/hour. This endpoint is reachable from the landing
+// page without an account, so it is the only thing between a bored visitor and
+// the GROQ bill.
+//
+// Counted at the point of calling GROQ, not on arrival. Charging for rejected
+// requests looked reasonable until it was tested: a typo returning
+// prompt_too_short, and a malformed body, each burned quota before anything was
+// generated — five fumbles and a visitor is locked out for an hour having never
+// seen the feature work. Only calls that actually cost money count.
+const GENERATE_LIMIT = 10
 const generateRateMap = new Map<string, { count: number; resetAt: number }>()
-function checkGenerateRate(ip: string): boolean {
+
+function isRateLimited(ip: string): boolean {
+  const entry = generateRateMap.get(ip)
+  if (!entry || Date.now() > entry.resetAt) return false
+  return entry.count >= GENERATE_LIMIT
+}
+
+function recordGeneration(ip: string): void {
   const now = Date.now()
   const entry = generateRateMap.get(ip)
   if (!entry || now > entry.resetAt) {
@@ -10,132 +33,153 @@ function checkGenerateRate(ip: string): boolean {
       for (const [k, v] of generateRateMap) { if (now > v.resetAt) generateRateMap.delete(k) }
     }
     generateRateMap.set(ip, { count: 1, resetAt: now + 3_600_000 })
-    return true
+    return
   }
-  if (entry.count >= 5) return false
   entry.count++
-  return true
 }
 
-const VALID_THEMES = ['dark', 'light', 'gradient', 'blogger', 'business', 'seller'] as const
-const VALID_ICONS = [
-  'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube',
-  'kaspi', 'kaspi_pay', 'kaspi_shop', 'kaspi_qr', 'smart_qr', 'twogis', 'website',
-  'phone', 'email', 'kolesa', 'krisha', 'vk', 'facebook', 'twitter',
-  'link', 'android', 'ios', 'paypal',
-] as const
-
-const SOURCE_HINTS: Record<string, string> = {
-  instagram: 'Ссылка будет стоять в Bio Instagram. Клиент уже видел фото/контент — ему нужен быстрый способ связаться или заказать. Кнопка instagram обязательна. Тема gradient или blogger хорошо смотрится.',
-  tiktok:    'Ссылка будет в Bio TikTok. Аудитория молодая, мобильная. Кнопка tiktok обязательна. Тема dark или gradient.',
-  telegram:  'Ссылка будет в Telegram (канал, бот, bio). Кнопка telegram обязательна.',
-  kaspi:     'Продавец Kaspi. Кнопки kaspi_shop и kaspi_pay обязательны. Тема seller. Клиент уже в экосистеме Kaspi.',
-  general:   'Общий сайт или визитка. Приоритет — WhatsApp и адрес.',
+/** Give the slot back when the generation failed: nothing was produced and
+ *  nothing was billed, so charging the visitor for it is just a smaller cap. */
+function refundGeneration(ip: string): void {
+  const entry = generateRateMap.get(ip)
+  if (entry && Date.now() <= entry.resetAt && entry.count > 0) entry.count--
 }
 
-const GOAL_HINTS: Record<string, string> = {
-  orders:    'Главная цель — получить заказ. Самые важные кнопки: whatsapp или telegram для связи, kaspi_pay для оплаты.',
-  followers: 'Главная цель — набрать подписчиков. Самые важные кнопки: instagram, tiktok, telegram.',
-  location:  'Главная цель — привести клиента в точку. Самые важные кнопки: twogis, phone. Обязательно указать адрес.',
-  leads:     'Главная цель — собрать контакты. Самые важные кнопки: whatsapp, telegram, phone.',
-  showcase:  'Главная цель — показать товары/услуги. Самые важные кнопки: kaspi_shop, website, instagram.',
-}
+// Checked against live GROQ output before shipping. Three rules earned their
+// place by fixing failures seen in testing, not by sounding sensible:
+//
+//   Voice. wa_preset_text is the message the *client* sends, so it has to be in
+//   the client's first person. Left unstated, the model wrote it as the owner
+//   ("Привет! Хочешь попробовать мой визаж? Я приеду к тебе") in two of three
+//   samples — a message that makes no sense coming from the person tapping it.
+//
+//   Kaspi. Unprompted, that button came back as the service name ("Ремонт
+//   телефонов") rather than a payment call, which wastes the one button that
+//   makes this market different.
+//
+//   Invention. The model volunteered prices ("От 3 000 тг"), discounts ("скидка
+//   15%"), opening hours ("круглосуточно"), services nobody mentioned and a city
+//   for a tutor who only said "онлайн". This is a public business page: an
+//   invented discount is a false promise to a real customer.
+const SYSTEM_PROMPT = `
+Ты — микро-модуль маркетинговой авто-настройки для казахстанского сервиса tapni.kz.
+Превращаешь описание бизнеса в готовую продающую структуру визитки.
 
-function buildSystemPrompt(source: string, goal: string): string {
-  return `
-Ты — ИИ-ассистент сервиса tapni.kz (Казахстан). Создаёшь визитку на основе контекста бизнеса.
+ПРАВИЛА:
+1. Отвечай ТОЛЬКО чистым JSON. Без вводных слов, пояснений и Markdown.
+2. Язык контекста Казахстана: WhatsApp, Kaspi, 2ГИС, простые формулировки.
+3. Каждое поле — не более 10-12 слов.
+4. Всегда обращение на «вы». Не смешивай «ты» и «вы».
+5. Только существующие русские слова. Не выдумывай названия профессий.
 
-ИСТОЧНИК ТРАФИКА: ${SOURCE_HINTS[source] ?? SOURCE_HINTS.general}
-ЦЕЛЬ СТРАНИЦЫ: ${GOAL_HINTS[goal] ?? GOAL_HINTS.orders}
+НИЧЕГО НЕ ВЫДУМЫВАЙ. Это публичная страница бизнеса — выдуманное станет ложным обещанием клиентам.
+Запрещено добавлять то, чего нет во вводных: цены и суммы, скидки и проценты,
+часы работы, сроки, гарантии, город, услуги. Если город не назван — не подставляй его.
+Продавай выгодой и понятным призывом, а не придуманными цифрами.
 
-КАЗАХСТАНСКИЙ КОНТЕКСТ:
-- Главный мессенджер: WhatsApp
-- Главный маркетплейс: Kaspi (kaspi_shop, kaspi_pay, kaspi_qr)
-- Главная карта: 2ГИС (twogis)
-- Для пекарен/цветочных/салонов → тема light, акцент на WhatsApp + адрес
-- Для IT/авто/ночных заведений → тема dark
-- Для Kaspi-продавцов → тема seller + kaspi_shop обязательно
+ЧЕЙ ЭТО ГОЛОС — не перепутай:
+- title, bio, wa_button, kaspi_button, offer_button — пишет ВЛАДЕЛЕЦ бизнеса для своих клиентов.
+- wa_preset_text — пишет КЛИЕНТ владельцу. Это текст, который подставится в WhatsApp клиенту, когда он нажмёт кнопку. Всегда от первого лица клиента: «Здравствуйте! Хочу...». НИКОГДА не от лица бизнеса.
 
-ДОСТУПНЫЕ icon_type: whatsapp, telegram, instagram, tiktok, youtube, kaspi, kaspi_pay, kaspi_shop, kaspi_qr, twogis, website, phone, email, kolesa, krisha, vk, facebook, twitter, link, android, ios, paypal
+ОБЯЗАТЕЛЬНО:
+- kaspi_button — всегда про оплату или предоплату через Kaspi, а не название услуги.
+- offer_button — прайс, каталог, портфолио или меню. Выбери что уместнее бизнесу.
+- title — профессия или услуга, плюс город, только если город назван во вводных.
 
-ДОСТУПНЫЕ theme: dark, light, gradient, blogger, business, seller
+ФОРМАТ:
+{"title":"...","bio":"...","wa_button":"...","wa_preset_text":"...","kaspi_button":"...","offer_button":"..."}
 
-ВЕРНИ ТОЛЬКО JSON (без markdown, без пояснений):
-{
-  "theme": "<valid theme>",
-  "bio": "<1-2 предложения, до 120 символов, на русском>",
-  "address": "<город/район или пустая строка>",
-  "links": [
-    { "icon_type": "<valid icon_type>", "title": "<название кнопки>", "url": "" }
-  ]
-}
-Правила: минимум 2, максимум 5 кнопок. url всегда пустая строка "".
+ЭТАЛОННЫЙ ПРИМЕР.
+Вход: «Я визажист в Астане, делаю макияж на выезд»
+Выход: {"title":"Визажист Астана | Выезд на дом","bio":"Стойкий макияж и причёски с выездом к вам","wa_button":"Записаться на макияж (WhatsApp)","wa_preset_text":"Здравствуйте! Хочу узнать свободные даты и записаться на макияж.","kaspi_button":"Внести предоплату через Kaspi","offer_button":"Посмотреть прайс и портфолио"}
 `.trim()
-}
 
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-    if (!checkGenerateRate(ip)) {
+    if (isRateLimited(ip)) {
       return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
     }
 
-    const body = await req.json()
-    const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
-    const source = typeof body.source === 'string' ? body.source : 'general'
-    const goal   = typeof body.goal   === 'string' ? body.goal   : 'orders'
+    let body: { prompt?: unknown }
+    try { body = await req.json() } catch {
+      return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+    }
 
+    const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
     if (prompt.length < 3) {
       return NextResponse.json({ error: 'prompt_too_short' }, { status: 400 })
     }
 
     const groqKey = process.env.GROQ_API_KEY
-    if (!groqKey) return NextResponse.json({ error: 'no_key' }, { status: 500 })
+    if (!groqKey) {
+      console.error('[generate] GROQ_API_KEY missing')
+      return NextResponse.json({ error: 'unavailable' }, { status: 503 })
+    }
 
+    // Landing-page latency budget: the visitor is watching a spinner, so a slow
+    // generation is worse than none.
     const controller = new AbortController()
-    const abortTimer = setTimeout(() => controller.abort(), 15_000)
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        temperature: 0.5,
-        max_tokens: 600,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: buildSystemPrompt(source, goal) },
-          { role: 'user',   content: `Описание бизнеса: ${prompt.slice(0, 400)}` },
-        ],
-      }),
-    }).finally(() => clearTimeout(abortTimer))
+    const abortTimer = setTimeout(() => controller.abort(), 12_000)
+
+    recordGeneration(ip)
+
+    let groqRes: Response
+    try {
+      groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          // Low, deliberately: at 0.6 the model padded pages with invented
+          // prices and discounts. 0.4 kept the copy varied and stopped that.
+          temperature: 0.4,
+          max_tokens: 400,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: `Описание бизнеса: ${prompt.slice(0, 300)}` },
+          ],
+        }),
+      })
+    } catch {
+      refundGeneration(ip)
+      return NextResponse.json({ error: 'timeout' }, { status: 504 })
+    } finally {
+      clearTimeout(abortTimer)
+    }
 
     if (!groqRes.ok) {
       console.error('[generate] GROQ', groqRes.status)
-      return NextResponse.json({ error: 'groq_error' }, { status: 502 })
+      refundGeneration(ip)
+      // GROQ's own 429 means the shared account is briefly saturated, not that
+      // this visitor did anything wrong — worth saying so, because "try again"
+      // is genuinely the right advice here and wrong for a real fault.
+      return groqRes.status === 429
+        ? NextResponse.json({ error: 'busy' }, { status: 503 })
+        : NextResponse.json({ error: 'upstream' }, { status: 502 })
     }
 
     const groqData = await groqRes.json()
     const raw = groqData.choices?.[0]?.message?.content ?? '{}'
 
-    let parsed: Record<string, unknown>
-    try { parsed = JSON.parse(raw) }
-    catch { return NextResponse.json({ error: 'parse_error' }, { status: 502 }) }
+    let parsed: unknown
+    try { parsed = JSON.parse(raw) } catch {
+      refundGeneration(ip)
+      return NextResponse.json({ error: 'parse_error' }, { status: 502 })
+    }
 
-    const theme   = VALID_THEMES.includes(parsed.theme as never) ? (parsed.theme as string) : 'dark'
-    const bio     = typeof parsed.bio     === 'string' ? parsed.bio.slice(0, 160)    : ''
-    const address = typeof parsed.address === 'string' ? parsed.address.slice(0, 80) : ''
-    const rawLinks = Array.isArray(parsed.links) ? parsed.links : []
-    const links = rawLinks
-      .filter((l): l is Record<string, string> => !!l && typeof l === 'object')
-      .map((l) => ({
-        icon_type: VALID_ICONS.includes(l.icon_type as never) ? l.icon_type : 'link',
-        title: typeof l.title === 'string' ? l.title.slice(0, 60) : '',
-        url: '',
-      }))
-      .slice(0, 5)
+    // All six fields or nothing: a half-filled page is worse than the form the
+    // visitor already had, and the caller would have to special-case each gap.
+    const copy = sanitizeCopy(parsed)
+    if (!copy) {
+      console.error('[generate] incomplete copy', raw.slice(0, 200))
+      refundGeneration(ip)
+      return NextResponse.json({ error: 'incomplete' }, { status: 502 })
+    }
 
-    return NextResponse.json({ theme, bio, address, links })
+    return NextResponse.json(copy)
   } catch (err) {
     console.error('[generate]', err)
     return NextResponse.json({ error: 'internal' }, { status: 500 })

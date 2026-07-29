@@ -59,6 +59,14 @@ function getVideoEmbedUrl(url: string): string | null {
 
 type Props = { params: Promise<{ username: string }> }
 
+// Types whose row carries its own content (JSON in url) or renders a form, so
+// an empty url is their normal state rather than an unfinished link. Mirrors
+// EMPTY_URL_OK and JSON_URL_TYPES in src/app/api/links/route.ts.
+const NO_URL_NEEDED = new Set<IconType>([
+  'lead_form', 'text_block', 'follow_gate', 'milestone', 'instagram_keyword',
+  'countdown', 'pricelist', 'faq', 'video', 'image', 'product', 'smart_qr',
+])
+
 // Brand-specific SEO data for popular KZ profiles
 const KNOWN_BRANDS: Record<string, {
   title: string
@@ -663,6 +671,12 @@ export default async function ProfilePage({ params }: Props) {
           const allVisible = links.filter((l) => {
             if (l.visible_from && new Date(l.visible_from) > now) return false
             if (l.visible_until && new Date(l.visible_until) < now) return false
+            // A plain link with no destination is a button that goes nowhere.
+            // It stays in the dashboard waiting for a URL, but a visitor should
+            // never be given something to tap that cannot work. The types in
+            // NO_URL_NEEDED carry their content in the row itself or render a
+            // form, so an empty url is correct for them.
+            if (!NO_URL_NEEDED.has(l.icon_type) && !l.url?.trim()) return false
             return true
           })
           // Free users: show only first FREE_LINK_LIMIT links (consistent with API write cap)
