@@ -1433,9 +1433,14 @@ export default function DashboardPage() {
     onPath?: (sp: string) => void,
   ) {
     if (!user) return
-    if (file.size > 10 * 1024 * 1024) { onError('Максимальный размер — 10 МБ'); return }
+    if (file.size > 10 * 1024 * 1024) {
+      onError(`Файл ${(file.size / 1024 / 1024).toFixed(1)} МБ — это больше 10 МБ. Выберите изображение поменьше.`)
+      return
+    }
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp']
-    if (!allowed.includes(file.type)) { onError('Только JPG, PNG или WebP'); return }
+    // Same correction as the avatar path: GIF and BMP are accepted, and the
+    // old message said they were not.
+    if (!allowed.includes(file.type)) { onError('Нужен файл изображения: JPG, PNG, WebP, GIF или BMP'); return }
     onError('')
     setLoading(true)
     try {
