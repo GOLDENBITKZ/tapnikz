@@ -277,20 +277,35 @@ CREATE POLICY links_select_public ON public.links FOR SELECT USING (true);
 
 -- Enforces ownership, the 3-link free tier, and Premium-only link types at
 -- the database, so a client writing directly cannot bypass the API's checks.
+-- The type list must stay in sync with PREMIUM_ONLY in src/app/api/links/route.ts.
+-- Premium is read the same way the API reads it — the is_premium column stays
+-- true until the nightly cron clears it, so expiry has to be checked here too.
 CREATE POLICY links_insert_owner ON public.links FOR INSERT WITH CHECK (
   (SELECT auth.uid()) = (SELECT id FROM public.profiles WHERE id = profile_id)
   AND (
-    (SELECT is_premium FROM public.profiles WHERE id = profile_id) = true
+    (SELECT is_premium AND (subscription_expires_at IS NULL OR subscription_expires_at > now())
+       FROM public.profiles WHERE id = profile_id)
     OR (SELECT count(*) FROM public.links l WHERE l.profile_id = (SELECT auth.uid())) < 3
   )
   AND (
-    icon_type <> ALL (ARRAY['product', 'smart_qr'])
-    OR (SELECT is_premium FROM public.profiles WHERE id = profile_id) = true
+    icon_type <> ALL (ARRAY['product', 'smart_qr', 'countdown', 'pricelist', 'image', 'video', 'faq'])
+    OR (SELECT is_premium AND (subscription_expires_at IS NULL OR subscription_expires_at > now())
+          FROM public.profiles WHERE id = profile_id)
   )
 );
 
+-- The type check is repeated here: without it a free account could insert a
+-- free link and then switch its icon_type to a Premium one.
 CREATE POLICY links_update_owner ON public.links FOR UPDATE
-  USING ((SELECT auth.uid()) = profile_id) WITH CHECK ((SELECT auth.uid()) = profile_id);
+  USING ((SELECT auth.uid()) = profile_id)
+  WITH CHECK (
+    (SELECT auth.uid()) = profile_id
+    AND (
+      icon_type <> ALL (ARRAY['product', 'smart_qr', 'countdown', 'pricelist', 'image', 'video', 'faq'])
+      OR (SELECT is_premium AND (subscription_expires_at IS NULL OR subscription_expires_at > now())
+            FROM public.profiles WHERE id = profile_id)
+    )
+  );
 CREATE POLICY links_delete_owner ON public.links FOR DELETE
   USING ((SELECT auth.uid()) = (SELECT id FROM public.profiles WHERE id = links.profile_id));
 

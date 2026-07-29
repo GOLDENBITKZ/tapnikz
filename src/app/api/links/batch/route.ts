@@ -12,8 +12,12 @@ export async function POST(request: Request) {
   const { data: { user }, error: authErr } = await adminDb.auth.getUser(token)
   if (authErr || !user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: prof } = await adminDb.from('profiles').select('id, is_premium').eq('id', user.id).maybeSingle()
+  const { data: prof } = await adminDb.from('profiles').select('id, is_premium, subscription_expires_at').eq('id', user.id).maybeSingle()
   if (!prof) return Response.json({ error: 'Profile not found' }, { status: 404 })
+
+  // is_premium stays true until the nightly cron clears it, so check expiry too.
+  const isPremium = Boolean(prof.is_premium) &&
+    (!prof.subscription_expires_at || new Date(prof.subscription_expires_at) > new Date())
 
   let links: { title: string; url: string; icon_type: IconType }[]
   try { links = await request.json() } catch { return Response.json({ error: 'invalid json' }, { status: 400 }) }
@@ -31,11 +35,16 @@ export async function POST(request: Request) {
     'countdown','pricelist','image','video','faq',
   ])
   const JSON_URL_TYPES = new Set(['text_block','product','follow_gate','milestone','instagram_keyword','countdown','pricelist','image','video','faq','smart_qr'])
+  // Must stay in sync with PREMIUM_ONLY in ../route.ts and the links RLS policies.
+  const PREMIUM_ONLY = new Set(['product','smart_qr','countdown','pricelist','image','video','faq'])
   const SAFE_SCHEMES = /^(https?|tel:|mailto:|\{)/i
 
   for (const l of links) {
     if (!VALID_ICON_TYPES.has(l.icon_type)) {
       return Response.json({ error: `invalid icon_type: ${l.icon_type}` }, { status: 400 })
+    }
+    if (PREMIUM_ONLY.has(l.icon_type) && !isPremium) {
+      return Response.json({ error: 'premium_required' }, { status: 403 })
     }
     const url = (l.url ?? '').replace(PLACEHOLDER_PREFIX, '')
     if (url && !JSON_URL_TYPES.has(l.icon_type) && !SAFE_SCHEMES.test(url)) {
@@ -44,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   // Free users: cap at 3 template links
-  const limit = prof.is_premium ? links.length : Math.min(links.length, 3)
+  const limit = isPremium ? links.length : Math.min(links.length, 3)
   const rows = links.slice(0, limit).map((l, i) => ({
     profile_id: prof.id,
     title: String(l.title ?? '').slice(0, 100),
