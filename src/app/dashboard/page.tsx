@@ -1355,13 +1355,21 @@ export default function DashboardPage() {
   const [helpType, setHelpType] = useState<'kaspi' | 'kaspi_pay' | 'kaspi_shop' | 'kaspi_qr' | 'smart_qr' | 'twogis' | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
+  const [avatarDragOver, setAvatarDragOver] = useState(false)
+  const [avatarDone, setAvatarDone] = useState(false)
 
   async function uploadAvatar(file: File) {
     if (!user) return
-    if (file.size > 10 * 1024 * 1024) { setAvatarError('Максимальный размер — 10 МБ'); return }
+    if (file.size > 10 * 1024 * 1024) {
+      setAvatarError(`Файл ${(file.size / 1024 / 1024).toFixed(1)} МБ — это больше 10 МБ. Выберите фото поменьше.`)
+      return
+    }
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp']
-    if (!allowed.includes(file.type)) { setAvatarError('Только JPG, PNG или WebP'); return }
+    // Message lists what is actually accepted — GIF and BMP pass too, and the
+    // old text left them out.
+    if (!allowed.includes(file.type)) { setAvatarError('Нужен файл изображения: JPG, PNG, WebP, GIF или BMP'); return }
     setAvatarError('')
+    setAvatarDone(false)
     setAvatarUploading(true)
     try {
       const blob = await compressToWebP(file, 200, 20 * 1024)
@@ -1378,13 +1386,26 @@ export default function DashboardPage() {
       const cacheBusted = `${json.url}?t=${Date.now()}`
       await getSupabase().from('profiles').update({ avatar_url: cacheBusted }).eq('id', user.id)
       setProfile((p) => p ? { ...p, avatar_url: cacheBusted } : p)
+      // The picture changing is easy to miss on a small screen, and the logo
+      // saves immediately rather than on "Сохранить профиль" — say so.
+      setAvatarDone(true)
+      setTimeout(() => setAvatarDone(false), 4000)
     } catch (err) {
       console.error('[uploadAvatar]', err)
       const msg = err instanceof Error ? err.message : String(err)
-      setAvatarError(`Ошибка: ${msg}`)
+      setAvatarError(`Не удалось загрузить: ${msg}`)
     } finally {
       setAvatarUploading(false)
     }
+  }
+
+  // Desktop: dragging a file onto the picture is the natural gesture, and
+  // nothing supported it before.
+  function handleAvatarDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setAvatarDragOver(false)
+    const f = e.dataTransfer.files?.[0]
+    if (f) uploadAvatar(f)
   }
 
   async function removeAvatar() {
@@ -1638,55 +1659,95 @@ export default function DashboardPage() {
                 <ImagePlus className="h-3.5 w-3.5 text-violet-400" />
                 Логотип / Фото
               </label>
-              <div className="flex items-center gap-4">
+              {/* The whole area is one target: tapping the picture or the
+                  button opens the file picker, and on desktop a file can be
+                  dropped anywhere on it. Previously only a small grey button
+                  worked, while the picture — the obvious thing to tap — did
+                  nothing. */}
+              <label
+                onDragOver={(e) => { e.preventDefault(); setAvatarDragOver(true) }}
+                onDragLeave={() => setAvatarDragOver(false)}
+                onDrop={handleAvatarDrop}
+                className={`flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-dashed p-3 transition-colors ${
+                  avatarDragOver
+                    ? 'border-violet-500 bg-violet-50'
+                    : 'border-gray-200 hover:border-violet-400/60 hover:bg-violet-50/40'
+                }`}
+              >
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+                  className="sr-only"
+                  disabled={avatarUploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) uploadAvatar(f)
+                    e.target.value = ''
+                  }}
+                />
+
                 <div className="relative flex-shrink-0">
-                  <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/10">
+                  <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/10">
                     {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="avatar" className="h-full w-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                      <img src={profile.avatar_url} alt="Текущий логотип" className="h-full w-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
                     ) : (
                       <>
                         <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-indigo-600" />
-                        <span className="relative text-2xl font-extrabold text-white">
+                        <span className="relative text-3xl font-extrabold text-white">
                           {(profileForm.business_name || profile?.business_name || '?').charAt(0).toUpperCase()}
                         </span>
                       </>
                     )}
                   </div>
+                  {/* Camera badge: makes the picture read as something you can
+                      act on rather than a static preview. */}
+                  <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-violet-600 shadow-md ring-2 ring-white">
+                    <ImagePlus className="h-3.5 w-3.5 text-white" />
+                  </div>
                   {avatarUploading && (
                     <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/60">
-                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+                      <Loader2 className="h-6 w-6 animate-spin text-white" />
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2 flex-1">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-violet-500/40 hover:text-gray-900">
-                    <ImagePlus className="h-3.5 w-3.5 flex-shrink-0" />
-                    {profile?.avatar_url ? 'Заменить' : 'Загрузить логотип'}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        if (f) uploadAvatar(f)
-                        e.target.value = ''
-                      }}
-                    />
-                  </label>
-                  {profile?.avatar_url && (
-                    <button
-                      type="button"
-                      onClick={removeAvatar}
-                      disabled={avatarUploading}
-                      className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
-                    >
-                      Удалить
-                    </button>
-                  )}
-                  <p className="text-[11px] text-gray-600">JPG, PNG, WebP · до 10 МБ · сжимается в WebP 200×200</p>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-gray-900">
+                    {avatarUploading
+                      ? 'Загружаем…'
+                      : profile?.avatar_url ? 'Заменить логотип' : 'Загрузить логотип'}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                    Нажмите, чтобы выбрать фото
+                    <span className="hidden sm:inline">, или перетащите файл сюда</span>
+                  </p>
+                  {/* What the person needs to decide with. The old note ended
+                      with "сжимается в WebP 200×200" — the format was wrong
+                      (the canvas encodes JPEG) and the detail is not something
+                      anyone acts on. */}
+                  <p className="mt-1 text-[11px] text-gray-400">Любое изображение до 10 МБ</p>
                 </div>
-              </div>
-              {avatarError && <p className="mt-2 text-xs text-red-400">{avatarError}</p>}
+              </label>
+
+              {/* Removing is a rare, destructive action — a quiet link, not a
+                  button competing with the one above. */}
+              {profile?.avatar_url && !avatarUploading && (
+                <button
+                  type="button"
+                  onClick={removeAvatar}
+                  className="mt-2 text-xs font-medium text-gray-400 underline-offset-2 transition-colors hover:text-red-500 hover:underline"
+                >
+                  Удалить логотип
+                </button>
+              )}
+
+              {avatarDone && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                  <Check className="h-3.5 w-3.5" />
+                  Логотип обновлён и уже виден на вашей странице
+                </p>
+              )}
+              {avatarError && <p className="mt-2 text-xs text-red-500">{avatarError}</p>}
             </div>
 
             {profile?.phone && (
