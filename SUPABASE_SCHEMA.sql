@@ -37,6 +37,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   onboarding_sent_at      timestamptz,
   is_manager              boolean DEFAULT false,
   manager_since           timestamptz,
+  -- Proof that the owner controls the number, obtained by sharing their contact
+  -- with the Telegram bot. NULL means the public page is not served.
+  phone_verified_at       timestamptz,
+  -- Accounts predating verification: page stays public until this passes.
+  verify_grace_until      timestamptz,
   created_at              timestamptz NOT NULL DEFAULT now(),
   updated_at              timestamptz NOT NULL DEFAULT now()
 );
@@ -406,6 +411,8 @@ BEGIN
     NEW.is_promo := false;
     NEW.view_count := 0;
     NEW.referral_bonus_given := false;
+    NEW.phone_verified_at := NULL;
+    NEW.verify_grace_until := NULL;
   END IF;
   RETURN NEW;
 END;
@@ -467,3 +474,18 @@ CREATE TRIGGER aliases_set_updated_at
 -- public.rls_auto_enable() — a Supabase-managed event trigger that turns RLS
 -- on for every newly created table in public. Not recreated here; it is
 -- platform infrastructure, not application schema.
+
+-- ─── verify_sessions ────────────────────────────────────────
+-- Which profile a Telegram chat is verifying, held between the deep link
+-- opening and the contact arriving. In Postgres rather than process memory
+-- because those are two separate requests and Vercel routinely puts them on
+-- different lambda instances.
+CREATE TABLE IF NOT EXISTS public.verify_sessions (
+  chat_id        text PRIMARY KEY,
+  profile_id     uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  verified_phone text,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS verify_sessions_created_idx ON public.verify_sessions (created_at);
+ALTER TABLE public.verify_sessions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.verify_sessions FROM anon, authenticated, PUBLIC;

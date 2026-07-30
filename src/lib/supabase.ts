@@ -46,6 +46,11 @@ export type Profile = {
   subscription_expires_at: string | null
   subscription_plan: 'monthly' | 'annual' | null
   telegram_chat_id: string | null
+  /** Set once the owner proved the number through the Telegram bot. NULL means
+   *  the public page is not served — see getData in [username]/page.tsx. */
+  phone_verified_at: string | null
+  /** Accounts that predate verification: page stays public until this passes. */
+  verify_grace_until: string | null
   view_count: number
   working_hours: WorkingHours | null
   referred_by: string | null

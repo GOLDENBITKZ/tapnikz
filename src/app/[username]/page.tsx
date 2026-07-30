@@ -155,9 +155,21 @@ const getData = cache(async (username: string) => {
   const db = getSupabaseAdmin() as any
   const { data: profile } = await db
     .from('profiles')
-    .select('id,username,business_name,bio,phone,address,avatar_url,theme,is_premium,subscription_expires_at,view_count,working_hours')
+    .select('id,username,business_name,bio,phone,address,avatar_url,theme,is_premium,subscription_expires_at,view_count,working_hours,phone_verified_at,verify_grace_until')
     .eq('username', username)
     .maybeSingle()
+
+  // An unverified page is treated as absent, not as an error page: the number
+  // on it has never been shown to belong to whoever typed it, so publishing it
+  // would let anyone put a stranger's phone under their own business name.
+  // Accounts that predate verification keep their page until their grace
+  // period runs out — several belong to paying customers with live traffic.
+  if (profile && !(profile as Profile).phone_verified_at) {
+    const grace = (profile as Profile).verify_grace_until
+    if (!grace || new Date(grace) <= new Date()) {
+      return { profile: null, links: [] as LinkRow[], aliasTarget: null as string | null }
+    }
+  }
 
   if (!profile) {
     // No profile matched — fall back to a reserved alias (tapni.kz/{emoji}).

@@ -9,6 +9,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: profiles } = await (getSupabaseAdmin() as any)
     .from('profiles')
     .select('username, updated_at')
+    // Unverified pages are not served, so listing them would feed search
+    // engines URLs that answer 404. The grace-period accounts are still live
+    // and belong here until their deadline passes.
+    .or('phone_verified_at.not.is.null,verify_grace_until.gt.' + new Date().toISOString())
     .order('updated_at', { ascending: false })
     .limit(5000)
 

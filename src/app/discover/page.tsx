@@ -37,6 +37,9 @@ export default async function DiscoverPage() {
     .from('profiles')
     .select('username, business_name, bio, avatar_url, address, theme, view_count')
     .not('avatar_url', 'is', null)
+    // Same rule as the public page: a catalogue entry linking to a 404 is worse
+    // than no entry, and an unverified page has no business being promoted.
+    .or('phone_verified_at.not.is.null,verify_grace_until.gt.' + new Date().toISOString())
     .order('view_count', { ascending: false })
     .limit(48)
 

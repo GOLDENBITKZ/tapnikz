@@ -21,6 +21,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { AliasChecker } from '@/components/AliasChecker'
+import { VerifyPhoneBanner } from '@/components/verify-phone-banner'
 import { BusinessNameField } from '@/components/business-name-field'
 
 type DashTab = 'profile' | 'links' | 'leads' | 'payment'
@@ -1679,6 +1680,11 @@ export default function DashboardPage() {
             <span className="flex-shrink-0 text-[11px] font-semibold text-[#2AABEE]">@Tapnikzbot →</span>
           </a>
         )}
+
+        {/* Above the tabs on purpose: while the page is unpublished this is the
+            single most important thing on the screen, and it must not be one
+            tab away from someone happily editing buttons nobody can see. */}
+        <VerifyPhoneBanner accessToken={accessToken} />
 
         {/* ─── Tabs ─── */}
         <div className="mb-6 grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1">

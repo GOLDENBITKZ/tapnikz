@@ -1,5 +1,6 @@
 import { sendTelegram, adminChatId } from '@/lib/telegram'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { readVerifyToken } from '@/lib/verify-token'
 import { activatePremium } from '@/lib/activate-premium'
 import Groq from 'groq-sdk'
 import { consumeRate } from '@/lib/rate-limit'
@@ -255,6 +256,10 @@ export async function POST(request: Request) {
       await helpHandler(chatId)
     } else if (data === 'link_phone') {
       await sendPhoneRequest(chatId)
+    } else if (data === 'vswap') {
+      await applyPhoneSwap(chatId)
+    } else if (data === 'vcancel') {
+      await sendMenu(chatId, `Отменено. Номер аккаунта не изменён.\n\nЧтобы подтвердить прежний номер, откройте Telegram с того аккаунта, на который он зарегистрирован.`)
     } else if (data === 'clients_list') {
       await managerClientsHandler(chatId)
     } else if (data === 'payout_request') {
@@ -350,10 +355,28 @@ export async function POST(request: Request) {
 
   // ── Contact sharing (phone linking) ──────────────────────────
   if (msg.contact && !isAdmin) {
-    // Verify the user is sharing their OWN contact (prevents linking someone else's account)
+    // The contact must carry a user_id and it must be the sender's own.
+    //
+    // Requiring it to be *present* is the part that matters. A contact card for
+    // somebody who is not on Telegram arrives with a phone number and no
+    // user_id at all, so the old test — which only compared when user_id
+    // existed — waved those through. Anyone could save "victim +7701…" to their
+    // address book, share it here, and have the victim's profile linked to
+    // their own chat: their profile, their phone and address, and every lead
+    // their customers had submitted.
+    //
+    // Telegram only attaches user_id when the contact is a real account, and
+    // fills it with the sender's own id for the "share my number" button, so
+    // this is exactly the proof of ownership the flow needs.
     const senderId = msg.from?.id
-    if (senderId && msg.contact.user_id && String(msg.contact.user_id) !== String(senderId)) {
-      await tgPost('sendMessage', { chat_id: chatId, text: `❌ Пожалуйста, поделитесь своим номером через кнопку «📱 Поделиться номером».`, parse_mode: 'HTML', reply_markup: USER_KEYBOARD })
+    const contactUserId = msg.contact.user_id
+    if (!senderId || !contactUserId || String(contactUserId) !== String(senderId)) {
+      await tgPost('sendMessage', {
+        chat_id: chatId,
+        text: `❌ Это не ваш номер.\n\nНажмите кнопку «📱 Поделиться номером» внизу — Telegram отправит номер, привязанный к вашему аккаунту. Пересланная карточка чужого контакта не подойдёт.`,
+        parse_mode: 'HTML',
+        reply_markup: CONTACT_KEYBOARD,
+      })
       return Response.json({ ok: true })
     }
     await handleContactShare(chatId, msg.contact)
@@ -1106,7 +1129,10 @@ export async function POST(request: Request) {
       text === '🔗 Моя страница'  ? '/mypage'   :
       cmd
 
-    if (normalized === '/start' && parts[1]?.startsWith('receipt_')) {
+    if (normalized === '/start' && parts[1]?.startsWith('v')) {
+      // Deep link from the "confirm your number" screen: /start v<token>
+      await verifyStartHandler(chatId, parts[1])
+    } else if (normalized === '/start' && parts[1]?.startsWith('receipt_')) {
       // Deep link from pay page: /start receipt_username
       const targetUsername = parts[1].slice('receipt_'.length).replace(/[^a-z0-9._-]/g, '').slice(0, 40)
       await receiptStartHandler(chatId, targetUsername)
@@ -1161,6 +1187,16 @@ async function handleContactShare(chatId: string, contact: { phone_number?: stri
   let phone = raw.replace(/\D/g, '')
   // KZ numbers: if starts with 8, treat as 77...
   if (phone.startsWith('8') && phone.length === 11) phone = '7' + phone.slice(1)
+
+  // A pending verification names the account explicitly, which is the only way
+  // to handle the case this flow exists for: the Telegram number differing from
+  // the one typed at signup. Matching on phone alone cannot find that profile —
+  // by definition its number is the one that does not match.
+  const pending = await takePending(chatId)
+  if (pending) {
+    const handled = await finishVerification(chatId, pending.profileId, phone)
+    if (handled) return
+  }
 
   const { data: prof } = await (getSupabaseAdmin() as any)
     .from('profiles')
@@ -2469,4 +2505,234 @@ async function notifyAdminForManualReview(
       ],
     },
   })
+}
+
+// ─── Phone verification ───────────────────────────────────────
+
+/**
+ * Which profile the visitor was on when they pressed "confirm my number".
+ *
+ * Held in memory only for the moment between the deep link opening and the
+ * contact arriving — usually a couple of seconds. Losing it costs nothing: the
+ * flow falls back to matching on the shared phone number, which is what the
+ * bot did before this existed. It is deliberately not a database row, because
+ * a table of half-finished verifications is a thing to expire and clean up in
+ * exchange for a few seconds of convenience.
+ */
+const PENDING_TTL_MS = 30 * 60 * 1000
+
+async function rememberPending(chatId: string, profileId: string, verifiedPhone?: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (getSupabaseAdmin() as any)
+  await db.from('verify_sessions').upsert({
+    chat_id: chatId,
+    profile_id: profileId,
+    verified_phone: verifiedPhone ?? null,
+    created_at: new Date().toISOString(),
+  }, { onConflict: 'chat_id' })
+  // Opportunistic sweep — cheap, and saves a cron for a table that holds at
+  // most one short-lived row per person mid-verification.
+  await db.from('verify_sessions').delete().lt('created_at', new Date(Date.now() - PENDING_TTL_MS).toISOString())
+}
+
+async function takePending(chatId: string): Promise<{ profileId: string; verifiedPhone?: string } | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (getSupabaseAdmin() as any)
+  const { data } = await db
+    .from('verify_sessions')
+    .select('profile_id, verified_phone, created_at')
+    .eq('chat_id', chatId)
+    .maybeSingle()
+  if (!data) return null
+
+  await db.from('verify_sessions').delete().eq('chat_id', chatId)
+  if (Date.now() - new Date(data.created_at).getTime() > PENDING_TTL_MS) return null
+  return { profileId: data.profile_id, verifiedPhone: data.verified_phone ?? undefined }
+}
+
+async function verifyStartHandler(chatId: string, token: string) {
+  const profileId = readVerifyToken(token)
+  if (!profileId) {
+    await tgPost('sendMessage', {
+      chat_id: chatId,
+      text: `⌛ <b>Ссылка устарела</b>\n\nОткройте её заново в личном кабинете — кнопка «Подтвердить номер».`,
+      parse_mode: 'HTML',
+      reply_markup: CONTACT_KEYBOARD,
+    })
+    return
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: prof } = await (getSupabaseAdmin() as any)
+    .from('profiles')
+    .select('id, username, business_name, phone, phone_verified_at')
+    .eq('id', profileId)
+    .maybeSingle()
+
+  if (!prof) {
+    await sendMenu(chatId, `😔 Аккаунт не найден. Возможно, он был удалён.`)
+    return
+  }
+
+  if (prof.phone_verified_at) {
+    await sendMenu(chatId, `✅ <b>Номер уже подтверждён</b>\n\n🔗 ${SITE_URL}/${prof.username}`)
+    return
+  }
+
+  await rememberPending(chatId, prof.id)
+
+  await tgPost('sendMessage', {
+    chat_id: chatId,
+    text:
+      `📱 <b>Подтверждение номера</b>\n\n` +
+      `Аккаунт: <b>${prof.business_name}</b>\n` +
+      `Номер при регистрации: <b>+${prof.phone}</b>\n\n` +
+      `Нажмите кнопку внизу — Telegram отправит номер вашего аккаунта. ` +
+      `Мы сверим его и опубликуем страницу.\n\n` +
+      `<i>Вводить номер вручную не нужно и нельзя — так подтверждение и работает.</i>`,
+    parse_mode: 'HTML',
+    reply_markup: CONTACT_KEYBOARD,
+  })
+}
+
+/**
+ * Completes a verification the website started. Returns true when it has
+ * answered the user, false to let the caller fall back to phone matching.
+ */
+async function finishVerification(chatId: string, profileId: string, telegramPhone: string): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (getSupabaseAdmin() as any)
+  const { data: prof } = await db
+    .from('profiles')
+    .select('id, username, business_name, phone, phone_verified_at')
+    .eq('id', profileId)
+    .maybeSingle()
+
+  if (!prof) return false
+
+  if (prof.phone === telegramPhone) {
+    await db.from('profiles').update({
+      phone_verified_at: new Date().toISOString(),
+      telegram_chat_id: chatId,
+      updated_at: new Date().toISOString(),
+    }).eq('id', prof.id)
+
+    await tgPost('sendMessage', {
+      chat_id: chatId,
+      text:
+        `✅ <b>Номер подтверждён</b>\n\n` +
+        `👤 ${prof.business_name}\n` +
+        `📱 +${telegramPhone}\n\n` +
+        `Страница опубликована и доступна всем.`,
+      parse_mode: 'HTML',
+      reply_markup: USER_KEYBOARD,
+    })
+    await sendInline(chatId, '🔗 Ваша страница:', [
+      [{ text: `🌐 tapni.kz/${prof.username}`, url: `${SITE_URL}/${prof.username}` }],
+      [{ text: '✏️ Управлять ссылками', url: `${SITE_URL}/dashboard` }],
+    ])
+    return true
+  }
+
+  // Telegram's number is the one proved by SMS, so it is the number this person
+  // demonstrably controls — but it is also the login for this account, and
+  // changing it silently would lock someone out of their own page. Asked, not
+  // assumed.
+  if (await isPhoneTaken(telegramPhone, prof.id)) {
+    await tgPost('sendMessage', {
+      chat_id: chatId,
+      text:
+        `⚠️ <b>Номер уже используется</b>\n\n` +
+        `На +${telegramPhone} зарегистрирован другой аккаунт tapni.kz, поэтому перенести его сюда нельзя.\n\n` +
+        `Войдите в тот аккаунт, либо напишите в поддержку: /support`,
+      parse_mode: 'HTML',
+      reply_markup: USER_KEYBOARD,
+    })
+    return true
+  }
+
+  // The number is carried here rather than in the button payload: it came from
+  // Telegram's contact object and must not make a round trip through anything
+  // the client could influence before it becomes an account's login.
+  await rememberPending(chatId, prof.id, telegramPhone)
+  await tgPost('sendMessage', {
+    chat_id: chatId,
+    text:
+      `🔎 <b>Номера не совпадают</b>\n\n` +
+      `При регистрации указан: <b>+${prof.phone}</b>\n` +
+      `Ваш Telegram: <b>+${telegramPhone}</b>\n\n` +
+      `Подтвердить можно только тот номер, которым вы реально владеете. ` +
+      `Заменить номер аккаунта на телеграмный?\n\n` +
+      `⚠️ Номер — это ваш логин. После замены вход будет по <b>+${telegramPhone}</b>.`,
+    parse_mode: 'HTML',
+  })
+  await sendInline(chatId, 'Выберите:', [
+    [{ text: `✅ Заменить на +${telegramPhone}`, callback_data: 'vswap' }],
+    [{ text: '❌ Отмена', callback_data: 'vcancel' }],
+  ])
+  return true
+}
+
+async function isPhoneTaken(phone: string, exceptProfileId: string): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (getSupabaseAdmin() as any)
+    .from('profiles').select('id').eq('phone', phone).neq('id', exceptProfileId).maybeSingle()
+  return Boolean(data)
+}
+
+/** Applies the number swap the user agreed to. */
+async function applyPhoneSwap(chatId: string) {
+  const pending = await takePending(chatId)
+  // verifiedPhone is only ever set from Telegram's own contact object, so a
+  // swap cannot be driven by anything the user typed or a payload they saw.
+  if (!pending?.verifiedPhone) {
+    await sendMenu(chatId, `⌛ Время истекло. Начните подтверждение заново из личного кабинета.`)
+    return
+  }
+  const { profileId, verifiedPhone: newPhone } = pending
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (getSupabaseAdmin() as any)
+  const { data: prof } = await db.from('profiles').select('id, username, business_name').eq('id', profileId).maybeSingle()
+  if (!prof) { await sendMenu(chatId, `😔 Аккаунт не найден.`); return }
+
+  if (await isPhoneTaken(newPhone, prof.id)) {
+    await sendMenu(chatId, `⚠️ Этот номер уже занят другим аккаунтом. Напишите в поддержку: /support`)
+    return
+  }
+
+  const { error } = await db.from('profiles').update({
+    phone: newPhone,
+    phone_verified_at: new Date().toISOString(),
+    telegram_chat_id: chatId,
+    updated_at: new Date().toISOString(),
+  }).eq('id', prof.id)
+
+  if (error) {
+    console.error('[applyPhoneSwap]', error)
+    await sendMenu(chatId, `😔 Не удалось сохранить. Напишите в поддержку: /support`)
+    return
+  }
+
+  // The login email is derived from the phone, so it has to move with it or the
+  // owner keeps a verified page they can no longer sign in to.
+  try {
+    await db.auth.admin.updateUserById(prof.id, { email: `${newPhone}@users.tapni.kz` })
+  } catch (err) {
+    console.error('[applyPhoneSwap] auth email', err)
+  }
+
+  await tgPost('sendMessage', {
+    chat_id: chatId,
+    text:
+      `✅ <b>Номер заменён и подтверждён</b>\n\n` +
+      `👤 ${prof.business_name}\n` +
+      `📱 Новый логин: <b>+${newPhone}</b>\n\n` +
+      `Страница опубликована. Пароль прежний.`,
+    parse_mode: 'HTML',
+    reply_markup: USER_KEYBOARD,
+  })
+  await sendInline(chatId, '🔗 Ваша страница:', [
+    [{ text: `🌐 tapni.kz/${prof.username}`, url: `${SITE_URL}/${prof.username}` }],
+  ])
 }
