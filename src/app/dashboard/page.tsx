@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { TEMPLATES, PLACEHOLDER_PREFIX } from '@/lib/templates'
+import { PREMIUM_ONLY_TYPES } from '@/lib/link-types'
 import { COINS, COIN_BY_ID, isPlausibleAddress, type ChainId } from '@/lib/crypto-wallets'
 import { JSON_URL_TYPES, NO_URL_INPUT_TYPES } from '@/lib/link-types'
 import type { LeadSubmission } from '@/lib/supabase'
@@ -22,53 +23,79 @@ import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { AliasChecker } from '@/components/AliasChecker'
 import { VerifyPhoneBanner } from '@/components/verify-phone-banner'
+import { PageReadiness } from '@/components/page-readiness'
 import { BusinessNameField } from '@/components/business-name-field'
 
 type DashTab = 'profile' | 'links' | 'leads' | 'payment'
 
-const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = [
-  { value: 'whatsapp',   label: '💬 WhatsApp',        placeholder: 'https://wa.me/77001234567' },
-  { value: 'telegram',   label: '✈️ Telegram',         placeholder: 'https://t.me/username' },
-  { value: 'kaspi_pay',  label: '💸 Kaspi Pay',        placeholder: 'https://pay.kaspi.kz/pay/...' },
-  { value: 'kaspi_qr',   label: '📱 Kaspi Pay QR-код', placeholder: 'https://pay.kaspi.kz/pay/...' },
-
-  { value: 'smart_qr',   label: '📲 Smart QR — iOS / Android / Web ⚡', placeholder: '' },
-  { value: 'kaspi',      label: '🛒 Kaspi магазин',    placeholder: 'https://kaspi.kz/shop/info/...' },
-  { value: 'kaspi_shop', label: '🏪 Kaspi товар',      placeholder: 'https://kaspi.kz/shop/p/...' },
-  { value: 'twogis',     label: '📍 2ГИС',             placeholder: 'https://2gis.kz/...' },
-  { value: 'instagram',      label: '📸 Instagram',           placeholder: 'https://instagram.com/username' },
-  { value: 'instagram_dm',   label: '💬 Написать в Direct',  placeholder: 'https://ig.me/m/username' },
-  { value: 'instagram_reel', label: '🎬 Reels / Пост',       placeholder: 'https://instagram.com/reel/...' },
-  { value: 'follow_gate',    label: '🔒 Подпишись и получи', placeholder: '' },
-  { value: 'milestone',         label: '🚀 Вирусный вызов',            placeholder: '' },
-  { value: 'instagram_keyword', label: '🗝️ DM-триггер (ключ. слово)', placeholder: '' },
-  { value: 'tiktok',     label: '🎵 TikTok',           placeholder: 'https://tiktok.com/@username' },
-  { value: 'youtube',    label: '▶️ YouTube',           placeholder: 'https://youtube.com/@channel' },
-  { value: 'website',    label: '🌐 Сайт',             placeholder: 'https://example.com' },
-  { value: 'phone',      label: '📞 Позвонить',         placeholder: '77001234567' },
-  { value: 'email',      label: '✉️ Email',             placeholder: 'info@example.com' },
-  { value: 'kolesa',     label: '🚗 Kolesa.kz',        placeholder: 'https://kolesa.kz/a/show/...' },
-  { value: 'krisha',     label: '🏠 Krisha.kz',        placeholder: 'https://krisha.kz/a/show/...' },
-  { value: 'vk',         label: '💙 ВКонтакте',         placeholder: 'https://vk.com/username' },
-  { value: 'facebook',   label: '📘 Facebook',          placeholder: 'https://facebook.com/username' },
-  { value: 'twitter',    label: '𝕏 X (Twitter)',         placeholder: 'https://x.com/username' },
-  { value: 'android',    label: '🤖 Google Play',       placeholder: 'https://play.google.com/store/apps/details?id=...' },
-  { value: 'ios',        label: '🍎 App Store',         placeholder: 'https://apps.apple.com/app/...' },
-  { value: 'menu',       label: '🍽 Меню',              placeholder: 'https://example.com/menu' },
-  { value: 'paypal',     label: '💳 PayPal',            placeholder: 'https://paypal.me/username' },
-  { value: 'twitch',        label: '🎮 Twitch',                     placeholder: 'https://twitch.tv/username' },
-  { value: 'crypto_wallet', label: '₿ Криптокошельки — донаты ⚡',  placeholder: '' },
-  { value: 'binance_pay',   label: '🅑 Binance Pay ⚡',              placeholder: 'https://app.binance.com/qr/...' },
-  { value: 'countdown',  label: '⏳ Таймер обратного отсчёта', placeholder: '' },
-  { value: 'pricelist',  label: '💰 Прайс-лист / Услуги',    placeholder: '' },
-  { value: 'image',      label: '🖼 Баннер-изображение',      placeholder: '' },
-  { value: 'video',      label: '📹 Видео (YouTube / TikTok)', placeholder: '' },
-  { value: 'faq',        label: '❓ FAQ / Вопросы и ответы',  placeholder: '' },
-  { value: 'text_block', label: '📝 Текст / Описание',  placeholder: 'Ваш текст, часы работы, акции...' },
-  { value: 'product',    label: '🛍 Карточка товара',   placeholder: 'https://kaspi.kz/shop/p/...' },
-  { value: 'lead_form',  label: '📋 Запись / Заявка',   placeholder: 'Записаться на услугу' },
-  { value: 'link',       label: '🔗 Другая ссылка',     placeholder: 'https://example.com' },
+const ICON_OPTIONS: { value: IconType; label: string; placeholder: string; group: string }[] = [
+  // Связь с клиентом
+  { value: 'whatsapp', label: '💬 WhatsApp', placeholder: 'https://wa.me/77001234567', group: 'Связь с клиентом' },
+  { value: 'telegram', label: '✈️ Telegram', placeholder: 'https://t.me/username', group: 'Связь с клиентом' },
+  { value: 'phone', label: '📞 Позвонить', placeholder: '77001234567', group: 'Связь с клиентом' },
+  { value: 'email', label: '✉️ Email', placeholder: 'info@example.com', group: 'Связь с клиентом' },
+  { value: 'lead_form', label: '📋 Запись / Заявка', placeholder: 'Записаться на услугу', group: 'Связь с клиентом' },
+  // Казахстанские сервисы
+  { value: 'kaspi_pay', label: '💸 Kaspi Pay', placeholder: 'https://pay.kaspi.kz/pay/...', group: 'Казахстанские сервисы' },
+  { value: 'kaspi_qr', label: '📱 Kaspi Pay QR-код', placeholder: 'https://pay.kaspi.kz/pay/...', group: 'Казахстанские сервисы' },
+  { value: 'kaspi', label: '🛒 Kaspi магазин', placeholder: 'https://kaspi.kz/shop/info/...', group: 'Казахстанские сервисы' },
+  { value: 'kaspi_shop', label: '🏪 Kaspi товар', placeholder: 'https://kaspi.kz/shop/p/...', group: 'Казахстанские сервисы' },
+  { value: 'twogis', label: '📍 2ГИС', placeholder: 'https://2gis.kz/...', group: 'Казахстанские сервисы' },
+  { value: 'kolesa', label: '🚗 Kolesa.kz', placeholder: 'https://kolesa.kz/a/show/...', group: 'Казахстанские сервисы' },
+  { value: 'krisha', label: '🏠 Krisha.kz', placeholder: 'https://krisha.kz/a/show/...', group: 'Казахстанские сервисы' },
+  // Соцсети
+  { value: 'instagram', label: '📸 Instagram', placeholder: 'https://instagram.com/username', group: 'Соцсети' },
+  { value: 'tiktok', label: '🎵 TikTok', placeholder: 'https://tiktok.com/@username', group: 'Соцсети' },
+  { value: 'youtube', label: '▶️ YouTube', placeholder: 'https://youtube.com/@channel', group: 'Соцсети' },
+  { value: 'twitch', label: '🎮 Twitch', placeholder: 'https://twitch.tv/username', group: 'Соцсети' },
+  { value: 'facebook', label: '📘 Facebook', placeholder: 'https://facebook.com/username', group: 'Соцсети' },
+  { value: 'vk', label: '💙 ВКонтакте', placeholder: 'https://vk.com/username', group: 'Соцсети' },
+  { value: 'twitter', label: '𝕏 X (Twitter)', placeholder: 'https://x.com/username', group: 'Соцсети' },
+  // Instagram-маркетинг
+  { value: 'instagram_dm', label: '💬 Написать в Direct', placeholder: 'https://ig.me/m/username', group: 'Instagram-маркетинг' },
+  { value: 'instagram_reel', label: '🎬 Reels / Пост', placeholder: 'https://instagram.com/reel/...', group: 'Instagram-маркетинг' },
+  { value: 'follow_gate', label: '🔒 Подпишись и получи', placeholder: '', group: 'Instagram-маркетинг' },
+  { value: 'milestone', label: '🚀 Вирусный вызов', placeholder: '', group: 'Instagram-маркетинг' },
+  { value: 'instagram_keyword', label: '🗝️ DM-триггер (ключ. слово)', placeholder: '', group: 'Instagram-маркетинг' },
+  // Контент на странице
+  { value: 'text_block', label: '📝 Текст / Описание', placeholder: 'Ваш текст, часы работы, акции...', group: 'Контент на странице' },
+  { value: 'pricelist', label: '💰 Прайс-лист / Услуги', placeholder: '', group: 'Контент на странице' },
+  { value: 'faq', label: '❓ FAQ / Вопросы и ответы', placeholder: '', group: 'Контент на странице' },
+  { value: 'image', label: '🖼 Баннер-изображение', placeholder: '', group: 'Контент на странице' },
+  { value: 'video', label: '📹 Видео (YouTube / TikTok)', placeholder: '', group: 'Контент на странице' },
+  { value: 'countdown', label: '⏳ Таймер обратного отсчёта', placeholder: '', group: 'Контент на странице' },
+  { value: 'menu', label: '🍽 Меню', placeholder: 'https://example.com/menu', group: 'Контент на странице' },
+  { value: 'product', label: '🛍 Карточка товара', placeholder: 'https://kaspi.kz/shop/p/...', group: 'Контент на странице' },
+  // Криптовалюта и донаты
+  { value: 'crypto_wallet', label: '₿ Криптокошельки — донаты ⚡', placeholder: '', group: 'Криптовалюта и донаты' },
+  { value: 'binance_pay', label: '🅑 Binance Pay ⚡', placeholder: 'https://app.binance.com/qr/...', group: 'Криптовалюта и донаты' },
+  { value: 'paypal', label: '💳 PayPal', placeholder: 'https://paypal.me/username', group: 'Криптовалюта и донаты' },
+  // Приложения и ссылки
+  { value: 'smart_qr', label: '📲 Smart QR — iOS / Android / Web ⚡', placeholder: '', group: 'Приложения и ссылки' },
+  { value: 'website', label: '🌐 Сайт', placeholder: 'https://example.com', group: 'Приложения и ссылки' },
+  { value: 'android', label: '🤖 Google Play', placeholder: 'https://play.google.com/store/apps/details?id=...', group: 'Приложения и ссылки' },
+  { value: 'ios', label: '🍎 App Store', placeholder: 'https://apps.apple.com/app/...', group: 'Приложения и ссылки' },
+  { value: 'link', label: '🔗 Другая ссылка', placeholder: 'https://example.com', group: 'Приложения и ссылки' },
 ]
+
+/** Group order for the picker, taken from ICON_OPTIONS so a new type cannot
+ *  land in a group that is never rendered. */
+const ICON_GROUPS: string[] = [...new Set(ICON_OPTIONS.map((o) => o.group))]
+
+/** What each paid type actually does, in one line. Shown to free users at the
+ *  moment they select it — this is the only place in the product where those
+ *  features are described to someone who has not bought them. */
+const PREMIUM_TYPE_PITCH: Partial<Record<IconType, string>> = {
+  product:       'Карточка товара с фото и ценой прямо на странице',
+  smart_qr:      'Один QR, который сам ведёт на App Store, Google Play или сайт',
+  countdown:     'Таймер обратного отсчёта — до конца акции или до события',
+  pricelist:     'Прайс-лист услуг с ценами, без ссылки на сторонний сайт',
+  image:         'Баннер-изображение на всю ширину страницы',
+  video:         'Видео с YouTube или TikTok прямо на странице',
+  faq:           'Раскрывающиеся вопросы и ответы',
+  crypto_wallet: 'Приём донатов в 12 сетях: QR, адрес и MEMO',
+  binance_pay:   'Кнопка оплаты через Binance Pay',
+}
 
 const THEMES: { value: Theme; label: string; preview: string }[] = [
   { value: 'dark',     label: 'Тёмная',   preview: 'bg-[#0c0c18]' },
@@ -1720,6 +1747,11 @@ export default function DashboardPage() {
             tab away from someone happily editing buttons nobody can see. */}
         <VerifyPhoneBanner accessToken={accessToken} />
 
+        {/* Below verification on purpose: an unpublished page is a bigger
+            problem than an unfinished one, and two competing calls to action
+            stacked together get both ignored. Disappears once complete. */}
+        {profile && <PageReadiness profile={profile} links={links} onGo={setTab} />}
+
         {/* ─── Tabs ─── */}
         <div className="mb-6 grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1">
           {(
@@ -2308,21 +2340,31 @@ export default function DashboardPage() {
                       }}
                       className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-violet-500/60"
                     >
-                      {ICON_OPTIONS
-                        .filter((o) => (
-                          o.value !== 'product' &&
-                          o.value !== 'smart_qr' &&
-                          o.value !== 'countdown' &&
-                          o.value !== 'pricelist' &&
-                          o.value !== 'image' &&
-                          o.value !== 'video' &&
-                          o.value !== 'faq'
-                        ) || !!profile?.is_premium)
-                        .map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
+                      {/* Grouped, and Premium types are shown rather than hidden.
+                          Forty options in one flat list is a wall to scan — the
+                          lead form sits in it and not one profile out of 28 has
+                          ever added one. Hiding the paid types made that worse
+                          in the other direction: a free user could not see what
+                          Premium contains, so the list argued against upgrading
+                          by omission. They now carry ⚡ and explain themselves on
+                          selection.
+
+                          The filter this replaces was an eighth hand-written
+                          copy of the Premium list. It had already drifted —
+                          crypto_wallet and binance_pay were added to
+                          PREMIUM_ONLY_TYPES yesterday and never here, so free
+                          users saw two paid types and not the other seven. */}
+                      {ICON_GROUPS.map((group) => (
+                        <optgroup key={group} label={group}>
+                          {ICON_OPTIONS.filter((o) => o.group === group).map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {PREMIUM_ONLY_TYPES.has(o.value) && !profile?.is_premium ? `${o.label} ⚡` : o.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
                     </select>
-                    {showHelp && (
+                    {showHelp && !(PREMIUM_ONLY_TYPES.has(linkForm.icon_type) && !profile?.is_premium) && (
                       <button
                         type="button"
                         onClick={() => setHelpType(linkForm.icon_type as typeof helpType)}
@@ -2333,6 +2375,29 @@ export default function DashboardPage() {
                       </button>
                     )}
                   </div>
+
+                  {/* Said the moment the type is chosen, not after the form is
+                      filled in and the server refuses it. What it does is
+                      described too — "доступно на Premium" is a price without a
+                      product, and this is the only place a free user meets
+                      these features at all. */}
+                  {PREMIUM_ONLY_TYPES.has(linkForm.icon_type) && !profile?.is_premium && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="mb-1 text-xs font-bold text-amber-800">
+                        ⚡ {PREMIUM_TYPE_PITCH[linkForm.icon_type] ?? 'Доступно на Premium'}
+                      </p>
+                      <p className="mb-2.5 text-[11px] leading-relaxed text-amber-700">
+                        Входит в Premium — от 1 000 ₸/мес, вместе с безлимитом кнопок и аналитикой.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setTab('payment')}
+                        className="w-full rounded-lg bg-amber-500 py-2 text-xs font-bold text-white transition-colors hover:bg-amber-400"
+                      >
+                        Подключить Premium
+                      </button>
+                    </div>
+                  )}
 
                   {/* Title field */}
                   <input
