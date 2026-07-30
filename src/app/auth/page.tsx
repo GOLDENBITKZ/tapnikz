@@ -62,6 +62,24 @@ function AuthPageInner() {
     } catch { /* malformed or unavailable — fall through to a normal signup */ }
   }, [])
 
+  // Resuming an incomplete signup: the phone is already fixed by the auth
+  // account's derived email, so it is taken from there rather than asked again.
+  // Letting it be retyped would produce a profile whose number differs from the
+  // login — the account would work until the owner tried to sign in with the
+  // number printed on their own page.
+  const [resuming, setResuming] = useState(false)
+  useEffect(() => {
+    if (searchParams.get('resume') !== '1') return
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
+      const email = session?.user?.email ?? ''
+      const phone = email.endsWith('@users.tapni.kz') ? email.split('@')[0] : ''
+      if (!/^7\d{10}$/.test(phone)) return
+      setResuming(true)
+      setTab('register')
+      setRegForm((f) => ({ ...f, phone }))
+    })
+  }, [searchParams])
+
   useEffect(() => {
     const ref = searchParams.get('ref')
     const tabParam = searchParams.get('tab')
@@ -136,8 +154,12 @@ function AuthPageInner() {
     else if (regForm.username.length < 3) e.username = 'Минимум 3 символа'
     else if (regForm.username.length > 32) e.username = 'Максимум 32 символа'
     if (!regForm.business_name) e.business_name = 'Обязательное поле'
-    if (!regForm.password) e.password = 'Обязательное поле'
-    else if (regForm.password.length < 8) e.password = 'Минимум 8 символов'
+    // Not asked when resuming: the account already exists with its password,
+    // and the session is what authorises the profile insert.
+    if (!resuming) {
+      if (!regForm.password) e.password = 'Обязательное поле'
+      else if (regForm.password.length < 8) e.password = 'Минимум 8 символов'
+    }
     return e
   }
 
@@ -231,22 +253,37 @@ function AuthPageInner() {
         return
       }
 
-      // Create Supabase auth user (email derived from phone)
-      const { data: authData, error: signUpError } =
-        await getSupabase().auth.signUp({
-          email: phoneToEmail(regForm.phone),
-          password: regForm.password,
-        })
-
-      if (signUpError) throw signUpError
-      if (!authData.user) throw new Error('Не удалось создать аккаунт')
+      // Resuming a signup whose profile insert never landed: the auth user
+      // already exists, so signUp would fail with "already registered" and
+      // strand the person a second time. Reuse the session instead.
+      const { data: { session: resumeSession } } = await getSupabase().auth.getSession()
+      let userId: string
+      if (resumeSession?.user) {
+        userId = resumeSession.user.id
+      } else if (resuming) {
+        // The session went away between opening this form and submitting it.
+        // Creating a fresh account here would be wrong — the old one still owns
+        // this number — so the honest move is to send them back to sign in.
+        setError('Сессия истекла. Войдите заново и повторите.')
+        setLoading(false)
+        return
+      } else {
+        const { data: authData, error: signUpError } =
+          await getSupabase().auth.signUp({
+            email: phoneToEmail(regForm.phone),
+            password: regForm.password,
+          })
+        if (signUpError) throw signUpError
+        if (!authData.user) throw new Error('Не удалось создать аккаунт')
+        userId = authData.user.id
+      }
 
       // Create profile
       const { error: profileError } = await getSupabase()
         .from('profiles')
         .insert([
           {
-            id: authData.user.id,
+            id: userId,
             username: regForm.username,
             business_name: regForm.business_name,
             phone: regForm.phone,
@@ -262,7 +299,8 @@ function AuthPageInner() {
 
       if (profileError) throw profileError
 
-      const token = authData.session?.access_token
+      const { data: { session: freshSession } } = await getSupabase().auth.getSession()
+      const token = freshSession?.access_token
 
       // Create the three generated buttons. Awaited, unlike the admin ping
       // below: /dashboard reads links on mount, so racing the redirect would

@@ -1566,6 +1566,40 @@ export default function DashboardPage() {
     )
   }
 
+  // Signed in with no profile row. This is reachable: signup creates the auth
+  // user first and inserts the profile second, so anything failing in between —
+  // a lost connection, a username taken in the race, a column the client is not
+  // allowed to write — leaves the account stranded. Registering again is
+  // refused because the number is taken, and every section below is guarded by
+  // `profile &&`, so without this the person lands in a blank dashboard with no
+  // explanation and no way out. Six such accounts exist in the database.
+  if (user && !profile) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center">
+          <p className="mb-2 text-lg font-bold text-gray-900">Регистрация не завершена</p>
+          <p className="mb-5 text-sm leading-relaxed text-gray-500">
+            Аккаунт создан, но страница — нет. Такое бывает, если связь оборвалась на середине.
+            Продолжите с того же места, это займёт минуту.
+          </p>
+          <Link
+            href="/auth?tab=register&resume=1"
+            className="mb-2 block w-full rounded-xl bg-violet-600 py-3 text-sm font-bold text-white transition-colors hover:bg-violet-500"
+          >
+            Завершить регистрацию
+          </Link>
+          <button
+            type="button"
+            onClick={async () => { await getSupabase().auth.signOut(); router.replace('/auth') }}
+            className="w-full py-2 text-xs text-gray-400 transition-colors hover:text-gray-600"
+          >
+            Выйти
+          </button>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <>
     <main className="min-h-screen bg-gray-50 pb-24 text-gray-900">

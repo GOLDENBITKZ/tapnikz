@@ -244,11 +244,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (iconTypes.includes('twogis')) serviceHints.push('2ГИС')
 
   const cityHint = profile.address ? ` · ${profile.address}` : ''
-  const desc = profile.bio
+  const rawDesc = profile.bio
     ? `${profile.bio}${cityHint}`
     : serviceHints.length
       ? `${profile.business_name}${cityHint} — ${serviceHints.join(', ')} и другие контакты на tapni.kz`
       : `${profile.business_name}${cityHint} — все контакты и ссылки на tapni.kz`
+
+  // A bio is a multi-line field, and pasting it verbatim put raw newlines in the
+  // meta description. Search engines collapse them, but the snippet is cut near
+  // 160 characters, so a long bio was being truncated mid-word by Google rather
+  // than ending somewhere chosen here.
+  const desc = (() => {
+    const flat = rawDesc.replace(/\s+/g, ' ').trim()
+    if (flat.length <= 160) return flat
+    const cut = flat.slice(0, 157)
+    const lastSpace = cut.lastIndexOf(' ')
+    return `${(lastSpace > 120 ? cut.slice(0, lastSpace) : cut).replace(/[\s,.;:—-]+$/, '')}…`
+  })()
 
   // Keywords: business name + city + service types
   const kwParts = [profile.business_name]
