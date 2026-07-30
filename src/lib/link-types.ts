@@ -22,6 +22,7 @@ export const ALL_ICON_TYPES = [
   'text_block', 'product', 'lead_form', 'android', 'ios', 'menu', 'paypal',
   'instagram_dm', 'instagram_reel', 'follow_gate', 'milestone', 'instagram_keyword',
   'countdown', 'pricelist', 'image', 'video', 'faq',
+  'twitch', 'crypto_wallet', 'binance_pay',
 ] as const
 
 export type IconType = (typeof ALL_ICON_TYPES)[number]
@@ -36,6 +37,9 @@ export function isValidIconType(value: unknown): value is IconType {
  *  a free account must be refused on every one of those paths. */
 export const PREMIUM_ONLY_TYPES = new Set<IconType>([
   'product', 'smart_qr', 'countdown', 'pricelist', 'image', 'video', 'faq',
+  // twitch is deliberately absent: it is an ordinary social link like youtube
+  // or tiktok, and charging for one of those would be arbitrary.
+  'crypto_wallet', 'binance_pay',
 ])
 
 /** The url column holds JSON describing the block, not an address, so URL
@@ -43,6 +47,8 @@ export const PREMIUM_ONLY_TYPES = new Set<IconType>([
 export const JSON_URL_TYPES = new Set<IconType>([
   'text_block', 'product', 'follow_gate', 'milestone', 'instagram_keyword',
   'countdown', 'pricelist', 'image', 'video', 'faq', 'smart_qr',
+  // A wallet block holds a list of chains and addresses, not one destination.
+  'crypto_wallet',
 ])
 
 /** May be created without a url: their content lives elsewhere in the row, or

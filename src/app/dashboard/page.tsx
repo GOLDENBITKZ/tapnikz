@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { TEMPLATES, PLACEHOLDER_PREFIX } from '@/lib/templates'
+import { COINS, COIN_BY_ID, isPlausibleAddress, type ChainId } from '@/lib/crypto-wallets'
 import { JSON_URL_TYPES, NO_URL_INPUT_TYPES } from '@/lib/link-types'
 import type { LeadSubmission } from '@/lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -54,6 +55,9 @@ const ICON_OPTIONS: { value: IconType; label: string; placeholder: string }[] = 
   { value: 'ios',        label: '🍎 App Store',         placeholder: 'https://apps.apple.com/app/...' },
   { value: 'menu',       label: '🍽 Меню',              placeholder: 'https://example.com/menu' },
   { value: 'paypal',     label: '💳 PayPal',            placeholder: 'https://paypal.me/username' },
+  { value: 'twitch',        label: '🎮 Twitch',                     placeholder: 'https://twitch.tv/username' },
+  { value: 'crypto_wallet', label: '₿ Криптокошельки — донаты ⚡',  placeholder: '' },
+  { value: 'binance_pay',   label: '🅑 Binance Pay ⚡',              placeholder: 'https://app.binance.com/qr/...' },
   { value: 'countdown',  label: '⏳ Таймер обратного отсчёта', placeholder: '' },
   { value: 'pricelist',  label: '💰 Прайс-лист / Услуги',    placeholder: '' },
   { value: 'image',      label: '🖼 Баннер-изображение',      placeholder: '' },
@@ -353,6 +357,7 @@ export default function DashboardPage() {
   // Pricelist block state
   const [pricelistTitle, setPricelistTitle] = useState('')
   const [pricelistItems, setPricelistItems] = useState<{ name: string; price: string; desc: string }[]>([{ name: '', price: '', desc: '' }])
+  const [walletRows, setWalletRows] = useState<{ id: ChainId | ''; address: string; memo: string }[]>([{ id: '', address: '', memo: '' }])
   // Image block state
   const [imageSrc, setImageSrc] = useState('')
   const [imageSp, setImageSp] = useState('')          // storage path for cleanup on delete
@@ -726,6 +731,36 @@ export default function DashboardPage() {
         setCountdownLabel('')
         await loadData(user.id)
       } catch (err) { setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить таймер') }
+      finally { setAddingLink(false) }
+      return
+    }
+
+    if (linkForm.icon_type === 'crypto_wallet') {
+      const filled = walletRows.filter((r) => r.id && r.address.trim())
+      if (filled.length === 0) { setLinkError('Добавьте хотя бы один кошелёк'); return }
+      const bad = filled.find((r) => !isPlausibleAddress(r.id as ChainId, r.address))
+      if (bad) {
+        const spec = COIN_BY_ID.get(bad.id as ChainId)
+        setLinkError(`Адрес ${spec?.ticker} не похож на адрес сети ${spec?.network}. Проверьте, из той ли сети вы его скопировали.`)
+        return
+      }
+      setLinkError('')
+      setAddingLink(true)
+      try {
+        const maxOrder = links.length > 0 ? Math.max(...links.map((l) => l.sort_order)) : -1
+        const urlJson = JSON.stringify({
+          coins: filled.map((r) => ({ id: r.id, address: r.address.trim(), memo: r.memo.trim() || undefined })),
+        })
+        const res = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: linkForm.title || 'Поддержать криптовалютой', url: urlJson, icon_type: 'crypto_wallet', sort_order: maxOrder + 1 }),
+        })
+        if (!res.ok) throw new Error(await linkErrorFrom(res, ''))
+        setLinkForm({ title: '', url: '', icon_type: 'crypto_wallet' })
+        setWalletRows([{ id: '', address: '', memo: '' }])
+        await loadData(user.id)
+      } catch (err) { setLinkError(err instanceof Error && err.message ? err.message : 'Не удалось добавить кошельки') }
       finally { setAddingLink(false) }
       return
     }
@@ -2368,6 +2403,97 @@ export default function DashboardPage() {
                     </div>
                   )}
 
+                  {/* Crypto wallets — one block, many chains */}
+                  {linkForm.icon_type === 'crypto_wallet' && (
+                    <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-500">
+                        ₿ Кошельки для донатов
+                      </p>
+                      <p className="text-[11px] leading-relaxed text-gray-500">
+                        Выберите монету и вставьте адрес <b>из той же сети</b>. Сеть указана рядом с монетой —
+                        перевод в чужую сеть теряется навсегда.
+                      </p>
+
+                      {walletRows.map((row, i) => {
+                        const spec = row.id ? COIN_BY_ID.get(row.id) : null
+                        const touched = row.address.trim().length > 0
+                        const valid = spec && touched ? isPlausibleAddress(spec.id, row.address) : true
+                        return (
+                          <div key={i} className="space-y-2 rounded-xl border border-gray-200 bg-white p-2.5">
+                            <div className="flex gap-2">
+                              <select
+                                value={row.id}
+                                onChange={(e) => setWalletRows((rows) => rows.map((r, j) => j === i ? { ...r, id: e.target.value as ChainId | '' } : r))}
+                                className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2.5 text-sm text-gray-900 outline-none focus:border-amber-500/60"
+                              >
+                                <option value="">Выберите монету…</option>
+                                {COINS.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.ticker} — {c.network}</option>
+                                ))}
+                              </select>
+                              {walletRows.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setWalletRows((rows) => rows.filter((_, j) => j !== i))}
+                                  className="rounded-lg border border-gray-200 px-3 text-sm text-gray-400 transition-colors hover:border-red-300 hover:text-red-500"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+
+                            {spec && (
+                              <>
+                                <input
+                                  type="text"
+                                  value={row.address}
+                                  onChange={(e) => setWalletRows((rows) => rows.map((r, j) => j === i ? { ...r, address: e.target.value } : r))}
+                                  placeholder={spec.placeholder}
+                                  spellCheck={false}
+                                  autoCapitalize="off"
+                                  className={`w-full rounded-lg border bg-gray-50 px-2.5 py-2.5 font-mono text-[13px] text-gray-900 placeholder-gray-400 outline-none ${valid ? 'border-gray-200 focus:border-amber-500/60' : 'border-red-400 bg-red-50'}`}
+                                />
+                                {!valid && (
+                                  <p className="text-[11px] font-medium text-red-500">
+                                    Не похоже на адрес сети {spec.network}. Проверьте, из той ли сети вы его скопировали.
+                                  </p>
+                                )}
+                                {/* Only offered where the chain has one. Asking for
+                                    a memo on Bitcoin would invite the owner to
+                                    invent something donors cannot use. */}
+                                {spec.supportsMemo && (
+                                  <>
+                                    <input
+                                      type="text"
+                                      value={row.memo}
+                                      onChange={(e) => setWalletRows((rows) => rows.map((r, j) => j === i ? { ...r, memo: e.target.value } : r))}
+                                      placeholder="MEMO / тег — только если это адрес биржи"
+                                      spellCheck={false}
+                                      className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2.5 font-mono text-[13px] text-gray-900 placeholder-gray-400 outline-none focus:border-amber-500/60"
+                                    />
+                                    <p className="text-[11px] leading-snug text-gray-500">
+                                      Личный кошелёк — оставьте пустым. Адрес биржи без мемо — донат пропадёт.
+                                    </p>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )
+                      })}
+
+                      {walletRows.length < COINS.length && (
+                        <button
+                          type="button"
+                          onClick={() => setWalletRows((rows) => [...rows, { id: '', address: '', memo: '' }])}
+                          className="w-full rounded-xl border border-dashed border-amber-500/40 py-2.5 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/5"
+                        >
+                          + Добавить монету
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Smart QR — special form */}
                   {linkForm.icon_type === 'smart_qr' && (
                     <div className="space-y-3 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
@@ -2731,7 +2857,7 @@ export default function DashboardPage() {
                   )}
 
                   {/* URL/text field — hidden for types with their own forms */}
-                  {linkForm.icon_type !== 'product' && linkForm.icon_type !== 'smart_qr' && linkForm.icon_type !== 'follow_gate' && linkForm.icon_type !== 'milestone' && linkForm.icon_type !== 'instagram_keyword' && linkForm.icon_type !== 'countdown' && linkForm.icon_type !== 'pricelist' && linkForm.icon_type !== 'image' && linkForm.icon_type !== 'video' && linkForm.icon_type !== 'faq' && (isTextType ? (
+                  {linkForm.icon_type !== 'product' && linkForm.icon_type !== 'smart_qr' && linkForm.icon_type !== 'follow_gate' && linkForm.icon_type !== 'milestone' && linkForm.icon_type !== 'instagram_keyword' && linkForm.icon_type !== 'countdown' && linkForm.icon_type !== 'pricelist' && linkForm.icon_type !== 'image' && linkForm.icon_type !== 'video' && linkForm.icon_type !== 'faq' && linkForm.icon_type !== 'crypto_wallet' && (isTextType ? (
                     <textarea
                       value={linkForm.url}
                       onChange={(e) => setLinkForm((p) => ({ ...p, url: e.target.value }))}
@@ -2886,6 +3012,16 @@ export default function DashboardPage() {
                               {t === 'text_block' ? (link.url.length > 50 ? link.url.slice(0, 50) + '…' : link.url)
                                 : t === 'product' ? (() => { try { const d = JSON.parse(link.url) as { l?: string; price?: string }; return (d.price ? d.price + ' · ' : '') + (d.l ?? '').replace(/^https?:\/\//, '').slice(0, 40) } catch { return 'Карточка товара' } })()
                                 : t === 'smart_qr' ? (() => { try { const d = JSON.parse(link.url) as { ios?: string; android?: string; web?: string }; return [d.ios && 'iOS', d.android && 'Android', d.web && 'Web'].filter(Boolean).join(' · ') || 'Smart QR' } catch { return 'Smart QR' } })()
+                                : t === 'crypto_wallet' ? (() => {
+                                    // Lists the chains rather than the type name: the
+                                    // owner needs to see at a glance which wallets are
+                                    // live, since editing means recreating the block.
+                                    try {
+                                      const d = JSON.parse(link.url) as { coins?: { id: ChainId }[] }
+                                      const names = (d.coins ?? []).map((c) => COIN_BY_ID.get(c.id)?.ticker).filter(Boolean)
+                                      return names.length ? names.join(' · ') : 'Криптокошельки'
+                                    } catch { return 'Криптокошельки' }
+                                  })()
                                 : isJsonType ? t
                                 : link.url.replace(/^https?:\/\//, '').slice(0, 50)}
                             </p>

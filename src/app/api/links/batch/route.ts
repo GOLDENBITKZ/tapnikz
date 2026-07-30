@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import type { IconType } from '@/lib/supabase'
 import { PLACEHOLDER_PREFIX } from '@/lib/templates'
 import { isValidIconType, PREMIUM_ONLY_TYPES, JSON_URL_TYPES } from '@/lib/link-types'
+import { parseWalletPayload } from '@/lib/crypto-checksum'
 
 export async function POST(request: Request) {
   const header = request.headers.get('authorization')
@@ -38,6 +39,13 @@ export async function POST(request: Request) {
       return Response.json({ error: 'premium_required' }, { status: 403 })
     }
     const url = (l.url ?? '').replace(PLACEHOLDER_PREFIX, '')
+    if (l.icon_type === 'crypto_wallet') {
+      // Templates do not ship wallets, but this route accepts an arbitrary
+      // array from any authenticated caller, so it validates them all the same.
+      const wallet = parseWalletPayload(url)
+      if (!wallet.ok) return Response.json({ error: wallet.error }, { status: 400 })
+      continue
+    }
     if (url && !JSON_URL_TYPES.has(l.icon_type) && !SAFE_SCHEMES.test(url)) {
       return Response.json({ error: 'invalid url scheme' }, { status: 400 })
     }

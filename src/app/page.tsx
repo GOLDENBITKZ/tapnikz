@@ -112,7 +112,7 @@ const AUDIENCES = [
 ]
 
 const LINK_TYPES: { label: string; items: { name: string; color: string }[]; wide?: boolean }[] = [
-  // Every type the dashboard actually offers — 37, matching ICON_OPTIONS.
+  // Every type the dashboard actually offers — 40, matching ICON_OPTIONS.
   // The heading above says "все функции", and it used to list 20: the whole
   // Instagram marketing set, lead forms, countdowns, Smart QR and the app-store
   // buttons were all missing from a section claiming to be complete.
@@ -137,6 +137,7 @@ const LINK_TYPES: { label: string; items: { name: string; color: string }[]; wid
       { name: 'Facebook',    color: 'bg-blue-100 text-blue-700 border-blue-200' },
       { name: 'ВКонтакте',   color: 'bg-blue-100 text-blue-700 border-blue-200' },
       { name: 'X (Twitter)', color: 'bg-gray-100 text-gray-700 border-gray-300' },
+      { name: 'Twitch',      color: 'bg-purple-100 text-purple-700 border-purple-200' },
     ],
   },
   {
@@ -184,6 +185,13 @@ const LINK_TYPES: { label: string; items: { name: string; color: string }[]; wid
       { name: 'Меню',          color: 'bg-amber-100 text-amber-700 border-amber-200' },
       { name: 'PayPal',        color: 'bg-blue-100 text-blue-700 border-blue-200' },
       { name: 'Другая ссылка', color: 'bg-gray-100 text-gray-600 border-gray-200' },
+    ],
+  },
+  {
+    label: 'Криптовалюта и донаты',
+    items: [
+      { name: 'Криптокошельки — 12 сетей, QR и MEMO', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+      { name: 'Binance Pay',                          color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
     ],
   },
 

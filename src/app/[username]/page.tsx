@@ -28,6 +28,8 @@ import { FaqBlock } from '@/components/faq-block'
 import { PricelistBlock } from '@/components/pricelist-block'
 import { ImageExpandBlock } from '@/components/image-expand-block'
 import { KaspiQrBlock } from '@/components/kaspi-qr-block'
+import { CryptoWalletBlock } from '@/components/crypto-wallet-block'
+import { validateWallets } from '@/lib/crypto-wallets'
 
 import { SmartQrBlock } from '@/components/smart-qr-block'
 import { LinkLogo } from '@/components/link-logo'
@@ -985,6 +987,28 @@ export default async function ProfilePage({ params }: Props) {
                       linkId={link.id}
                       title={fd.title || link.title || ''}
                       items={items}
+                      themeCard={t.card}
+                      themeText={t.text}
+                      themeSubtext={t.subtext}
+                    />
+                  </div>
+                )
+              }
+
+              if (link.icon_type === 'crypto_wallet') {
+                // Re-validated on read, not trusted from the row: these
+                // addresses were checked on write, but a block that renders a
+                // malformed one is showing a visitor somewhere to send money.
+                let wd: unknown = null
+                try { wd = JSON.parse(link.url) } catch {}
+                const { coins } = validateWallets(wd)
+                if (coins.length === 0) return null
+                return (
+                  <div key={link.id} style={staggerStyle} className={`animate-btn-stagger${link.is_featured ? ' ring-2 ring-yellow-400/50 rounded-2xl' : ''}`}>
+                    <CryptoWalletBlock
+                      linkId={link.id}
+                      coins={coins}
+                      title={link.title || 'Поддержать криптовалютой'}
                       themeCard={t.card}
                       themeText={t.text}
                       themeSubtext={t.subtext}

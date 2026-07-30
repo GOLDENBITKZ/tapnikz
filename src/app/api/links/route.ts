@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { FREE_LINK_LIMIT as FREE_LIMIT } from '@/lib/supabase'
 import { isValidIconType, PREMIUM_ONLY_TYPES, EMPTY_URL_OK_TYPES, JSON_URL_TYPES } from '@/lib/link-types'
+import { parseWalletPayload } from '@/lib/crypto-checksum'
 
 async function getAuthProfile(request: Request) {
   const header = request.headers.get('authorization')
@@ -46,6 +47,17 @@ export async function POST(request: Request) {
     return Response.json({ error: 'url required' }, { status: 400 })
   }
 
+  // A wallet block is a list of chains and addresses, so it skips the URL
+  // checks below and gets its own. Rejecting here rather than storing loosely
+  // is the point: a mistyped or wrong-chain address on a live page sends
+  // donations somewhere unrecoverable.
+  let walletJson: string | null = null
+  if (iconType === 'crypto_wallet') {
+    const parsed = parseWalletPayload(url)
+    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 })
+    walletJson = JSON.stringify({ coins: parsed.coins })
+  }
+
 
   // Validate URL scheme at write time (mirrors /api/click validation)
   if (url && !JSON_URL_TYPES.has(iconType)) {
@@ -65,7 +77,7 @@ export async function POST(request: Request) {
   const { data, error } = await adminDb.from('links').insert([{
     profile_id: prof.id,
     title: (body.title ?? '').slice(0, 100),
-    url: url.slice(0, 2048),
+    url: (walletJson ?? url).slice(0, 2048),
     icon_type: iconType,
     sort_order: body.sort_order ?? 0,
   }]).select('id').maybeSingle()

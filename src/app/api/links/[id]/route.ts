@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { JSON_URL_TYPES } from '@/lib/link-types'
+import { parseWalletPayload } from '@/lib/crypto-checksum'
 
 async function getAuthProfile(request: Request) {
   const header = request.headers.get('authorization')
@@ -41,7 +42,16 @@ export async function PATCH(
       .maybeSingle()
     if (!link) return Response.json({ error: 'not found' }, { status: 404 })
 
-    const url = body.url ?? ''
+    let url = body.url ?? ''
+
+    // Same wallet check as POST. Without it this route is the way round it:
+    // icon_type cannot be changed here, but the url — which for a wallet holds
+    // every address — can, and JSON types skip the validation below.
+    if (link.icon_type === 'crypto_wallet') {
+      const wallet = parseWalletPayload(url)
+      if (!wallet.ok) return Response.json({ error: wallet.error }, { status: 400 })
+      url = JSON.stringify({ coins: wallet.coins })
+    }
 
     // Server-side URL scheme validation (same as POST)
     if (url && !JSON_URL_TYPES.has(link.icon_type)) {

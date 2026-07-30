@@ -79,7 +79,8 @@ ALTER TABLE public.links ADD CONSTRAINT links_icon_type_check CHECK (
     'vk','facebook','twitter','link','text_block','product','lead_form',
     'android','ios','menu','paypal',
     'instagram_dm','instagram_reel','follow_gate','milestone','instagram_keyword',
-    'countdown','pricelist','image','video','faq'
+    'countdown','pricelist','image','video','faq',
+    'twitch','crypto_wallet','binance_pay'
   )
 );
 
@@ -292,7 +293,7 @@ CREATE POLICY links_insert_owner ON public.links FOR INSERT WITH CHECK (
     OR (SELECT count(*) FROM public.links l WHERE l.profile_id = (SELECT auth.uid())) < 3
   )
   AND (
-    icon_type <> ALL (ARRAY['product', 'smart_qr', 'countdown', 'pricelist', 'image', 'video', 'faq'])
+    icon_type <> ALL (ARRAY['product','smart_qr','countdown','pricelist','image','video','faq','crypto_wallet','binance_pay'])
     OR (SELECT is_premium AND (subscription_expires_at IS NULL OR subscription_expires_at > now())
           FROM public.profiles WHERE id = profile_id)
   )
@@ -305,7 +306,7 @@ CREATE POLICY links_update_owner ON public.links FOR UPDATE
   WITH CHECK (
     (SELECT auth.uid()) = profile_id
     AND (
-      icon_type <> ALL (ARRAY['product', 'smart_qr', 'countdown', 'pricelist', 'image', 'video', 'faq'])
+      icon_type <> ALL (ARRAY['product','smart_qr','countdown','pricelist','image','video','faq','crypto_wallet','binance_pay'])
       OR (SELECT is_premium AND (subscription_expires_at IS NULL OR subscription_expires_at > now())
             FROM public.profiles WHERE id = profile_id)
     )
