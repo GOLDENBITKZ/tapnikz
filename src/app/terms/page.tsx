@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 const EFFECTIVE = '01 июля 2025 года'
 const COMPANY = 'ИП GOLDENBIT'
+const ADDR = 'Республика Казахстан, г. Тараз, проспект Жамбыла, 123/26'
 const EMAIL = 'goldenbit.kz@yandex.kz'
 
 export default function TermsPage() {
@@ -205,6 +206,7 @@ export default function TermsPage() {
             <h2 className="mb-3 text-lg font-bold text-white">13. Контактная информация</h2>
             <p>
               По вопросам, связанным с настоящими Условиями, обращайтесь:<br />
+              <strong>Адрес:</strong> {ADDR}<br />
               <strong>Email:</strong> {EMAIL}<br />
               <strong>Telegram:</strong> <a href="https://t.me/tapnikz" className="text-violet-400 hover:underline">@tapnikz</a>
             </p>
@@ -212,7 +214,7 @@ export default function TermsPage() {
 
           <hr className="border-white/10" />
           <p className="text-xs text-white/30 text-center">
-            tapni.kz · {COMPANY} · Республика Казахстан<br />
+            tapni.kz · {COMPANY} · {ADDR}<br />
             Условия вступают в силу с {EFFECTIVE}
           </p>
 

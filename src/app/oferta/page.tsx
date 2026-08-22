@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const EFFECTIVE = '24 июля 2026 года'
 const COMPANY = 'ИП GOLDENBIT'
 const IIN = '840111300028'
-const ADDR = 'Республика Казахстан'
+const ADDR = 'Республика Казахстан, г. Тараз, проспект Жамбыла, 123/26'
 const EMAIL = 'goldenbit.kz@yandex.kz'
 const SITE = 'tapni.kz'
 
@@ -255,6 +255,7 @@ export default function OfertaPage() {
               <p><span className="text-white/50">Наименование:</span> {COMPANY}</p>
               <p><span className="text-white/50">ИИН/БИН:</span> {IIN}</p>
               <p><span className="text-white/50">Страна:</span> Республика Казахстан</p>
+              <p><span className="text-white/50">Адрес:</span> {ADDR}</p>
               <p><span className="text-white/50">E-mail:</span> {EMAIL}</p>
               <p><span className="text-white/50">Сайт:</span> https://{SITE}</p>
             </div>
