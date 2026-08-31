@@ -1,15 +1,36 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { CheckCircle2, Loader2, AlertCircle, Building2, Send } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CheckCircle2, Loader2, AlertCircle, Building2, Send, CreditCard } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
-import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
+import { KASPI_PAY_URL } from '@/lib/payment-config'
 
 const KASPI_PAY = KASPI_PAY_URL
-const HALYK_PHONE = SUPPORT_PHONE
 const TG_BOT = '/go/tg?u=Tapnikzbot'
+
+// halyk.pay() из payment-api.js — минимальная типизация того, что мы вызываем
+declare global {
+  interface Window {
+    halyk?: { pay: (obj: Record<string, unknown>) => void }
+  }
+}
+
+let epayScriptPromise: Promise<void> | null = null
+function loadEpayScript(src: string): Promise<void> {
+  if (typeof window !== 'undefined' && window.halyk) return Promise.resolve()
+  if (!epayScriptPromise) {
+    epayScriptPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = src
+      s.onload = () => resolve()
+      s.onerror = () => reject(new Error('epay_script_failed'))
+      document.head.appendChild(s)
+    })
+  }
+  return epayScriptPromise
+}
 
 const TG_ICON = (
   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -37,7 +58,16 @@ const FEATURES = [
 type Plan = 'monthly' | 'annual'
 
 export default function PayPage() {
+  return (
+    <Suspense fallback={null}>
+      <PayPageInner />
+    </Suspense>
+  )
+}
+
+function PayPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [plan, setPlan] = useState<Plan>('annual')
   const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
@@ -46,6 +76,13 @@ export default function PayPage() {
   const [showManual, setShowManual] = useState(false)
   const [isPremium, setIsPremium] = useState(false)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
+
+  // EPAY (оплата картой)
+  const [epayLoading, setEpayLoading] = useState(false)
+  const [epayCheckState, setEpayCheckState] = useState<'idle' | 'checking' | 'confirmed' | 'failed'>(
+    () => (searchParams.get('epay') === 'fail' ? 'failed' : 'idle')
+  )
+  const epayPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Invoice state
   const [showInvoice, setShowInvoice] = useState(false)
@@ -69,13 +106,101 @@ export default function PayPage() {
     })
   }, [])
 
+  // Возврат с платёжной формы EPAY (backLink из /api/payments/epay/create)
+  useEffect(() => {
+    const epayParam = searchParams.get('epay')
+    const invoiceId = searchParams.get('invoiceId')
+    if (epayParam !== 'success' || !invoiceId) return
+
+    let cancelled = false
+    let attempts = 0
+
+    async function poll() {
+      if (cancelled) return
+      attempts++
+      setEpayCheckState('checking')
+      try {
+        const { data: { session } } = await getSupabase().auth.getSession()
+        if (!session) { setEpayCheckState('failed'); return }
+        const res = await fetch(`/api/payments/epay/status?invoiceId=${encodeURIComponent(invoiceId!)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = await res.json().catch(() => ({}))
+        if (json.status === 'confirmed') {
+          setEpayCheckState('confirmed')
+          setTimeout(() => router.push('/dashboard?premium=1'), 1200)
+          return
+        }
+        if (json.status === 'cancelled') {
+          setEpayCheckState('failed')
+          return
+        }
+      } catch {
+        // сеть моргнула — попробуем ещё раз ниже
+      }
+      if (attempts < 8 && !cancelled) {
+        epayPollRef.current = setTimeout(poll, 2000)
+      } else if (!cancelled) {
+        // Вебхук и check-status не подтвердили за ~16с — не считаем неудачей,
+        // деньги могли списаться, просто оставляем пользователю понятную подсказку.
+        setEpayCheckState('idle')
+        setMsg({ type: 'ok', text: 'Проверяем оплату — если деньги списались, Premium активируется автоматически в течение пары минут.' })
+      }
+    }
+    poll()
+
+    return () => { cancelled = true; if (epayPollRef.current) clearTimeout(epayPollRef.current) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   const price = plan === 'annual' ? '10 000' : '1 000'
-  const days = plan === 'annual' ? 365 : 30
   const u = username.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
   const refCode = u ? `TAP-${u}` : 'TAP-ваш-ник'
   const tgReceiptLink = u ? `${TG_BOT}?start=receipt_${u}` : TG_BOT
   const waText = encodeURIComponent(`Оплатил Premium ${refCode}`)
   const WA_AFTER = `https://wa.me/77755696531?text=${waText}`
+
+  const startEpayPayment = useCallback(async () => {
+    if (!u) { setMsg({ type: 'err', text: 'Введите ваш username на tapni.kz' }); return }
+    setEpayLoading(true)
+    setMsg(null)
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession()
+      if (!session) {
+        setMsg({ type: 'err', text: 'Войдите в личный кабинет, затем вернитесь сюда' })
+        return
+      }
+      const res = await fetch('/api/payments/epay/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ plan }),
+      })
+      if (!res.ok) throw new Error('create_failed')
+      const data = await res.json()
+
+      await loadEpayScript(data.scriptUrl)
+      if (!window.halyk) throw new Error('epay_script_missing')
+
+      window.halyk.pay({
+        invoiceId: data.invoiceId,
+        backLink: data.backLink,
+        failureBackLink: data.failureBackLink,
+        autoBackLink: true,
+        postLink: data.postLink,
+        language: 'rus',
+        description: data.description,
+        accountId: u,
+        terminal: data.terminal,
+        amount: data.amount,
+        currency: data.currency,
+        auth: data.auth,
+      })
+    } catch {
+      setMsg({ type: 'err', text: 'Не удалось открыть форму оплаты картой. Попробуйте ещё раз или используйте Kaspi/перевод.' })
+    } finally {
+      setEpayLoading(false)
+    }
+  }, [u, plan])
 
   function copyRef() {
     if (!u) return
@@ -270,24 +395,41 @@ export default function PayPage() {
           </a>
         </div>
 
-        {/* Halyk Bank */}
+        {/* Halyk Bank — оплата картой через EPAY (мгновенная активация) */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-gray-900">🏦 Перевод через Halyk Bank</p>
-          <div className="mb-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-            <p className="mb-0.5 text-[11px] text-gray-400">Номер для перевода</p>
-            <p className="text-lg font-extrabold tracking-widest text-gray-900">{HALYK_PHONE}</p>
-            <p className="mt-0.5 text-[11px] text-gray-400">Получатель: Голденбит Казахстан</p>
-          </div>
-          <div className="mb-3 grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
-              <p className="text-xs text-gray-400">Сумма</p>
-              <p className="text-sm font-bold text-gray-900">{price} ₸</p>
+          <p className="mb-3 text-sm font-semibold text-gray-900">🏦 Оплата картой (Halyk Bank / EPAY)</p>
+
+          {epayCheckState === 'checking' && (
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs text-violet-700">
+              <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+              Проверяем оплату…
             </div>
-            <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
-              <p className="text-xs text-gray-400">Назначение</p>
-              <p className="font-mono text-sm font-bold text-amber-700 truncate">{refCode}</p>
+          )}
+          {epayCheckState === 'confirmed' && (
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700">
+              <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+              Оплата подтверждена! Открываем кабинет…
             </div>
-          </div>
+          )}
+          {epayCheckState === 'failed' && (
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-600">
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+              Оплата не прошла. Попробуйте ещё раз или выберите другой способ.
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={startEpayPayment}
+            disabled={epayLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00A651] py-3.5 text-sm font-bold text-white transition-all hover:bg-[#00913f] active:scale-[0.98] disabled:opacity-60"
+          >
+            {epayLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+            Оплатить {price} ₸ картой
+          </button>
+          <p className="mt-2 text-[11px] text-gray-400">
+            Visa / Mastercard любого банка. Premium активируется автоматически сразу после оплаты.
+          </p>
         </div>
 
         {/* === AFTER PAYMENT: Telegram receipt (PRIMARY) === */}
