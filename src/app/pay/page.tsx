@@ -272,7 +272,7 @@ function PayPageContent() {
         </div>
 
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm">
-          <p className="mb-1 text-sm font-semibold text-gray-900">💳 Онлайн-оплата через Halyk / EPAY</p>
+          <p className="mb-1 text-sm font-semibold text-gray-900">💳 Онлайн-оплата через EPAY</p>
           <p className="mb-3 text-xs text-gray-500">Оплата картой с автоматической активацией Premium</p>
           <EpayButton plan={plan} price={price} />
         </div>

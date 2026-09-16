@@ -60,7 +60,7 @@ export function EpayButton({ plan, price }: Props) {
     <div>
       <button type="button" onClick={pay} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#16854a] py-3.5 text-sm font-bold text-white transition-all hover:bg-[#116d3c] active:scale-[0.98] disabled:opacity-60">
         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-        Оплатить {price} ₸ через Halyk / EPAY
+        Оплатить {price} ₸ через EPAY
       </button>
       {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
     </div>
