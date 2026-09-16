@@ -2417,7 +2417,9 @@ async function handleReceiptPhotoById(chatId: string, fileId: string) {
   const merchantId = process.env.KASPI_MERCHANT_ID
   const recipientOk = !!merchantId && !!validation.recipient &&
     validation.recipient.toLowerCase().includes(merchantId.toLowerCase())
-  const autoApprove = validation.isReceipt && amountOk && validation.confidence === 'high' && !isDuplicate && recipientOk && validation.transactionId !== null && pending.paymentId !== null
+  // A screenshot is not proof of settlement. AI extracts evidence for the
+  // admin, but only a provider callback (EPAY) may activate automatically.
+  const autoApprove = false
 
   // Save receipt_url and validation data
   if (pending.paymentId) {
@@ -2503,7 +2505,9 @@ async function handleReceiptPhotoById(chatId: string, fileId: string) {
         ? 'не распознан как чек'
         : !amountOk
           ? `сумма ${validation.amount ?? '?'} ₸ не совпадает с ${expectedAmount} ₸`
-          : 'низкая уверенность AI'
+          : !recipientOk
+            ? 'получатель не подтверждён'
+            : 'требуется подтверждение администратора'
 
     await notifyAdminForManualReview(chatId, fileId, pending, validation, reason)
 

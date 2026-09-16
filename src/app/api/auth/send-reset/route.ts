@@ -86,13 +86,15 @@ export async function POST(request: Request) {
     await sendTelegram(profile.telegram_chat_id, msg)
     return Response.json({ ok: true, hasTelegram: true })
   } else {
-    // Manual fallback: notify admin to forward via WhatsApp
+    // Never send the bearer recovery URL to an admin chat. Anyone with access
+    // to that chat could take over the account. Ask the user to link Telegram
+    // first, then issue the link only to the verified chat.
     await notifyAdmin(
       `🔐 <b>Запрос сброса пароля</b>\n\n` +
       `👤 ${profile.business_name} (tapni.kz/${profile.username})\n` +
       `📱 +${phone}\n` +
-      `⚠️ Telegram не привязан — отправьте ссылку через WhatsApp на этот номер.\n\n` +
-      `🔗 Ссылка (одноразовая, 1 ч):\n${actionLink}`
+      `⚠️ Telegram не привязан — попросите пользователя сначала привязать Telegram к аккаунту.\n` +
+      `Ссылка восстановления не отправлена в админ-чат из соображений безопасности.`
     )
     return Response.json({ ok: true, hasTelegram: false })
   }

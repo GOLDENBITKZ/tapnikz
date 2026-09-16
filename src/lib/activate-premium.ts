@@ -56,7 +56,7 @@ export async function activatePremium({
     auto_confirmed_at: new Date().toISOString(),
     provider,
     ...(note ? { notes: note } : {}),
-  }).eq('id', pendingPaymentId).eq('status', 'pending').select('id').maybeSingle()
+  }).eq('id', pendingPaymentId).eq('status', 'pending').eq('username', username).eq('plan', plan).select('id').maybeSingle()
 
   if (payErr) return { success: false, error: payErr.message }
   // Another invocation already confirmed this payment — idempotent success
