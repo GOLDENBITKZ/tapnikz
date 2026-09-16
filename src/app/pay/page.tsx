@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, AlertCircle, Building2, Send } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
 import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
+import { EpayButton } from '@/components/epay-button'
 
 const KASPI_PAY = KASPI_PAY_URL
 const HALYK_PHONE = SUPPORT_PHONE
@@ -268,6 +269,12 @@ export default function PayPage() {
             </svg>
             Оплатить {price} ₸ через Kaspi
           </a>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm">
+          <p className="mb-1 text-sm font-semibold text-gray-900">💳 Онлайн-оплата через Halyk / EPAY</p>
+          <p className="mb-3 text-xs text-gray-500">Оплата картой с автоматической активацией Premium</p>
+          <EpayButton plan={plan} price={price} />
         </div>
 
         {/* Halyk Bank */}

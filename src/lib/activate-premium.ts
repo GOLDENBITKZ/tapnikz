@@ -116,7 +116,7 @@ export async function activatePremium({
   const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID
   if (adminChatId) {
     const planLabel = plan === 'annual' ? '⭐ Годовая' : '📅 Месячная'
-    const srcLabel = provider === 'auto_confirmed' ? '⏱ Авто' : '📸 Чек'
+    const srcLabel = provider === 'auto_confirmed' ? '⏱ Авто' : provider === 'epay' ? '💳 EPAY' : '📸 Чек'
     await tgFetch({
       chat_id: adminChatId,
       text:
