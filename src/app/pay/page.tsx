@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, AlertCircle, Building2, Send } from 'lucide-react'
 import { getSupabase } from '@/lib/supabase'
-import { KASPI_PAY_URL, SUPPORT_PHONE } from '@/lib/payment-config'
+import { KASPI_PAY_URL } from '@/lib/payment-config'
 import { EpayButton } from '@/components/epay-button'
 
 const KASPI_PAY = KASPI_PAY_URL
-const HALYK_PHONE = SUPPORT_PHONE
 const TG_BOT = '/go/tg?u=Tapnikzbot'
 
 const TG_ICON = (
@@ -37,9 +37,10 @@ const FEATURES = [
 
 type Plan = 'monthly' | 'annual'
 
-export default function PayPage() {
+function PayPageContent() {
   const router = useRouter()
-  const [plan, setPlan] = useState<Plan>('annual')
+  const searchParams = useSearchParams()
+  const [plan, setPlan] = useState<Plan>(() => searchParams.get('plan') === 'annual' ? 'annual' : 'monthly')
   const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
@@ -71,7 +72,6 @@ export default function PayPage() {
   }, [])
 
   const price = plan === 'annual' ? '10 000' : '1 000'
-  const days = plan === 'annual' ? 365 : 30
   const u = username.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
   const refCode = u ? `TAP-${u}` : 'TAP-ваш-ник'
   const tgReceiptLink = u ? `${TG_BOT}?start=receipt_${u}` : TG_BOT
@@ -277,26 +277,6 @@ export default function PayPage() {
           <EpayButton plan={plan} price={price} />
         </div>
 
-        {/* Halyk Bank */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-gray-900">🏦 Перевод через Halyk Bank</p>
-          <div className="mb-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-            <p className="mb-0.5 text-[11px] text-gray-400">Номер для перевода</p>
-            <p className="text-lg font-extrabold tracking-widest text-gray-900">{HALYK_PHONE}</p>
-            <p className="mt-0.5 text-[11px] text-gray-400">Получатель: Голденбит Казахстан</p>
-          </div>
-          <div className="mb-3 grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
-              <p className="text-xs text-gray-400">Сумма</p>
-              <p className="text-sm font-bold text-gray-900">{price} ₸</p>
-            </div>
-            <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
-              <p className="text-xs text-gray-400">Назначение</p>
-              <p className="font-mono text-sm font-bold text-amber-700 truncate">{refCode}</p>
-            </div>
-          </div>
-        </div>
-
         {/* === AFTER PAYMENT: Telegram receipt (PRIMARY) === */}
         <div className="rounded-2xl border-2 border-[#229ED9]/30 bg-[#229ED9]/5 p-4">
           <p className="mb-1 text-sm font-bold text-gray-900">✅ После оплаты — отправьте чек в Telegram</p>
@@ -316,7 +296,7 @@ export default function PayPage() {
             <span className="text-base">📋</span>
             <p className="text-[11px] leading-relaxed text-gray-500">
               Откройте бот → отправьте скриншот или PDF чека → Premium активируется автоматически.
-              Принимаются чеки Kaspi Pay и Halyk Bank.
+              Для старой оплаты через Kaspi Pay можно отправить чек в Telegram.
             </p>
           </div>
 
@@ -450,5 +430,13 @@ export default function PayPage() {
         </p>
       </div>
     </main>
+  )
+}
+
+export default function PayPage() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] text-sm text-gray-500">Загрузка оплаты...</main>}>
+      <PayPageContent />
+    </Suspense>
   )
 }

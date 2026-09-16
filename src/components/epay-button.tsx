@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { getSupabase } from '@/lib/supabase'
 
 declare global {
@@ -13,6 +14,7 @@ declare global {
 type Props = { plan: 'monthly' | 'annual'; price: string }
 
 export function EpayButton({ plan, price }: Props) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -21,7 +23,10 @@ export function EpayButton({ plan, price }: Props) {
     setError(null)
     try {
       const { data: { session } } = await getSupabase().auth.getSession()
-      if (!session) throw new Error('Войдите в личный кабинет, затем повторите оплату')
+      if (!session) {
+        router.push(`/auth?tab=login&next=${encodeURIComponent(`/pay?plan=${plan}`)}`)
+        return
+      }
       const response = await fetch('/api/epay/create-payment', {
         method: 'POST',
         headers: {

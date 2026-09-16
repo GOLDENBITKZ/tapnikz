@@ -34,9 +34,14 @@ function phoneToEmail(phone: string) {
   return `${phone}@users.tapni.kz`
 }
 
+function getSafeNext(value: string | null): string {
+  return value?.startsWith('/') && !value.startsWith('//') ? value : '/dashboard'
+}
+
 function AuthPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const nextPath = getSafeNext(searchParams.get('next'))
   const prefillName = searchParams.get('name') ?? ''
   const [tab, setTab] = useState<Tab>('login')
   const [referredBy, setReferredBy] = useState<string | null>(null)
@@ -181,7 +186,7 @@ function AuthPageInner() {
         password: loginForm.password,
       })
       if (authError) throw authError
-      router.push('/dashboard')
+      router.push(nextPath)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка входа'
       setError(
@@ -337,7 +342,7 @@ function AuthPageInner() {
         }),
       }).catch(() => {})
 
-      router.push('/dashboard?welcome=1')
+      router.push(nextPath === '/dashboard' ? '/dashboard?welcome=1' : nextPath)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ошибка регистрации'
       setError(
