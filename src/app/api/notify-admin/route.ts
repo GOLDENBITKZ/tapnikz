@@ -154,11 +154,11 @@ export async function POST(request: Request) {
       (b.phone ? `📱 +${esc(b.phone)}\n` : '') +
       `📦 ${planLabel}\n` +
       `🔑 Код: TAP-${username}\n\n` +
-      `⏱ Авто-активация через ${process.env.PENDING_AUTO_CONFIRM_HOURS ?? '6'}ч если не отменить.`
+      `⏱ Авто-проверка через ${process.env.PENDING_AUTO_CONFIRM_HOURS ?? '72'}ч если не отменить.`
 
     await sendTelegramWithButtons(chatId, text, [
       [
-        { text: `⚡ Активировать (${days} д)`, callback_data: `quick_activate:${username}:${days}` },
+        { text: `⚡ Активировать (${days} д)`, callback_data: `quick_activate:${username}:${days}:${pendingId ?? ''}` },
         { text: '❌ Отменить', callback_data: `cancel_premium:${username}` },
       ],
     ])

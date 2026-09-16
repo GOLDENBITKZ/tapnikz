@@ -287,12 +287,12 @@ export async function POST(request: Request) {
         }
       }
     } else if (data.startsWith('quick_activate:') && chatId === adminChatId()) {
-      const [, uname, daysStr] = data.split(':')
+      const [, uname, daysStr, paymentId] = data.split(':')
       const safeUname = (uname ?? '').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40)
       if (!safeUname) return Response.json({ ok: true })
       const days = parseInt(daysStr ?? '30', 10)
       if (isNaN(days) || days < 1 || days > 3650) return Response.json({ ok: true })
-      await adminActivateHandler(chatId, safeUname, days)
+      await adminActivateHandler(chatId, safeUname, days, paymentId)
     } else if (data.startsWith('cancel_premium:') && chatId === adminChatId()) {
       const rawUname = data.split(':')[1] ?? ''
       const uname = rawUname.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40)
@@ -1640,11 +1640,51 @@ async function ticketsListHandler(adminId: string) {
 
 // ─── Admin activate helper (reusable by /activate and quick_activate callback) ─
 
-async function adminActivateHandler(adminChatIdVal: string, username: string, days: number) {
-  const expires = new Date(Date.now() + days * 86400000).toISOString()
-  const plan = days >= 300 ? 'annual' : 'monthly'
+async function adminActivateHandler(adminChatIdVal: string, username: string, days: number, paymentId?: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminDb = (getSupabaseAdmin() as any)
+
+  // Receipt/admin buttons carry the exact payment row. Let the shared activator
+  // claim it atomically so a stale button cannot activate another payment.
+  if (paymentId) {
+    const { data: pendingPayment } = await adminDb.from('payments')
+      .select('id, plan')
+      .eq('id', paymentId)
+      .eq('username', username)
+      .eq('status', 'pending')
+      .maybeSingle()
+    if (!pendingPayment) {
+      await sendTelegram(adminChatIdVal, `⚠️ Платёж для @${esc(username)} уже обработан или не найден.`)
+      return
+    }
+    const result = await activatePremium({
+      username,
+      plan: pendingPayment.plan === 'annual' ? 'annual' : 'monthly',
+      pendingPaymentId: pendingPayment.id,
+      provider: 'admin_confirmed',
+      note: `Подтверждено администратором в Telegram`,
+    })
+    if (!result.success) {
+      await sendTelegram(adminChatIdVal, `❌ Не удалось активировать @${esc(username)}: <code>${esc(result.error)}</code>`)
+    }
+    return
+  }
+
+  const { data: pendingPayment } = await adminDb.from('payments')
+    .select('id, plan, days, amount')
+    .eq('username', username)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const plan = pendingPayment?.plan === 'annual' ? 'annual' : pendingPayment?.plan === 'monthly' ? 'monthly' : days >= 300 ? 'annual' : 'monthly'
+  const activationDays = pendingPayment?.days ?? (plan === 'annual' ? 365 : days)
+  const { data: currentProfile } = await adminDb.from('profiles')
+    .select('subscription_expires_at')
+    .eq('username', username)
+    .maybeSingle()
+  const currentExpiry = currentProfile?.subscription_expires_at ? new Date(currentProfile.subscription_expires_at).getTime() : 0
+  const expires = new Date(Math.max(Date.now(), currentExpiry) + activationDays * 86400000).toISOString()
   const { data, error } = await adminDb
     .from('profiles')
     .update({ is_premium: true, subscription_expires_at: expires, subscription_plan: plan, updated_at: new Date().toISOString() })
@@ -1662,7 +1702,7 @@ async function adminActivateHandler(adminChatIdVal: string, username: string, da
       `✅ <b>Premium активирован!</b>\n\n` +
       `👤 ${esc(String(data.business_name))} (@${esc(username)})\n` +
       `📱 +${esc(String(data.phone ?? '?'))}\n` +
-      `${plan === 'annual' ? '⭐ Годовая' : '📅 Месячная'} · ${days} дней · до ${expiryDate}`
+      `${plan === 'annual' ? '⭐ Годовая' : '📅 Месячная'} · ${activationDays} дней · до ${expiryDate}`
     )
     if (data.telegram_chat_id) {
       await tgPost('sendMessage', {
@@ -1680,19 +1720,12 @@ async function adminActivateHandler(adminChatIdVal: string, username: string, da
     // Update pending payments row → confirmed (or insert new if none pending)
     try {
       const amount = plan === 'annual' ? 10000 : 1000
-      const { data: pendingPmt } = await adminDb
-        .from('payments')
-        .select('id')
-        .eq('username', username)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      const pendingPmt = pendingPayment
 
       if (pendingPmt?.id) {
         await adminDb.from('payments').update({
           status: 'confirmed',
-          days,
+          days: activationDays,
           amount,
           plan,
           admin_tg_id: adminChatIdVal,
@@ -1739,7 +1772,7 @@ async function adminActivateHandler(adminChatIdVal: string, username: string, da
           username,
           plan,
           amount,
-          days,
+          days: activationDays,
           method: 'manual',
           status: 'confirmed',
           provider: 'admin_confirmed',
@@ -2384,7 +2417,7 @@ async function handleReceiptPhotoById(chatId: string, fileId: string) {
   const merchantId = process.env.KASPI_MERCHANT_ID
   const recipientOk = !!merchantId && !!validation.recipient &&
     validation.recipient.toLowerCase().includes(merchantId.toLowerCase())
-  const autoApprove = validation.isReceipt && amountOk && validation.confidence === 'high' && !isDuplicate && recipientOk && validation.transactionId !== null
+  const autoApprove = validation.isReceipt && amountOk && validation.confidence === 'high' && !isDuplicate && recipientOk && validation.transactionId !== null && pending.paymentId !== null
 
   // Save receipt_url and validation data
   if (pending.paymentId) {
@@ -2401,13 +2434,22 @@ async function handleReceiptPhotoById(chatId: string, fileId: string) {
   if (autoApprove) {
     // ── AUTO ACTIVATION ─────────────────────────────────────────
     try {
-      await activatePremium({
+      const activation = await activatePremium({
         username: pending.username,
         plan: pending.plan,
         pendingPaymentId: pending.paymentId ?? '',
         provider: 'groq_auto_validated',
         note: `Groq vision: ${validation.transactionId ?? 'no_txid'} · ${validation.amount} ₸`,
       })
+      if (!activation.success) {
+        await notifyAdminForManualReview(chatId, fileId, pending, validation, 'activation_failed')
+        await tgPost('sendMessage', {
+          chat_id: chatId,
+          text: '⚠️ Чек подтверждён, но Premium пока не активирован. Администратор проверит платёж вручную.',
+          parse_mode: 'HTML',
+        })
+        return
+      }
       // activatePremium() already updates payment status → 'confirmed'
     } catch (err) {
       console.error('[receipt] activatePremium failed', err)
@@ -2500,7 +2542,7 @@ async function notifyAdminForManualReview(
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: `✅ Активировать ${pending.days} дней`, callback_data: `quick_activate:${pending.username}:${pending.days}` }],
+        [{ text: `✅ Активировать ${pending.days} дней`, callback_data: `quick_activate:${pending.username}:${pending.days}${pending.paymentId ? `:${pending.paymentId}` : ''}` }],
         [{ text: '❌ Отклонить', callback_data: `cancel_premium:${pending.username}` }],
       ],
     },
