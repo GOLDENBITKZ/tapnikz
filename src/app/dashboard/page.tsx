@@ -218,6 +218,7 @@ export default function DashboardPage() {
   const [tab, setTab] = useState<DashTab>('profile')
   const [linkCopied, setLinkCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [accessToken, setAccessToken] = useState<string>('')
 
   // Leads
@@ -448,13 +449,16 @@ export default function DashboardPage() {
   const [usernameMsg, setUsernameMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [savingUsername, setSavingUsername] = useState(false)
 
-  const loadData = useCallback(async (userId: string) => {
+  const loadData = useCallback(async (userId: string, token = accessToken) => {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-    const [{ data: prof }, { data: lnks }, { data: lds }] = await Promise.all([
-      getSupabase().from('profiles').select('id,username,business_name,bio,phone,address,avatar_url,theme,is_premium,subscription_expires_at,subscription_plan,telegram_chat_id,view_count,working_hours,referred_by,referral_bonus_given,created_at,updated_at').eq('id', userId).single(),
+    const profileResponse = await fetch('/api/profile', { headers: { Authorization: `Bearer ${token}` } })
+    if (!profileResponse.ok) throw new Error('profile_load_failed')
+    const { profile: prof } = await profileResponse.json() as { profile: Profile }
+    const [{ data: lnks, error: linksError }, { data: lds, error: leadsError }] = await Promise.all([
       getSupabase().from('links').select('id,profile_id,title,url,icon_type,sort_order,click_count,created_at,visible_from,visible_until,is_featured').eq('profile_id', userId).order('sort_order'),
       getSupabase().from('lead_submissions').select('*').eq('profile_id', userId).order('created_at', { ascending: false }).limit(50),
     ])
+    if (linksError || leadsError) throw new Error('dashboard_data_load_failed')
     // Fetch click_events scoped to this user's link IDs (avoids platform-wide query)
     const linkIds = (lnks ?? []).map((l: { id: string }) => l.id)
     const { data: clicks } = linkIds.length > 0
@@ -521,14 +525,16 @@ export default function DashboardPage() {
     if (lnks) setLinks(lnks as LinkRow[])
     if (lds) setLeads(lds as LeadSubmission[])
     if (clicks) setRecentClicks(clicks as { created_at: string }[])
-  }, [])
+  }, [accessToken])
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/auth'); return }
       setUser(session.user)
       setAccessToken(session.access_token)
-      loadData(session.user.id).finally(() => {
+      loadData(session.user.id, session.access_token).catch(() => {
+        setLoadError('Не удалось загрузить кабинет. Проверьте соединение и попробуйте ещё раз.')
+      }).finally(() => {
         setLoading(false)
         // Open Links tab for new users (?welcome=1) or ?tab=links
         const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
@@ -571,7 +577,7 @@ export default function DashboardPage() {
         .eq('id', user.id)
       if (error) throw error
       setProfileMsg({ type: 'ok', text: 'Профиль сохранён!' })
-      await loadData(user.id)
+      await loadData(user.id, accessToken)
     } catch {
       setProfileMsg({ type: 'err', text: 'Ошибка сохранения' })
     } finally {
@@ -1322,6 +1328,8 @@ export default function DashboardPage() {
       if (!saveRes.ok) { setLinkError('Не удалось сохранить — попробуйте ещё раз'); return }
       setLinks((prev) => prev.map((l) => l.id === link.id ? { ...l, title: newTitle, url: newUrl, visible_from: fromISO, visible_until: untilISO } : l))
       setEditingId(null)
+    } catch {
+      setLinkError('Не удалось сохранить изменения. Проверьте соединение и попробуйте ещё раз.')
     } finally {
       setSavingEdit(false)
     }
@@ -1401,7 +1409,9 @@ export default function DashboardPage() {
         await loadData(user.id)
         setTemplateApplied(true)
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      setLinkError('Не удалось применить шаблон. Проверьте соединение и лимит Premium.')
+    } finally {
       setAddingLink(false)
     }
   }
@@ -1590,6 +1600,20 @@ export default function DashboardPage() {
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
       </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-red-200 bg-white p-6 text-center">
+          <p className="mb-2 text-lg font-bold text-gray-900">Кабинет временно недоступен</p>
+          <p className="mb-5 text-sm text-gray-500">{loadError}</p>
+          <button type="button" onClick={() => window.location.reload()} className="w-full rounded-xl bg-violet-600 py-3 text-sm font-bold text-white hover:bg-violet-500">
+            Повторить загрузку
+          </button>
+        </div>
+      </main>
     )
   }
 
